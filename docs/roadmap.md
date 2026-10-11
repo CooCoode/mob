@@ -4,7 +4,7 @@ Phased delivery. Do not skip the separation of **view** (human) and **actuation*
 
 ## Phase 1 — Prove the loop
 
-- Office Mac: **Go** `mobd` control plane + **Codex** runner with **ControlMCP** (local computer-use MCP); see [implementation-phase1.md](implementation-phase1.md)
+- Office Mac: **Go** `mobd` control plane + **Codex** runner with **mob-mcp** (local computer-use MCP); see [implementation-phase1.md](implementation-phase1.md)
 - Office Mac: VNC server for the desktop
 - Human monitor: **svnc** in viewOnly (separate window / browser is fine)
 - Minimal task dispatch via the thin MOB Go API (`POST /tasks`, status, SSE) to start work on the office machine

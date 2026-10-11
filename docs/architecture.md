@@ -38,8 +38,8 @@ The runner host is part of the same **Go** binary boundary as the control plane 
 
 How the agent opens apps and operates the GUI on the office Mac.
 
-- **Phase 1 preferred:** [ControlMCP](https://github.com/nix18/ControlMCP) on the office machine, with macOS Accessibility permissions. See [ADR 0006](adr/0006-actuation-controlmcp-first.md).
-- **Later optional:** other local MCP servers (e.g. GhostDesk) via configuration.
+- **Phase 1 preferred:** in-repo [`services/mob-mcp`](../services/mob-mcp/) on the office machine, with macOS Accessibility + Screen Recording. See [ADR 0007](adr/0007-actuation-mob-mcp.md) and [research-computer-use.md](research-computer-use.md).
+- **Later optional:** other local MCP servers via configuration **after license review** (GhostDesk FSL Competing Use is a poor fit to ship as MOB’s core; see research).
 - **Fallback:** svnc Automation (click / type over VNC), on a path separate from the human viewOnly session.
 
 See [ADR 0003](adr/0003-actuation-local-mcp.md).
@@ -76,7 +76,7 @@ flowchart TB
   subgraph officeNet [Office network]
     API[MOB task API - Go]
     Runner[Codex runner]
-    MCP[ControlMCP]
+    MCP[mob-mcp]
     VNC[VNC server]
   end
 

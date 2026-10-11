@@ -6,13 +6,13 @@ MOB is a private alternative shape to cloud desktop agents (e.g. Manus, Grok Bot
 
 ## Current status
 
-**Design docs.** Architecture, ADRs, roadmap, and the [Phase 1 implementation plan](docs/implementation-phase1.md) (**Go** control plane / runner host + **ControlMCP** + Codex + svnc viewOnly) live under [`docs/`](docs/). No application runtime is shipped in this repository yet.
+**Design docs.** Architecture, ADRs, roadmap, [computer-use research](docs/research-computer-use.md), and the [Phase 1 implementation plan](docs/implementation-phase1.md) (**Go** `mobd` + in-repo **`mob-mcp`** + Codex + svnc viewOnly) live under [`docs/`](docs/). No application runtime is shipped yet; `services/mob-mcp/` is the planned actuation tree.
 
 ## Relationship to svnc
 
 Screen viewing uses the VNC protocol. The human-facing viewer is the sibling project **[svnc](https://github.com/xrdavies/svnc)** (Simple VNC, MIT, npm package `svnc`). Human sessions connect in **viewOnly** mode.
 
-MOB owns task dispatch, the office runner, and the client shell that embeds svnc. Actuation (opening apps, clicking UI) prefers local computer-use MCP on the office Mac (**ControlMCP** first) and stays separate from the human viewOnly VNC session.
+MOB owns task dispatch, the office runner, and the client shell that embeds svnc. Actuation prefers an in-repo local computer-use MCP (**`mob-mcp`**, [ADR 0007](docs/adr/0007-actuation-mob-mcp.md)) and stays separate from the human viewOnly VNC session.
 
 ## High-level architecture
 
@@ -29,7 +29,7 @@ flowchart LR
 
   subgraph office [Office Mac]
     R[Runner - Codex first]
-    A[Actuation - ControlMCP]
+    A[Actuation - mob-mcp]
     V[VNC server]
   end
 
@@ -45,12 +45,13 @@ flowchart LR
 | Client | Chat / dispatch tasks; embed or open svnc as monitor |
 | Control plane | Thin task API owned by MOB — **Go** (`mobd`) |
 | Office runner | Starts with **Codex**; Claude / Grok pluggable later |
-| Actuation | **ControlMCP** first (local MCP); GhostDesk later via config; svnc Automation as fallback |
+| Actuation | In-repo **`mob-mcp`** (local MCP, MIT); third-party MCPs optional after license review; svnc Automation as fallback |
 | View | VNC + svnc; later protocols behind a `DesktopView` abstraction |
 
 ## Docs
 
 - [Architecture](docs/architecture.md)
+- [Computer-use research](docs/research-computer-use.md)
 - [Phase 1 implementation plan](docs/implementation-phase1.md)
 - [Office Mac smoke checklist](docs/office-smoke-checklist.md)
 - [Roadmap](docs/roadmap.md)
@@ -61,7 +62,8 @@ flowchart LR
   - [0003 — Actuation: local MCP](docs/adr/0003-actuation-local-mcp.md)
   - [0004 — Runner: Codex first](docs/adr/0004-runner-codex-first.md)
   - [0005 — Backend: Go](docs/adr/0005-backend-go.md)
-  - [0006 — Actuation: ControlMCP first](docs/adr/0006-actuation-controlmcp-first.md)
+  - [0006 — Actuation: ControlMCP first](docs/adr/0006-actuation-controlmcp-first.md) (**superseded**)
+  - [0007 — Actuation: in-repo mob-mcp](docs/adr/0007-actuation-mob-mcp.md)
 
 ## License
 

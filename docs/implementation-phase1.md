@@ -1,12 +1,12 @@
 # Phase 1 implementation plan
 
-Prove the dispatch → office Codex + ControlMCP → view-only VNC loop. Language and tooling choices below match ADRs 0001–0006.
+Prove the dispatch → office Codex + **mob-mcp** → view-only VNC loop. Language and tooling choices below match ADRs 0001–0005 and **0007** (0006 superseded). See [research-computer-use.md](research-computer-use.md).
 
 ## Goals and exit criteria
 
 From [roadmap Phase 1](roadmap.md):
 
-- Office Mac runs a **Codex** runner with **ControlMCP** (local computer-use MCP).
+- Office Mac runs a **Codex** runner with in-repo **`mob-mcp`** (local computer-use MCP).
 - Office Mac exposes the desktop over **VNC**.
 - Humans watch with **[svnc](https://github.com/xrdavies/svnc)** in **viewOnly** (separate browser/window is fine).
 - A thin MOB **Go** control plane starts work on the office machine.
@@ -24,11 +24,13 @@ mob/
   internal/
     api/                  # REST handlers + SSE event stream
     runner/
-      codex/              # spawn/attach Codex; inject ControlMCP MCP config
+      codex/              # spawn/attach Codex; inject mob-mcp MCP config
     task/                 # task store, state machine, IDs
     config/               # listen addr, MCP command/args, VNC view URL
   web/                    # optional: minimal static dispatch page (Phase 1 optional)
   # or apps/web-console/  # same optional role; pick one path when coding starts
+  services/
+    mob-mcp/             # Python stdio MCP: screenshot/click/type/key/windows
   docs/                   # architecture, ADRs, this plan
 ```
 
@@ -36,7 +38,8 @@ mob/
 | --- | --- |
 | `cmd/mobd` | Single office process: serve API, own runner lifecycle, health |
 | `internal/api` | `POST/GET` tasks, cancel, SSE progress |
-| `internal/runner/codex` | Build Codex + ControlMCP config; start/cancel process; parse progress |
+| `internal/runner/codex` | Build Codex + `mob-mcp` MCP config; start/cancel process; parse progress |
+| `services/mob-mcp` | In-repo actuation MCP (MIT); Codex stdio target |
 | `internal/task` | In-memory (Phase 1) store; statuses; runner type field (`codex`) |
 | `web/` (optional) | Minimal HTML/JS to create a task and show status + link to svnc |
 
@@ -72,18 +75,18 @@ Auth for Phase 1: optional shared secret / intranet-only bind. Harden in Phase 2
 
 ## Office Mac install checklist
 
-For the full manual smoke procedure (ControlMCP → Codex → VNC/svnc viewOnly, **before** `mobd`), follow **[office-smoke-checklist.md](office-smoke-checklist.md)**. Codex on the office Mac can execute parts of that checklist.
+For the full manual smoke procedure (mob-mcp → Codex → VNC/svnc viewOnly, **before** `mobd`), follow **[office-smoke-checklist.md](office-smoke-checklist.md)**. Codex on the office Mac can execute parts of that checklist.
 
 Order below is practical, not a product installer yet.
 
-1. **ControlMCP** — install and verify MCP server starts on the office Mac ([ControlMCP](https://github.com/nix18/ControlMCP)). Grant **Accessibility** (and any screen-recording permissions the tool requires) in System Settings.
-2. **Codex CLI** — install and authenticate so `mobd` can spawn Codex with an MCP config that points at ControlMCP.
+1. **mob-mcp** — build/run in-repo `services/mob-mcp` ([ADR 0007](adr/0007-actuation-mob-mcp.md)). Grant **Accessibility** and **Screen Recording** in System Settings.
+2. **Codex CLI** — install and authenticate so `mobd` can spawn Codex with an MCP config that points at `mob-mcp`.
 3. **VNC / Screen Sharing** — enable a VNC-capable desktop server on the office Mac (macOS Screen Sharing or another VNC server). Prefer intranet / VPN; do not expose raw VNC to the public internet ([security](security.md)).
 4. **Websockify (or equivalent) + WSS** — bridge VNC to a browser-reachable WebSocket, preferably behind TLS (WSS), matching [svnc](https://github.com/xrdavies/svnc) deployment expectations.
 5. **svnc (home side)** — open the viewer with `viewOnly: true` against the office WSS/VNC endpoint.
-6. **MOB `mobd`** — when implemented: listen on the configured task API address; point config at ControlMCP command/args and at the human VNC view URL for clients.
+6. **MOB `mobd`** — when implemented: listen on the configured task API address; point config at mob-mcp command/args and at the human VNC view URL for clients.
 
-Smoke check before coding clients: complete [office-smoke-checklist.md](office-smoke-checklist.md) (Codex + ControlMCP actuation, then svnc viewOnly).
+Smoke check before coding clients: complete [office-smoke-checklist.md](office-smoke-checklist.md) (Codex + mob-mcp actuation, then svnc viewOnly).
 
 ## Configuration (mobd)
 
@@ -92,24 +95,24 @@ Minimum knobs (names illustrative):
 | Setting | Role |
 | --- | --- |
 | Listen address | HTTP bind for the task API (e.g. intranet interface + port) |
-| ControlMCP command / args | How `runner/codex` injects MCP into Codex (path to binary, flags) |
+| mob-mcp command / args | How `runner/codex` injects MCP into Codex (path to binary, flags) |
 | Codex executable / working dir | Spawn parameters for the Codex CLI |
 | VNC view URL | URL (or host/port/path) clients use with svnc viewOnly — returned or documented for the dispatch UI |
 | Optional shared secret | Simple gate for `POST /tasks` on a trusted intranet |
 
-GhostDesk (or other MCP servers) remain **config-swappable later**; Phase 1 defaults to ControlMCP only ([ADR 0006](adr/0006-actuation-controlmcp-first.md)).
+Other MCP servers remain **config-swappable later** after license review; Phase 1 defaults to in-repo `mob-mcp` only ([ADR 0007](adr/0007-actuation-mob-mcp.md)).
 
 ## Actuation vs view (reminder)
 
 - **Human:** svnc **viewOnly** only. No Phase 1 human mouse/keyboard path.
-- **Agent:** ControlMCP on the office Mac. Do not reuse the human viewOnly session for clicks/typing.
-- svnc Automation remains a documented fallback ([ADR 0003](adr/0003-actuation-local-mcp.md)), **out of Phase 1** unless ControlMCP cannot cover a required smoke test.
+- **Agent:** mob-mcp on the office Mac. Do not reuse the human viewOnly session for clicks/typing.
+- svnc Automation remains a documented fallback ([ADR 0003](adr/0003-actuation-local-mcp.md)), **out of Phase 1** unless mob-mcp cannot cover a required smoke test.
 
 ## Out of scope for Phase 1
 
 - Native home Mac / iPhone apps; embedded svnc inside a MOB shell (Phase 2)
 - Claude / Grok runners (Codex only)
-- GhostDesk as default MCP (optional later via config)
+- Third-party desktop MCP as default (optional later via config + license review only)
 - WebRTC / ScreenCaptureKit view backend
 - Human remote input channel
 - Approval gates for payments/credentials (design later; not required for exit criteria)
@@ -120,7 +123,7 @@ GhostDesk (or other MCP servers) remain **config-swappable later**; Phase 1 defa
 
 1. `internal/task` + in-memory store and status transitions
 2. `internal/api` REST + SSE (can stub runner with a no-op process first)
-3. `internal/runner/codex` + ControlMCP config injection; real spawn/cancel
+3. `internal/runner/codex` + mob-mcp config injection; real spawn/cancel
 4. Wire `cmd/mobd`
 5. Manual verification against the install checklist + svnc viewOnly
 6. Optional `web/` static dispatch page
@@ -131,6 +134,6 @@ GhostDesk (or other MCP servers) remain **config-swappable later**; Phase 1 defa
 - [Architecture](architecture.md)
 - [Roadmap](roadmap.md)
 - [ADR 0005 — Backend: Go](adr/0005-backend-go.md)
-- [ADR 0006 — Actuation: ControlMCP first](adr/0006-actuation-controlmcp-first.md)
+- [ADR 0006 — Actuation: mob-mcp first](adr/0006-actuation-controlmcp-first.md)
 - [ADR 0004 — Runner: Codex first](adr/0004-runner-codex-first.md)
 - [ADR 0001 — Screen view: VNC + svnc](adr/0001-screen-view-vnc-svnc.md)

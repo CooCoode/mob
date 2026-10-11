@@ -8,7 +8,7 @@ Accepted
 
 The office Mac must open applications and operate GUI elements under agent control. Options include:
 
-- Local computer-use MCP servers on the office Mac (e.g. GhostDesk, ControlMCP)
+- Local computer-use MCP servers on the office Mac (MOB default: in-repo `mob-mcp`; see ADR 0007)
 - Driving the UI only through VNC input (svnc Automation)
 - Cloud-hosted desktop computer-use (rejected: not intranet-deployable as desired)
 
