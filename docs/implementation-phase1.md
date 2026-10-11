@@ -72,7 +72,9 @@ Auth for Phase 1: optional shared secret / intranet-only bind. Harden in Phase 2
 
 ## Office Mac install checklist
 
-Order is practical, not a product installer yet.
+For the full manual smoke procedure (ControlMCP → Codex → VNC/svnc viewOnly, **before** `mobd`), follow **[office-smoke-checklist.md](office-smoke-checklist.md)**. Codex on the office Mac can execute parts of that checklist.
+
+Order below is practical, not a product installer yet.
 
 1. **ControlMCP** — install and verify MCP server starts on the office Mac ([ControlMCP](https://github.com/nix18/ControlMCP)). Grant **Accessibility** (and any screen-recording permissions the tool requires) in System Settings.
 2. **Codex CLI** — install and authenticate so `mobd` can spawn Codex with an MCP config that points at ControlMCP.
@@ -81,7 +83,7 @@ Order is practical, not a product installer yet.
 5. **svnc (home side)** — open the viewer with `viewOnly: true` against the office WSS/VNC endpoint.
 6. **MOB `mobd`** — when implemented: listen on the configured task API address; point config at ControlMCP command/args and at the human VNC view URL for clients.
 
-Smoke check before coding clients: manually run Codex with ControlMCP and confirm UI actuation; separately open svnc viewOnly and confirm the desktop is visible.
+Smoke check before coding clients: complete [office-smoke-checklist.md](office-smoke-checklist.md) (Codex + ControlMCP actuation, then svnc viewOnly).
 
 ## Configuration (mobd)
 
@@ -125,6 +127,7 @@ GhostDesk (or other MCP servers) remain **config-swappable later**; Phase 1 defa
 
 ## References
 
+- [Office Mac smoke checklist](office-smoke-checklist.md)
 - [Architecture](architecture.md)
 - [Roadmap](roadmap.md)
 - [ADR 0005 — Backend: Go](adr/0005-backend-go.md)

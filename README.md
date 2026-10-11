@@ -52,6 +52,7 @@ flowchart LR
 
 - [Architecture](docs/architecture.md)
 - [Phase 1 implementation plan](docs/implementation-phase1.md)
+- [Office Mac smoke checklist](docs/office-smoke-checklist.md)
 - [Roadmap](docs/roadmap.md)
 - [Security notes](docs/security.md)
 - ADRs:
