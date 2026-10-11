@@ -4,10 +4,10 @@ Phased delivery. Do not skip the separation of **view** (human) and **actuation*
 
 ## Phase 1 — Prove the loop
 
-- Office Mac: **Codex** runner with local computer-use MCP
+- Office Mac: **Go** `office-host` control plane + **Codex** runner with **ControlMCP** (local computer-use MCP); see [implementation-phase1.md](implementation-phase1.md)
 - Office Mac: VNC server for the desktop
 - Human monitor: **svnc** in viewOnly (separate window / browser is fine)
-- Minimal task dispatch (thin MOB control plane or equivalent CLI/API) to start work on the office machine
+- Minimal task dispatch via the thin MOB Go API (`POST /tasks`, status, SSE) to start work on the office machine
 
 **Exit criteria:** From home, dispatch a Codex task that drives the office Mac UI, and watch the desktop live over VNC via svnc without sending human input.
 

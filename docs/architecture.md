@@ -15,11 +15,11 @@ Clients are a remote control + monitor, not the place where the agent runtime li
 
 ### Control plane (task API)
 
-Thin HTTP/API layer owned by MOB:
+Thin HTTP/API layer owned by MOB, implemented in **Go** as `office-host` (see [ADR 0005](adr/0005-backend-go.md) and [Phase 1 plan](implementation-phase1.md)):
 
 - create / list / cancel tasks
 - attach a runner session (Codex first)
-- stream or poll status
+- stream or poll status (SSE)
 - (later) human approval gates for sensitive actions
 
 MOB learns UX concepts from tools like Paseo / Orca (remote start of coding agents, task state) but does **not** fork those projects. See [ADR 0002](adr/0002-orchestration-thin-custom.md).
@@ -32,13 +32,14 @@ Process(es) on the office Mac that:
 - start or attach a **Codex** session with the configured computer-use / MCP tools
 - report progress back to the control plane
 
-Claude, Grok, and others are intended as later pluggable runners behind the same interface. See [ADR 0004](adr/0004-runner-codex-first.md).
+The runner host is part of the same **Go** binary boundary as the control plane in Phase 1. Claude, Grok, and others are intended as later pluggable runners behind the same interface. See [ADR 0004](adr/0004-runner-codex-first.md).
 
 ### Actuation (local MCP)
 
 How the agent opens apps and operates the GUI on the office Mac.
 
-- **Preferred:** local computer-use MCP on the office machine (e.g. GhostDesk, ControlMCP), with macOS Accessibility permissions.
+- **Phase 1 preferred:** [ControlMCP](https://github.com/nix18/ControlMCP) on the office machine, with macOS Accessibility permissions. See [ADR 0006](adr/0006-actuation-controlmcp-first.md).
+- **Later optional:** other local MCP servers (e.g. GhostDesk) via configuration.
 - **Fallback:** svnc Automation (click / type over VNC), on a path separate from the human viewOnly session.
 
 See [ADR 0003](adr/0003-actuation-local-mcp.md).
@@ -73,9 +74,9 @@ flowchart TB
   end
 
   subgraph officeNet [Office network]
-    API[MOB task API]
+    API[MOB task API - Go]
     Runner[Codex runner]
-    MCP[Local MCP actuation]
+    MCP[ControlMCP]
     VNC[VNC server]
   end
 

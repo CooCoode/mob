@@ -1,0 +1,133 @@
+# Phase 1 implementation plan
+
+Prove the dispatch → office Codex + ControlMCP → view-only VNC loop. Language and tooling choices below match ADRs 0001–0006.
+
+## Goals and exit criteria
+
+From [roadmap Phase 1](roadmap.md):
+
+- Office Mac runs a **Codex** runner with **ControlMCP** (local computer-use MCP).
+- Office Mac exposes the desktop over **VNC**.
+- Humans watch with **[svnc](https://github.com/xrdavies/svnc)** in **viewOnly** (separate browser/window is fine).
+- A thin MOB **Go** control plane starts work on the office machine.
+
+**Exit criteria:** From home, dispatch a Codex task that drives the office Mac UI, and watch the desktop live over VNC via svnc **without** sending human input.
+
+## Monorepo layout (Go)
+
+Proposed tree (docs only in this commit; code lands in follow-up work):
+
+```text
+mob/
+  cmd/
+    office-host/          # main: HTTP task API + runner orchestration
+  internal/
+    api/                  # REST handlers + SSE event stream
+    runner/
+      codex/              # spawn/attach Codex; inject ControlMCP MCP config
+    task/                 # task store, state machine, IDs
+    config/               # listen addr, MCP command/args, VNC view URL
+  web/                    # optional: minimal static dispatch page (Phase 1 optional)
+  # or apps/web-console/  # same optional role; pick one path when coding starts
+  docs/                   # architecture, ADRs, this plan
+```
+
+| Package / binary | Responsibility |
+| --- | --- |
+| `cmd/office-host` | Single office process: serve API, own runner lifecycle, health |
+| `internal/api` | `POST/GET` tasks, cancel, SSE progress |
+| `internal/runner/codex` | Build Codex + ControlMCP config; start/cancel process; parse progress |
+| `internal/task` | In-memory (Phase 1) store; statuses; runner type field (`codex`) |
+| `web/` (optional) | Minimal HTML/JS to create a task and show status + link to svnc |
+
+Phase 1 may co-locate the control plane on the office Mac (`office-host`). Splitting API to another host is a later ops choice, not required for the exit criteria.
+
+## Task API sketch
+
+Base URL example: `http://office-host:8080` (config-driven).
+
+| Method | Path | Purpose |
+| --- | --- | --- |
+| `POST` | `/tasks` | Create a task; body includes `prompt` and optional metadata |
+| `GET` | `/tasks` | List recent tasks |
+| `GET` | `/tasks/:id` | Task snapshot (status, timestamps, runner, error if any) |
+| `GET` | `/tasks/:id/events` | **SSE** stream of progress / log / status changes |
+| `POST` | `/tasks/:id/cancel` | Request cancellation of the runner process |
+
+Suggested task shape (illustrative):
+
+```json
+{
+  "id": "…",
+  "prompt": "…",
+  "status": "queued|running|succeeded|failed|cancelled",
+  "runner": "codex",
+  "createdAt": "…",
+  "updatedAt": "…",
+  "error": null
+}
+```
+
+Auth for Phase 1: optional shared secret / intranet-only bind. Harden in Phase 2.
+
+## Office Mac install checklist
+
+Order is practical, not a product installer yet.
+
+1. **ControlMCP** — install and verify MCP server starts on the office Mac ([ControlMCP](https://github.com/nix18/ControlMCP)). Grant **Accessibility** (and any screen-recording permissions the tool requires) in System Settings.
+2. **Codex CLI** — install and authenticate so `office-host` can spawn Codex with an MCP config that points at ControlMCP.
+3. **VNC / Screen Sharing** — enable a VNC-capable desktop server on the office Mac (macOS Screen Sharing or another VNC server). Prefer intranet / VPN; do not expose raw VNC to the public internet ([security](security.md)).
+4. **Websockify (or equivalent) + WSS** — bridge VNC to a browser-reachable WebSocket, preferably behind TLS (WSS), matching [svnc](https://github.com/xrdavies/svnc) deployment expectations.
+5. **svnc (home side)** — open the viewer with `viewOnly: true` against the office WSS/VNC endpoint.
+6. **MOB `office-host`** — when implemented: listen on the configured task API address; point config at ControlMCP command/args and at the human VNC view URL for clients.
+
+Smoke check before coding clients: manually run Codex with ControlMCP and confirm UI actuation; separately open svnc viewOnly and confirm the desktop is visible.
+
+## Configuration (office-host)
+
+Minimum knobs (names illustrative):
+
+| Setting | Role |
+| --- | --- |
+| Listen address | HTTP bind for the task API (e.g. intranet interface + port) |
+| ControlMCP command / args | How `runner/codex` injects MCP into Codex (path to binary, flags) |
+| Codex executable / working dir | Spawn parameters for the Codex CLI |
+| VNC view URL | URL (or host/port/path) clients use with svnc viewOnly — returned or documented for the dispatch UI |
+| Optional shared secret | Simple gate for `POST /tasks` on a trusted intranet |
+
+GhostDesk (or other MCP servers) remain **config-swappable later**; Phase 1 defaults to ControlMCP only ([ADR 0006](adr/0006-actuation-controlmcp-first.md)).
+
+## Actuation vs view (reminder)
+
+- **Human:** svnc **viewOnly** only. No Phase 1 human mouse/keyboard path.
+- **Agent:** ControlMCP on the office Mac. Do not reuse the human viewOnly session for clicks/typing.
+- svnc Automation remains a documented fallback ([ADR 0003](adr/0003-actuation-local-mcp.md)), **out of Phase 1** unless ControlMCP cannot cover a required smoke test.
+
+## Out of scope for Phase 1
+
+- Native home Mac / iPhone apps; embedded svnc inside a MOB shell (Phase 2)
+- Claude / Grok runners (Codex only)
+- GhostDesk as default MCP (optional later via config)
+- WebRTC / ScreenCaptureKit view backend
+- Human remote input channel
+- Approval gates for payments/credentials (design later; not required for exit criteria)
+- Production auth, multi-tenant task DB, HA control plane
+- Forking or embedding Paseo / Orca
+
+## Suggested implementation order
+
+1. `internal/task` + in-memory store and status transitions
+2. `internal/api` REST + SSE (can stub runner with a no-op process first)
+3. `internal/runner/codex` + ControlMCP config injection; real spawn/cancel
+4. Wire `cmd/office-host`
+5. Manual verification against the install checklist + svnc viewOnly
+6. Optional `web/` static dispatch page
+
+## References
+
+- [Architecture](architecture.md)
+- [Roadmap](roadmap.md)
+- [ADR 0005 — Backend: Go](adr/0005-backend-go.md)
+- [ADR 0006 — Actuation: ControlMCP first](adr/0006-actuation-controlmcp-first.md)
+- [ADR 0004 — Runner: Codex first](adr/0004-runner-codex-first.md)
+- [ADR 0001 — Screen view: VNC + svnc](adr/0001-screen-view-vnc-svnc.md)

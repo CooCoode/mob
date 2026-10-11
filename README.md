@@ -6,13 +6,13 @@ MOB is a private alternative shape to cloud desktop agents (e.g. Manus, Grok Bot
 
 ## Current status
 
-**Design docs only.** No application runtime is shipped in this repository yet. Architecture, ADRs, and roadmap live under [`docs/`](docs/).
+**Design docs.** Architecture, ADRs, roadmap, and the [Phase 1 implementation plan](docs/implementation-phase1.md) (**Go** control plane / runner host + **ControlMCP** + Codex + svnc viewOnly) live under [`docs/`](docs/). No application runtime is shipped in this repository yet.
 
 ## Relationship to svnc
 
 Screen viewing uses the VNC protocol. The human-facing viewer is the sibling project **[svnc](https://github.com/xrdavies/svnc)** (Simple VNC, MIT, npm package `svnc`). Human sessions connect in **viewOnly** mode.
 
-MOB owns task dispatch, the office runner, and the client shell that embeds svnc. Actuation (opening apps, clicking UI) prefers local computer-use MCP on the office Mac and stays separate from the human viewOnly VNC session.
+MOB owns task dispatch, the office runner, and the client shell that embeds svnc. Actuation (opening apps, clicking UI) prefers local computer-use MCP on the office Mac (**ControlMCP** first) and stays separate from the human viewOnly VNC session.
 
 ## High-level architecture
 
@@ -24,12 +24,12 @@ flowchart LR
   end
 
   subgraph control [Control plane]
-    API[Task API]
+    API[Task API - Go]
   end
 
   subgraph office [Office Mac]
     R[Runner - Codex first]
-    A[Actuation - local MCP]
+    A[Actuation - ControlMCP]
     V[VNC server]
   end
 
@@ -43,14 +43,15 @@ flowchart LR
 | Layer | Role |
 | --- | --- |
 | Client | Chat / dispatch tasks; embed or open svnc as monitor |
-| Control plane | Thin task API owned by MOB |
+| Control plane | Thin task API owned by MOB — **Go** (`office-host`) |
 | Office runner | Starts with **Codex**; Claude / Grok pluggable later |
-| Actuation | Prefer GhostDesk / ControlMCP (local MCP); svnc Automation as fallback |
+| Actuation | **ControlMCP** first (local MCP); GhostDesk later via config; svnc Automation as fallback |
 | View | VNC + svnc; later protocols behind a `DesktopView` abstraction |
 
 ## Docs
 
 - [Architecture](docs/architecture.md)
+- [Phase 1 implementation plan](docs/implementation-phase1.md)
 - [Roadmap](docs/roadmap.md)
 - [Security notes](docs/security.md)
 - ADRs:
@@ -58,6 +59,8 @@ flowchart LR
   - [0002 — Orchestration: thin custom stack](docs/adr/0002-orchestration-thin-custom.md)
   - [0003 — Actuation: local MCP](docs/adr/0003-actuation-local-mcp.md)
   - [0004 — Runner: Codex first](docs/adr/0004-runner-codex-first.md)
+  - [0005 — Backend: Go](docs/adr/0005-backend-go.md)
+  - [0006 — Actuation: ControlMCP first](docs/adr/0006-actuation-controlmcp-first.md)
 
 ## License
 
