@@ -20,7 +20,7 @@ Proposed tree (docs only in this commit; code lands in follow-up work):
 ```text
 mob/
   cmd/
-    office-host/          # main: HTTP task API + runner orchestration
+    mobd/          # main: HTTP task API + runner orchestration
   internal/
     api/                  # REST handlers + SSE event stream
     runner/
@@ -34,17 +34,17 @@ mob/
 
 | Package / binary | Responsibility |
 | --- | --- |
-| `cmd/office-host` | Single office process: serve API, own runner lifecycle, health |
+| `cmd/mobd` | Single office process: serve API, own runner lifecycle, health |
 | `internal/api` | `POST/GET` tasks, cancel, SSE progress |
 | `internal/runner/codex` | Build Codex + ControlMCP config; start/cancel process; parse progress |
 | `internal/task` | In-memory (Phase 1) store; statuses; runner type field (`codex`) |
 | `web/` (optional) | Minimal HTML/JS to create a task and show status + link to svnc |
 
-Phase 1 may co-locate the control plane on the office Mac (`office-host`). Splitting API to another host is a later ops choice, not required for the exit criteria.
+Phase 1 may co-locate the control plane on the office Mac (`mobd`). Splitting API to another host is a later ops choice, not required for the exit criteria.
 
 ## Task API sketch
 
-Base URL example: `http://office-host:8080` (config-driven).
+Base URL example: `http://mobd:8080` (config-driven).
 
 | Method | Path | Purpose |
 | --- | --- | --- |
@@ -75,15 +75,15 @@ Auth for Phase 1: optional shared secret / intranet-only bind. Harden in Phase 2
 Order is practical, not a product installer yet.
 
 1. **ControlMCP** — install and verify MCP server starts on the office Mac ([ControlMCP](https://github.com/nix18/ControlMCP)). Grant **Accessibility** (and any screen-recording permissions the tool requires) in System Settings.
-2. **Codex CLI** — install and authenticate so `office-host` can spawn Codex with an MCP config that points at ControlMCP.
+2. **Codex CLI** — install and authenticate so `mobd` can spawn Codex with an MCP config that points at ControlMCP.
 3. **VNC / Screen Sharing** — enable a VNC-capable desktop server on the office Mac (macOS Screen Sharing or another VNC server). Prefer intranet / VPN; do not expose raw VNC to the public internet ([security](security.md)).
 4. **Websockify (or equivalent) + WSS** — bridge VNC to a browser-reachable WebSocket, preferably behind TLS (WSS), matching [svnc](https://github.com/xrdavies/svnc) deployment expectations.
 5. **svnc (home side)** — open the viewer with `viewOnly: true` against the office WSS/VNC endpoint.
-6. **MOB `office-host`** — when implemented: listen on the configured task API address; point config at ControlMCP command/args and at the human VNC view URL for clients.
+6. **MOB `mobd`** — when implemented: listen on the configured task API address; point config at ControlMCP command/args and at the human VNC view URL for clients.
 
 Smoke check before coding clients: manually run Codex with ControlMCP and confirm UI actuation; separately open svnc viewOnly and confirm the desktop is visible.
 
-## Configuration (office-host)
+## Configuration (mobd)
 
 Minimum knobs (names illustrative):
 
@@ -119,7 +119,7 @@ GhostDesk (or other MCP servers) remain **config-swappable later**; Phase 1 defa
 1. `internal/task` + in-memory store and status transitions
 2. `internal/api` REST + SSE (can stub runner with a no-op process first)
 3. `internal/runner/codex` + ControlMCP config injection; real spawn/cancel
-4. Wire `cmd/office-host`
+4. Wire `cmd/mobd`
 5. Manual verification against the install checklist + svnc viewOnly
 6. Optional `web/` static dispatch page
 

@@ -15,7 +15,7 @@ Clients are a remote control + monitor, not the place where the agent runtime li
 
 ### Control plane (task API)
 
-Thin HTTP/API layer owned by MOB, implemented in **Go** as `office-host` (see [ADR 0005](adr/0005-backend-go.md) and [Phase 1 plan](implementation-phase1.md)):
+Thin HTTP/API layer owned by MOB, implemented in **Go** as `mobd` (see [ADR 0005](adr/0005-backend-go.md) and [Phase 1 plan](implementation-phase1.md)):
 
 - create / list / cancel tasks
 - attach a runner session (Codex first)

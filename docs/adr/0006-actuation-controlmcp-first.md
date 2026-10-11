@@ -21,6 +21,6 @@ MOB needs the agent to operate **real applications on the office Mac desktop** (
 
 ## Consequences
 
-- Office install checklist and `office-host` config examples point at ControlMCP first.
+- Office install checklist and `mobd` config examples point at ControlMCP first.
 - Codex runner injects ControlMCP into the MCP configuration passed to Codex.
 - Switching MCP later is a configuration and adapter concern, not a client protocol change.

@@ -43,7 +43,7 @@ flowchart LR
 | Layer | Role |
 | --- | --- |
 | Client | Chat / dispatch tasks; embed or open svnc as monitor |
-| Control plane | Thin task API owned by MOB — **Go** (`office-host`) |
+| Control plane | Thin task API owned by MOB — **Go** (`mobd`) |
 | Office runner | Starts with **Codex**; Claude / Grok pluggable later |
 | Actuation | **ControlMCP** first (local MCP); GhostDesk later via config; svnc Automation as fallback |
 | View | VNC + svnc; later protocols behind a `DesktopView` abstraction |
