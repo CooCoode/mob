@@ -39,8 +39,8 @@ flowchart TB
       Sessions[Sessions / agents per machine]
     end
     subgraph center [Center — Chat]
-      Stream[SSE / message stream]
-      Composer[Prompt composer · Submit · Cancel]
+      Stream[Message bubbles · status pills]
+      Composer[Composer · Enter send · Shift+Enter newline]
     end
     subgraph right [Right — Preview]
       Thumb[svnc thumbnail viewOnly]
@@ -49,7 +49,8 @@ flowchart TB
   end
 
   subgraph settings [Settings]
-    MachineForm[Add / edit: name · MOBD_URL · VNC_WS · password]
+    MachineForm[Machines: name · MOBD_URL · VNC_WS · password]
+    LogPane[Log: SSE / debug viewer]
   end
 
   Brand --> Status
@@ -156,9 +157,9 @@ MVP can keep a single live `mobd` endpoint per selected machine. Multi-machine i
 ## Settings
 
 - Opened from header **Settings** (overlay or dedicated view).
-- List machines; add / edit / remove.
-- Fields per machine: **display name**, **MOBD_URL**, **VNC_WS_URL**, **VNC password** (optional; session-only / localStorage — never in repo).
-- Ping `/health` for the selected or edited machine.
+- Tabs: **Machines** | **Log**.
+- **Machines:** list; add / edit / remove. Fields: **display name**, **MOBD_URL**, **VNC_WS_URL**, **VNC password** (optional; session-only / localStorage — never in repo). Ping `/health` for the selected or edited machine.
+- **Log:** scrollable SSE / debug viewer (filter + clear). Raw status/stderr/stdout/codex noise lives here — **not** in the chat transcript.
 - Closing Settings returns to the three-column shell; connection strip is **gone** from main chrome.
 
 ---
@@ -182,11 +183,11 @@ MVP can keep a single live `mobd` endpoint per selected machine. Multi-machine i
 | Header | Title + status chips | Keep chips; add **Settings**; drop connection strip |
 | Connection strip | Three fields + Ping | **Remove** from main; move into Settings machine form |
 | Left sidebar | — | Machines grouped; nested sessions/tasks; select active |
-| Center chat | Form-ish Dispatch pane | Message/SSE stream + composer (Cmd/Ctrl+Enter); Cancel when active |
+| Center chat | Form-ish Dispatch pane | **Bubbles** (user + assistant) + compact status pills; composer **Enter=send**, **Shift+Enter=newline**; Cancel when active |
 | Task meta / Recent | Meta + list under form | Fold into chat stream + left session rows |
 | Right preview | Full half-pane Live view | **Thumbnail**; dblclick → fullscreen |
 | Monitor chrome | Connect / Disconnect + badge | Keep on thumbnail header; badge in fullscreen chrome too |
-| Settings | — | Overlay: machine CRUD + Ping |
+| Settings | — | Overlay tabs: **Machines** (CRUD + Ping) · **Log** (SSE/debug) |
 | Screen | `#screen` + stub | Same element; CSS modes `thumbnail` / `fullscreen` |
 
 ---
@@ -204,6 +205,8 @@ MVP can keep a single live `mobd` endpoint per selected machine. Multi-machine i
 - [x] **Chat-style** center (stream + composer)
 - [x] **Thumbnail** right pane; **dblclick ↔ fullscreen** (Esc to exit)
 - [x] Connection fields only in Settings (not main chrome)
+- [x] Chat **bubbles** (not raw SSE dump); Settings → **Log** for debug
+- [x] Composer: Enter send · Shift+Enter newline; normalize `GET /tasks` `{tasks:[]}`
 - CORS on `mobd` if browser blocks (office follow-up)
 - End-to-end: home Send → office UI moves → canvas updates
 
@@ -229,7 +232,7 @@ MVP can keep a single live `mobd` endpoint per selected machine. Multi-machine i
 - **Status pills:** queued=muted, running=accent, succeeded=ok, failed/cancelled=danger/muted.
 - Thumbnail canvas near-black; fullscreen chrome minimal so the stream dominates.
 - Primary action: **Send** in composer (accent). Destructive: **Cancel**. Secondary: Connect / Disconnect / Ping in Settings.
-- Typography: system UI; stream monospace / small for SSE lines.
+- Typography: system UI for chat bubbles; Settings Log is monospace for SSE lines.
 
 ---
 

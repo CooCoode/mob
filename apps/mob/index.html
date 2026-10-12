@@ -60,18 +60,18 @@
             id="chat-stream"
             class="chat-stream"
             aria-live="polite"
-            data-empty="Send a prompt to dispatch a task. SSE events appear here."
+            data-empty="Send a prompt to dispatch. Replies appear as chat bubbles. Debug logs are in Settings → Log."
           ></div>
           <div class="composer">
             <textarea
               id="prompt"
-              rows="3"
+              rows="1"
               placeholder="Use mob-mcp to open Safari and go to example.com"
               aria-label="Task prompt"
             ></textarea>
             <div class="composer-actions">
               <span class="kbd-hint"
-                ><kbd>⌘</kbd>/<kbd>Ctrl</kbd>+<kbd>Enter</kbd></span
+                ><kbd>Enter</kbd> send · <kbd>Shift</kbd>+<kbd>Enter</kbd> newline</span
               >
               <button type="button" id="btn-refresh" class="btn-secondary btn-sm">
                 Refresh
@@ -132,68 +132,113 @@
     <!-- Settings overlay -->
     <div id="settings-overlay" class="overlay" hidden aria-hidden="true">
       <div
-        class="overlay-panel"
+        class="overlay-panel settings-panel"
         role="dialog"
         aria-labelledby="settings-title"
       >
         <div class="overlay-head">
-          <h2 id="settings-title">Settings — remote machines</h2>
+          <h2 id="settings-title">Settings</h2>
           <button type="button" id="btn-settings-close" class="btn-ghost">
             Close
           </button>
         </div>
-        <p class="muted settings-intro">
-          Connection info lives here — not in the main chrome. Each machine has
-          its own MOBD_URL and VNC_WS_URL.
-        </p>
-        <ul id="settings-machine-list" class="settings-list"></ul>
-        <form id="machine-form" class="machine-form">
-          <input type="hidden" id="mf-id" value="" />
-          <label>
-            Display name
-            <input id="mf-name" type="text" placeholder="Office Mac" required />
-          </label>
-          <label>
-            MOBD_URL
+        <div class="settings-tabs" role="tablist">
+          <button
+            type="button"
+            class="settings-tab active"
+            role="tab"
+            id="tab-machines"
+            data-tab="machines"
+            aria-selected="true"
+          >
+            Machines
+          </button>
+          <button
+            type="button"
+            class="settings-tab"
+            role="tab"
+            id="tab-log"
+            data-tab="log"
+            aria-selected="false"
+          >
+            Log
+          </button>
+        </div>
+
+        <div id="settings-pane-machines" class="settings-pane" role="tabpanel">
+          <p class="muted settings-intro">
+            Connection info lives here — not in the main chrome. Each machine has
+            its own MOBD_URL and VNC_WS_URL.
+          </p>
+          <ul id="settings-machine-list" class="settings-list"></ul>
+          <form id="machine-form" class="machine-form">
+            <input type="hidden" id="mf-id" value="" />
+            <label>
+              Display name
+              <input id="mf-name" type="text" placeholder="Office Mac" required />
+            </label>
+            <label>
+              MOBD_URL
+              <input
+                id="mf-mobd"
+                type="url"
+                placeholder="http://192.168.x.x:8080"
+                required
+              />
+            </label>
+            <label>
+              VNC_WS_URL
+              <input
+                id="mf-vnc"
+                type="url"
+                placeholder="ws://192.168.x.x:6080/"
+                required
+              />
+            </label>
+            <label class="narrow">
+              VNC password
+              <input
+                id="mf-password"
+                type="password"
+                placeholder="optional"
+                autocomplete="off"
+              />
+            </label>
+            <div class="row">
+              <button type="submit" id="btn-mf-save">Save machine</button>
+              <button type="button" id="btn-mf-ping" class="btn-secondary">
+                Ping /health
+              </button>
+              <button type="button" id="btn-mf-new" class="btn-ghost">
+                New
+              </button>
+              <button type="button" id="btn-mf-delete" class="btn-danger" hidden>
+                Delete
+              </button>
+            </div>
+            <p id="mf-status" class="muted"></p>
+          </form>
+        </div>
+
+        <div id="settings-pane-log" class="settings-pane" role="tabpanel" hidden>
+          <div class="log-toolbar">
             <input
-              id="mf-mobd"
-              type="url"
-              placeholder="http://192.168.x.x:8080"
-              required
+              id="log-filter"
+              type="search"
+              placeholder="Filter logs…"
+              aria-label="Filter logs"
             />
-          </label>
-          <label>
-            VNC_WS_URL
-            <input
-              id="mf-vnc"
-              type="url"
-              placeholder="ws://192.168.x.x:6080/"
-              required
-            />
-          </label>
-          <label class="narrow">
-            VNC password
-            <input
-              id="mf-password"
-              type="password"
-              placeholder="optional"
-              autocomplete="off"
-            />
-          </label>
-          <div class="row">
-            <button type="submit" id="btn-mf-save">Save machine</button>
-            <button type="button" id="btn-mf-ping" class="btn-secondary">
-              Ping /health
-            </button>
-            <button type="button" id="btn-mf-new" class="btn-ghost">
-              New
-            </button>
-            <button type="button" id="btn-mf-delete" class="btn-danger" hidden>
-              Delete
+            <button type="button" id="btn-log-clear" class="btn-secondary btn-sm">
+              Clear
             </button>
           </div>
-          <p id="mf-status" class="muted"></p>
-        </form>
+          <div
+            id="settings-log"
+            class="settings-log"
+            aria-live="off"
+            data-empty="SSE / debug lines appear here. Chat stays clean."
+          ></div>
+        </div>
       </div>
     </div>
   </body>

@@ -52,6 +52,10 @@ const STORAGE_LEGACY_MOBD = "mob.mobdUrl";
 const STORAGE_LEGACY_VNC = "mob.vncWsUrl";
 const SCREEN_EMPTY =
   "Connect to the office desktop. Mouse and keyboard input is enabled for testing.";
+const LOG_MAX = 2000;
+
+const STDOUT_NOISE =
+  /^(Skipped:\s|tokens used\b|OpenAI Codex\b|-{3,}|workdir:|model:|provider:|approval:|sandbox:|reasoning |session id:|user$|codex$|hook:|warning:|Reading additional)/i;
 
 const machineTree = document.querySelector<HTMLElement>("#machine-tree")!;
 const sidebarEmpty = document.querySelector<HTMLElement>("#sidebar-empty")!;
@@ -84,6 +88,12 @@ const mfPassword = document.querySelector<HTMLInputElement>("#mf-password")!;
 const mfStatus = document.querySelector<HTMLElement>("#mf-status")!;
 const btnMfDelete =
   document.querySelector<HTMLButtonElement>("#btn-mf-delete")!;
+const settingsLog = document.querySelector<HTMLElement>("#settings-log")!;
+const logFilter = document.querySelector<HTMLInputElement>("#log-filter")!;
+const paneMachines = document.querySelector<HTMLElement>(
+  "#settings-pane-machines",
+)!;
+const paneLog = document.querySelector<HTMLElement>("#settings-pane-log")!;
 
 const btnSettings =
   document.querySelector<HTMLButtonElement>("#btn-settings")!;
@@ -102,6 +112,8 @@ const btnExpand = document.querySelector<HTMLButtonElement>("#btn-expand")!;
 const btnFsExit = document.querySelector<HTMLButtonElement>("#btn-fs-exit")!;
 const btnMfPing = document.querySelector<HTMLButtonElement>("#btn-mf-ping")!;
 const btnMfNew = document.querySelector<HTMLButtonElement>("#btn-mf-new")!;
+const btnLogClear =
+  document.querySelector<HTMLButtonElement>("#btn-log-clear")!;
 
 let machines: Machine[] = [];
 let activeMachineId: string | null = null;
@@ -113,6 +125,11 @@ let vncClient: SvncClientLike | null = null;
 let svncConnect: SvncConnect | null = null;
 let svncLoadError: string | null = null;
 let previewExpanded = false;
+/** Terminal status seen on current SSE — clean close is normal. */
+let sseTerminal = false;
+let liveAssistantEl: HTMLElement | null = null;
+let liveAssistantText = "";
+let logFilterText = "";
 
 function envDefault(...keys: (keyof ImportMetaEnv)[]): string {
   for (const key of keys) {
@@ -123,7 +140,10 @@ function envDefault(...keys: (keyof ImportMetaEnv)[]): string {
 }
 
 function uid(): string {
-  return crypto.randomUUID?.() ?? `m-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+  return (
+    crypto.randomUUID?.() ??
+    `m-${Date.now()}-${Math.random().toString(16).slice(2)}`
+  );
 }
 
 function activeMachine(): Machine | null {
@@ -133,6 +153,17 @@ function activeMachine(): Machine | null {
 function baseUrl(m?: Machine | null): string {
   const machine = m ?? activeMachine();
   return (machine?.mobdUrl ?? "").trim().replace(/\/$/, "");
+}
+
+/** Normalize GET /tasks — API returns `{ tasks: [...] }`, not a bare array. */
+function normalizeTasks(data: unknown): Task[] {
+  if (Array.isArray(data)) return data as Task[];
+  if (data && typeof data === "object") {
+    const obj = data as Record<string, unknown>;
+    if (Array.isArray(obj.tasks)) return obj.tasks as Task[];
+    if (Array.isArray(obj.items)) return obj.items as Task[];
+  }
+  return [];
 }
 
 function loadMachines(): Machine[] {
@@ -146,7 +177,6 @@ function loadMachines(): Machine[] {
     /* ignore */
   }
 
-  // Migrate legacy single-URL keys or env defaults into one machine
   let mobd = "";
   let vnc = "";
   try {
@@ -155,7 +185,8 @@ function loadMachines(): Machine[] {
   } catch {
     /* ignore */
   }
-  mobd = mobd || envDefault("MOBD_URL", "VITE_MOBD_URL") || "http://127.0.0.1:8080";
+  mobd =
+    mobd || envDefault("MOBD_URL", "VITE_MOBD_URL") || "http://127.0.0.1:8080";
   vnc =
     vnc ||
     envDefault("VNC_WS_URL", "VITE_VNC_WS_URL") ||
@@ -186,24 +217,107 @@ function setDot(el: HTMLElement, state: string): void {
   el.dataset.state = state;
 }
 
-function appendChat(
-  line: string,
-  kind: "system" | "user" | "status" | "error" | "log" = "system",
-): void {
-  const stamp = new Date().toLocaleTimeString();
-  const p = document.createElement("p");
-  p.className = `chat-msg ${kind}`;
-  const ts = document.createElement("span");
-  ts.className = "ts";
-  ts.textContent = `[${stamp}]`;
-  p.appendChild(ts);
-  p.appendChild(document.createTextNode(line));
-  chatStream.appendChild(p);
+function stamp(): string {
+  return new Date().toLocaleTimeString();
+}
+
+function scrollChat(): void {
   chatStream.scrollTop = chatStream.scrollHeight;
+}
+
+function appendBubble(
+  role: "user" | "assistant" | "system",
+  text: string,
+): HTMLElement {
+  const row = document.createElement("div");
+  row.className = `bubble-row ${role}`;
+  const bubble = document.createElement("div");
+  bubble.className = `bubble ${role}`;
+  bubble.textContent = text;
+  row.appendChild(bubble);
+  chatStream.appendChild(row);
+  scrollChat();
+  return bubble;
+}
+
+function appendStatusPill(status: TaskStatus | string): void {
+  let row = chatStream.querySelector<HTMLElement>(".chat-status-live");
+  if (!row) {
+    row = document.createElement("div");
+    row.className = "chat-status-live";
+    chatStream.appendChild(row);
+  }
+  row.replaceChildren();
+  const pill = document.createElement("span");
+  pill.className = "pill";
+  pill.dataset.status = status;
+  pill.textContent = status;
+  row.appendChild(pill);
+  scrollChat();
 }
 
 function clearChat(): void {
   chatStream.replaceChildren();
+  liveAssistantEl = null;
+  liveAssistantText = "";
+}
+
+function appendLog(
+  line: string,
+  kind: "system" | "status" | "error" | "log" | "info" = "log",
+): void {
+  const p = document.createElement("p");
+  p.className = `log-line ${kind}`;
+  p.dataset.text = line.toLowerCase();
+  const ts = document.createElement("span");
+  ts.className = "ts";
+  ts.textContent = `[${stamp()}]`;
+  p.appendChild(ts);
+  p.appendChild(document.createTextNode(line));
+  if (logFilterText && !line.toLowerCase().includes(logFilterText)) {
+    p.hidden = true;
+  }
+  settingsLog.appendChild(p);
+  while (settingsLog.children.length > LOG_MAX) {
+    settingsLog.firstElementChild?.remove();
+  }
+  settingsLog.scrollTop = settingsLog.scrollHeight;
+}
+
+function clearLog(): void {
+  settingsLog.replaceChildren();
+}
+
+function applyLogFilter(): void {
+  logFilterText = logFilter.value.trim().toLowerCase();
+  for (const el of settingsLog.querySelectorAll<HTMLElement>(".log-line")) {
+    const text = el.dataset.text ?? el.textContent?.toLowerCase() ?? "";
+    el.hidden = !!(logFilterText && !text.includes(logFilterText));
+  }
+}
+
+function ensureAssistantBubble(): HTMLElement {
+  if (liveAssistantEl && liveAssistantEl.isConnected) return liveAssistantEl;
+  liveAssistantEl = appendBubble("assistant", "");
+  liveAssistantText = "";
+  return liveAssistantEl;
+}
+
+function appendAssistantChunk(chunk: string): void {
+  const trimmed = chunk.replace(/\s+$/, "");
+  if (!trimmed) return;
+  if (STDOUT_NOISE.test(trimmed)) return;
+  const el = ensureAssistantBubble();
+  if (liveAssistantText) liveAssistantText += "\n" + trimmed;
+  else liveAssistantText = trimmed;
+  el.textContent = liveAssistantText;
+  scrollChat();
+}
+
+function extractStdout(message: string): string | null {
+  const m = message.match(/^\[stdout\]\s?(.*)$/s);
+  if (!m) return null;
+  return m[1] ?? "";
 }
 
 function setActiveTask(task: Task | null): void {
@@ -238,6 +352,7 @@ function updateActiveStatus(status: TaskStatus): void {
     if (t) t.status = status;
   }
   renderMachineTree();
+  appendStatusPill(status);
 }
 
 function snippet(prompt: string, n = 36): string {
@@ -289,7 +404,7 @@ function renderMachineTree(): void {
         setActiveTask(null);
         stopEvents();
         clearChat();
-        appendChat(`machine ${m.name} · default session`, "system");
+        appendLog(`machine ${m.name} · default session`, "info");
       });
       ul.appendChild(defaultLi);
 
@@ -308,7 +423,9 @@ function renderMachineTree(): void {
           ev.stopPropagation();
           void selectMachine(m.id).then(() => {
             setActiveTask(t);
-            subscribeEvents(t.id);
+            clearChat();
+            if (t.prompt.trim()) appendBubble("user", t.prompt);
+            subscribeEvents(t.id, { keepChat: true });
           });
         });
         ul.appendChild(li);
@@ -326,7 +443,6 @@ async function selectMachine(id: string): Promise<void> {
   activeMachineId = id;
   persistMachines();
 
-  // Disconnect VNC when switching machines
   if (prev && vncClient) {
     disconnectVnc();
   }
@@ -336,7 +452,7 @@ async function selectMachine(id: string): Promise<void> {
   setActiveTask(null);
   clearChat();
   const m = activeMachine();
-  appendChat(`selected machine: ${m?.name ?? id}`, "system");
+  appendLog(`selected machine: ${m?.name ?? id}`, "info");
   renderMachineTree();
   await pingHealth();
   await refreshTasks();
@@ -387,8 +503,8 @@ async function pingHealth(m?: Machine | null): Promise<boolean> {
     } else {
       mfStatus.textContent = ok ? "health ok" : "health unexpected";
     }
-    if (body.vncViewUrl && statusEl === healthStatus) {
-      appendChat(`health.vncViewUrl=${body.vncViewUrl}`, "system");
+    if (body.vncViewUrl) {
+      appendLog(`health.vncViewUrl=${body.vncViewUrl}`, "info");
     }
     return ok;
   } catch (err) {
@@ -396,7 +512,7 @@ async function pingHealth(m?: Machine | null): Promise<boolean> {
     if (statusEl === healthStatus) {
       healthStatus.textContent = "error";
       setDot(dotOffice, "error");
-      appendChat(
+      appendLog(
         `health failed: ${msg} (if CORS, bind mobd on LAN/VPN and add CORS — see docs)`,
         "error",
       );
@@ -414,11 +530,12 @@ async function refreshTasks(): Promise<void> {
   try {
     const res = await fetch(`${url}/tasks`);
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const tasks = (await res.json()) as Task[];
+    const data: unknown = await res.json();
+    const tasks = normalizeTasks(data);
     tasksByMachine.set(mid, tasks.slice(0, 20));
     renderMachineTree();
   } catch (err) {
-    appendChat(
+    appendLog(
       `list tasks failed: ${err instanceof Error ? err.message : String(err)}`,
       "error",
     );
@@ -430,31 +547,64 @@ function stopEvents(): void {
   eventSource = null;
 }
 
-function subscribeEvents(id: string): void {
+function isTerminalStatus(s?: string): boolean {
+  return s === "succeeded" || s === "failed" || s === "cancelled";
+}
+
+function subscribeEvents(
+  id: string,
+  opts: { keepChat?: boolean } = {},
+): void {
   const url = baseUrl();
   if (!url) return;
   stopEvents();
-  clearChat();
-  appendChat(`subscribe ${id}`, "system");
+  if (!opts.keepChat) clearChat();
+  liveAssistantEl = null;
+  liveAssistantText = "";
+  sseTerminal = false;
+  appendLog(`subscribe ${id}`, "info");
   const es = new EventSource(`${url}/tasks/${id}/events`);
   eventSource = es;
 
   const onPayload = (type: string, ev: MessageEvent<string>) => {
+    // Native EventSource "error" (connection) has no data — ignore here;
+    // es.onerror handles close. Named SSE event:error always has a data payload.
+    if (type === "error" && (ev.data == null || ev.data === "")) {
+      return;
+    }
     try {
       const data = JSON.parse(ev.data) as TaskEvent;
-      const bit = data.message || data.status || "";
-      const kind =
-        type === "error"
-          ? "error"
-          : type === "status"
-            ? "status"
-            : "log";
-      appendChat(`${type}: ${bit}`, kind);
+      const bit =
+        (typeof data.message === "string" && data.message) ||
+        (typeof data.status === "string" && data.status) ||
+        "";
+      appendLog(`${type}: ${bit}`, type === "error" ? "error" : type === "status" ? "status" : "log");
+
+      if (type === "log" && typeof data.message === "string") {
+        const out = extractStdout(data.message);
+        if (out !== null) appendAssistantChunk(out);
+      }
+
       if (data.status && activeTaskId === id) {
         updateActiveStatus(data.status);
+        if (isTerminalStatus(data.status)) sseTerminal = true;
+      }
+      // Real failure message (not empty / "undefined")
+      if (
+        type === "error" &&
+        bit &&
+        bit !== "undefined" &&
+        activeTaskId === id
+      ) {
+        // Keep chat clean: only surface meaningful failures as a system bubble
+        if (!data.status || data.status === "failed") {
+          appendBubble("system", bit);
+        }
       }
     } catch {
-      appendChat(`${type}: ${ev.data}`, "log");
+      if (ev.data != null && String(ev.data) !== "undefined") {
+        appendLog(`${type}: ${ev.data}`, "log");
+      }
     }
   };
 
@@ -464,25 +614,36 @@ function subscribeEvents(id: string): void {
     );
   }
   es.onerror = () => {
-    appendChat("SSE closed or error", "error");
+    if (sseTerminal) {
+      appendLog("SSE closed (task finished)", "info");
+    } else {
+      appendLog("SSE closed or error", "error");
+    }
     stopEvents();
     void refreshTasks();
   };
+}
+
+function autoresizePrompt(): void {
+  promptInput.style.height = "auto";
+  const next = Math.min(Math.max(promptInput.scrollHeight, 40), 200);
+  promptInput.style.height = `${next}px`;
 }
 
 async function submitTask(): Promise<void> {
   const url = baseUrl();
   const prompt = promptInput.value.trim();
   if (!url) {
-    appendChat("select a machine with MOBD_URL (Settings)", "error");
+    appendBubble("system", "Select a machine with MOBD_URL (Settings).");
+    appendLog("submit blocked: no MOBD_URL", "error");
     return;
   }
   if (!prompt) {
-    appendChat("enter a prompt", "error");
+    appendBubble("system", "Enter a prompt.");
     return;
   }
   btnSubmit.disabled = true;
-  appendChat(prompt, "user");
+  appendBubble("user", prompt);
   try {
     const res = await fetch(`${url}/tasks`, {
       method: "POST",
@@ -492,15 +653,16 @@ async function submitTask(): Promise<void> {
     const body = (await res.json()) as Task & { error?: string };
     if (!res.ok) throw new Error(body.error || `HTTP ${res.status}`);
     setActiveTask(body);
-    appendChat(`created ${body.id}`, "status");
+    appendLog(`created ${body.id}`, "status");
+    appendStatusPill(body.status);
     promptInput.value = "";
-    subscribeEvents(body.id);
+    autoresizePrompt();
+    subscribeEvents(body.id, { keepChat: true });
     await refreshTasks();
   } catch (err) {
-    appendChat(
-      `create failed: ${err instanceof Error ? err.message : String(err)}`,
-      "error",
-    );
+    const msg = err instanceof Error ? err.message : String(err);
+    appendBubble("system", `Create failed: ${msg}`);
+    appendLog(`create failed: ${msg}`, "error");
   } finally {
     btnSubmit.disabled = false;
   }
@@ -516,13 +678,13 @@ async function cancelTask(): Promise<void> {
     const body = (await res.json()) as Task & { error?: string };
     if (!res.ok) throw new Error(body.error || `HTTP ${res.status}`);
     setActiveTask(body);
-    appendChat(`cancel → ${body.status}`, "status");
+    appendLog(`cancel → ${body.status}`, "status");
+    appendStatusPill(body.status);
     await refreshTasks();
   } catch (err) {
-    appendChat(
-      `cancel failed: ${err instanceof Error ? err.message : String(err)}`,
-      "error",
-    );
+    const msg = err instanceof Error ? err.message : String(err);
+    appendBubble("system", `Cancel failed: ${msg}`);
+    appendLog(`cancel failed: ${msg}`, "error");
   }
 }
 
@@ -630,7 +792,6 @@ function exitPreviewFullscreen(): void {
   previewFs.setAttribute("aria-hidden", "true");
   screenEl.classList.remove("fullscreen-mode");
   screenEl.classList.add("thumbnail");
-  // Re-insert screen before the hint paragraph
   const hint = previewPane.querySelector(".hint");
   if (hint) previewPane.insertBefore(screenEl, hint);
   else previewPane.appendChild(screenEl);
@@ -638,12 +799,29 @@ function exitPreviewFullscreen(): void {
 }
 
 /* —— Settings —— */
-function openSettings(editId?: string): void {
+function setSettingsTab(tab: "machines" | "log"): void {
+  const isMachines = tab === "machines";
+  paneMachines.hidden = !isMachines;
+  paneLog.hidden = isMachines;
+  for (const btn of document.querySelectorAll<HTMLButtonElement>(
+    ".settings-tab",
+  )) {
+    const on = btn.dataset.tab === tab;
+    btn.classList.toggle("active", on);
+    btn.setAttribute("aria-selected", on ? "true" : "false");
+  }
+  if (tab === "log") {
+    settingsLog.scrollTop = settingsLog.scrollHeight;
+  }
+}
+
+function openSettings(editId?: string, tab: "machines" | "log" = "machines"): void {
   settingsOverlay.hidden = false;
   settingsOverlay.setAttribute("aria-hidden", "false");
+  setSettingsTab(tab);
   renderSettingsList();
   if (editId) fillMachineForm(editId);
-  else resetMachineForm();
+  else if (tab === "machines") resetMachineForm();
 }
 
 function closeSettings(): void {
@@ -681,7 +859,8 @@ function fillMachineForm(id: string): void {
 function resetMachineForm(): void {
   mfId.value = "";
   mfName.value = "";
-  mfMobd.value = envDefault("MOBD_URL", "VITE_MOBD_URL") || "http://127.0.0.1:8080";
+  mfMobd.value =
+    envDefault("MOBD_URL", "VITE_MOBD_URL") || "http://127.0.0.1:8080";
   mfVnc.value =
     envDefault("VNC_WS_URL", "VITE_VNC_WS_URL") || "ws://127.0.0.1:6080/";
   mfPassword.value = "";
@@ -725,7 +904,6 @@ function saveMachineForm(ev: Event): void {
   mfStatus.textContent = "saved";
   renderSettingsList();
   renderMachineTree();
-  // If we edited the active machine, refresh health
   if (mfId.value === activeMachineId) {
     void pingHealth();
   }
@@ -763,8 +941,11 @@ function boot(): void {
   }
   persistMachines();
   renderMachineTree();
+  autoresizePrompt();
 
-  btnSettings.addEventListener("click", () => openSettings(activeMachineId ?? undefined));
+  btnSettings.addEventListener("click", () =>
+    openSettings(activeMachineId ?? undefined),
+  );
   btnSettingsClose.addEventListener("click", () => closeSettings());
   btnAddMachine.addEventListener("click", () => {
     openSettings();
@@ -773,6 +954,17 @@ function boot(): void {
   settingsOverlay.addEventListener("click", (ev) => {
     if (ev.target === settingsOverlay) closeSettings();
   });
+
+  for (const btn of document.querySelectorAll<HTMLButtonElement>(
+    ".settings-tab",
+  )) {
+    btn.addEventListener("click", () => {
+      const tab = btn.dataset.tab === "log" ? "log" : "machines";
+      setSettingsTab(tab);
+    });
+  }
+  btnLogClear.addEventListener("click", () => clearLog());
+  logFilter.addEventListener("input", () => applyLogFilter());
 
   machineForm.addEventListener("submit", saveMachineForm);
   btnMfNew.addEventListener("click", () => resetMachineForm());
@@ -807,27 +999,29 @@ function boot(): void {
   });
 
   promptInput.addEventListener("keydown", (ev) => {
-    if (ev.key === "Enter" && (ev.metaKey || ev.ctrlKey)) {
+    if (ev.key === "Enter" && !ev.shiftKey) {
       ev.preventDefault();
       void submitTask();
     }
   });
+  promptInput.addEventListener("input", () => autoresizePrompt());
 
   void loadSvnc().then(() => {
-    appendChat(
+    appendLog(
       svncConnect
         ? "svnc ready (input enabled for testing)"
         : `svnc stub: ${svncLoadError ?? "unavailable"}`,
-      "system",
+      "info",
     );
   });
 
   const m = activeMachine();
   if (m) {
-    appendChat(`machine: ${m.name}`, "system");
+    appendLog(`machine: ${m.name}`, "info");
     void pingHealth().then(() => void refreshTasks());
   } else {
-    appendChat("no machines — open Settings to add one", "system");
+    appendLog("no machines — open Settings to add one", "info");
+    appendBubble("system", "No machines yet — open Settings to add one.");
   }
 }
 
