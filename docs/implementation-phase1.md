@@ -15,7 +15,7 @@ From [roadmap Phase 1](roadmap.md):
 
 ## Monorepo layout (Go)
 
-Proposed tree (docs only in this commit; code lands in follow-up work):
+Monorepo tree (Go `mobd` scaffold lives under `cmd/` and `internal/`):
 
 ```text
 mob/
