@@ -25,6 +25,7 @@ func testServer(t *testing.T, secret string) *Server {
 		MobMCPCommand: "mob-mcp",
 		SharedSecret:  secret,
 		VNCViewURL:    "https://office.example/view",
+		CORSOrigins:   []string{"http://localhost:1420"},
 	}
 	store := task.NewStore()
 	runner := codex.New(cfg)
@@ -248,6 +249,69 @@ func TestHealth(t *testing.T) {
 	}
 }
 
+func TestCORSResponses(t *testing.T) {
+	s := testServer(t, "")
+	for _, tc := range []struct {
+		name, path, origin, allowOrigin string
+		status                          int
+	}{
+		{"health", "/health", "http://localhost:1420", "http://localhost:1420", http.StatusOK},
+		{"error", "/tasks/missing", "http://localhost:1420", "http://localhost:1420", http.StatusNotFound},
+		{"unknown origin", "/health", "https://untrusted.example", "", http.StatusOK},
+		{"origin prefix", "/health", "http://localhost:1420.evil.example", "", http.StatusOK},
+		{"no origin", "/health", "", "", http.StatusOK},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			rr := httptest.NewRecorder()
+			req := httptest.NewRequest(http.MethodGet, tc.path, nil)
+			req.Header.Set("Origin", tc.origin)
+			s.Handler().ServeHTTP(rr, req)
+			if rr.Code != tc.status || rr.Header().Get("Access-Control-Allow-Origin") != tc.allowOrigin {
+				t.Fatalf("status=%d headers=%v", rr.Code, rr.Header())
+			}
+			if rr.Header().Get("Vary") != "Origin" {
+				t.Fatalf("vary %q", rr.Header().Get("Vary"))
+			}
+		})
+	}
+}
+
+func TestCORSPreflight(t *testing.T) {
+	s := testServer(t, "secret")
+	rr := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodOptions, "/tasks", nil)
+	req.Header.Set("Origin", "http://localhost:1420")
+	req.Header.Set("Access-Control-Request-Method", http.MethodPost)
+	req.Header.Set("Access-Control-Request-Headers", "content-type, authorization, x-mob-token")
+	s.Handler().ServeHTTP(rr, req)
+	if rr.Code != http.StatusNoContent {
+		t.Fatalf("status %d", rr.Code)
+	}
+	if rr.Header().Get("Access-Control-Allow-Origin") != "http://localhost:1420" ||
+		!strings.Contains(rr.Header().Get("Access-Control-Allow-Methods"), "POST") {
+		t.Fatalf("preflight headers %v", rr.Header())
+	}
+	for _, header := range []string{"Content-Type", "Authorization", "X-Mob-Token"} {
+		if !strings.Contains(rr.Header().Get("Access-Control-Allow-Headers"), header) {
+			t.Fatalf("missing allowed header %s", header)
+		}
+	}
+}
+
+func TestCORSRejectsUnknownPreflightOrigin(t *testing.T) {
+	s := testServer(t, "")
+	rr := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodOptions, "/tasks", nil)
+	req.Header.Set("Origin", "https://untrusted.example")
+	s.Handler().ServeHTTP(rr, req)
+	if rr.Code != http.StatusForbidden {
+		t.Fatalf("status %d", rr.Code)
+	}
+	if rr.Header().Get("Access-Control-Allow-Origin") != "" {
+		t.Fatalf("unexpected allow-origin: %v", rr.Header())
+	}
+}
+
 func TestCreateListGetTask(t *testing.T) {
 	s := testServer(t, "")
 	h := s.Handler()
@@ -316,9 +380,13 @@ func TestAuthSharedSecret(t *testing.T) {
 	rr := httptest.NewRecorder()
 	req := httptest.NewRequest(http.MethodPost, "/tasks", bytes.NewBufferString(`{"prompt":"x"}`))
 	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Origin", "http://localhost:1420")
 	h.ServeHTTP(rr, req)
 	if rr.Code != http.StatusUnauthorized {
 		t.Fatalf("want 401, got %d", rr.Code)
+	}
+	if rr.Header().Get("Access-Control-Allow-Origin") != "http://localhost:1420" {
+		t.Fatal("auth error missing CORS headers")
 	}
 
 	rr = httptest.NewRecorder()
@@ -357,6 +425,7 @@ func TestSSEReplay(t *testing.T) {
 
 	ctxRR := httptest.NewRecorder()
 	req = httptest.NewRequest(http.MethodGet, "/tasks/"+created.ID+"/events", nil)
+	req.Header.Set("Origin", "http://localhost:1420")
 	// Use a short-lived context via Cancel — httptest doesn't stream forever well;
 	// handler returns on terminal status after replay+subscribe.
 	done := make(chan struct{})
@@ -378,5 +447,8 @@ func TestSSEReplay(t *testing.T) {
 	}
 	if ct := ctxRR.Header().Get("Content-Type"); !strings.Contains(ct, "text/event-stream") {
 		t.Fatalf("content-type %q", ct)
+	}
+	if ctxRR.Header().Get("Access-Control-Allow-Origin") != "http://localhost:1420" {
+		t.Fatal("SSE missing CORS headers")
 	}
 }

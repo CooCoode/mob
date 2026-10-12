@@ -43,7 +43,36 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("GET /tasks/{id}", s.handleGetTask)
 	mux.HandleFunc("GET /tasks/{id}/events", s.handleTaskEvents)
 	mux.HandleFunc("POST /tasks/{id}/cancel", s.withAuth(s.handleCancelTask))
-	return mux
+	return s.withCORS(mux)
+}
+
+func (s *Server) withCORS(next http.Handler) http.Handler {
+	allowed := make(map[string]struct{}, len(s.cfg.CORSOrigins))
+	for _, origin := range s.cfg.CORSOrigins {
+		allowed[origin] = struct{}{}
+	}
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Add("Vary", "Origin")
+		origin := r.Header.Get("Origin")
+		if _, ok := allowed[origin]; ok {
+			w.Header().Set("Access-Control-Allow-Origin", origin)
+			w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+			w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Mob-Token")
+		}
+		if r.Method == http.MethodOptions {
+			if origin == "" {
+				w.WriteHeader(http.StatusNoContent)
+				return
+			}
+			if _, ok := allowed[origin]; !ok {
+				writeErr(w, http.StatusForbidden, "origin not allowed")
+				return
+			}
+			w.WriteHeader(http.StatusNoContent)
+			return
+		}
+		next.ServeHTTP(w, r)
+	})
 }
 
 func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {

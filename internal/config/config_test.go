@@ -3,6 +3,7 @@ package config
 import (
 	"os"
 	"path/filepath"
+	"reflect"
 	"testing"
 )
 
@@ -19,5 +20,24 @@ func TestConversationStatePath(t *testing.T) {
 	}
 	if got := Load().StatePath; got != filepath.Join(dir, "mob", "state.json") {
 		t.Fatalf("default state path=%q", got)
+	}
+}
+
+func TestLoadCORSOrigins(t *testing.T) {
+	defaults := []string{"http://localhost:1420", "http://127.0.0.1:1420", "tauri://localhost", "http://tauri.localhost"}
+	for _, tc := range []struct {
+		name, raw string
+		want      []string
+	}{
+		{"default", "", defaults},
+		{"whitespace", "  ", defaults},
+		{"override", " https://home.example, , http://localhost:3000 ", []string{"https://home.example", "http://localhost:3000"}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Setenv("MOBD_CORS_ORIGINS", tc.raw)
+			if got := Load().CORSOrigins; !reflect.DeepEqual(got, tc.want) {
+				t.Fatalf("origins %v, want %v", got, tc.want)
+			}
+		})
 	}
 }

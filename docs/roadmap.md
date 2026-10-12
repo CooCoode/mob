@@ -11,7 +11,7 @@ Phased delivery. Do not skip the separation of **view** (human) and **actuation*
 
 **Auth:** Phase 1 optional shared secret (`MOBD_SHARED_SECRET`) stays **deferred / unset**. Do not block the loop on intranet auth; rely on intranet/VPN bind. Auth moves to Phase 2 with the App.
 
-**Remaining (non-auth):** Codex path hardening on office Mac via `mobd`, richer `/health` readiness hints, CORS/config for home clients, optional static `web/` dispatch page. Detail: [client-phase2-lite.md](client-phase2-lite.md) (Phase 1 leftover table) and [implementation-phase1.md](implementation-phase1.md).
+**Remaining (non-auth):** Codex path hardening on office Mac via `mobd`, richer `/health` readiness hints, optional static `web/` dispatch page. Home-client CORS is implemented via `MOBD_CORS_ORIGINS`. Detail: [client-phase2-lite.md](client-phase2-lite.md) (Phase 1 leftover table) and [implementation-phase1.md](implementation-phase1.md).
 
 **Exit criteria:** From home, dispatch a Codex task that drives the office Mac UI, and watch the desktop live over VNC via svnc without sending human input.
 

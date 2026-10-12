@@ -19,6 +19,7 @@ export MOBD_MOB_MCP_COMMAND="/absolute/path/to/mob/services/mob-mcp/.venv/bin/mo
 # export MOBD_SHARED_SECRET="intranet-token"
 # export MOBD_VNC_VIEW_URL="https://office.example/svnc/"
 # export MOBD_STATE_PATH="/absolute/path/to/mob-state.json"
+# export MOBD_CORS_ORIGINS="http://localhost:1420,https://home.example"
 
 ./bin/mobd
 ```
@@ -96,3 +97,6 @@ Update the office **mobd** together with the client. `/health` advertises `apiVe
 - SSE events have monotonic per-task `id` fields. `Last-Event-ID` / `?after=` resume in-process replay without duplicating messages. Raw logs are memory-only; after a daemon restart, `GET /sessions/:id` is the authoritative transcript and task snapshot.
 
 The runner follows the session/turn separation and structured message recovery used by [Paseo](https://github.com/getpaseo/paseo/blob/main/packages/server/src/server/agent/providers/codex-app-server-agent.ts) and [Orca](https://github.com/stablyai/orca/blob/main/src/main/codex/codex-app-server-session.ts). MOB keeps the existing CLI runner; app-server RPC is a later option for token deltas or interactive approvals. CLI event and resume behavior follows the [Codex non-interactive documentation](https://developers.openai.com/codex/noninteractive/).
+| `MOBD_CORS_ORIGINS` | `http://localhost:1420,http://127.0.0.1:1420,tauri://localhost,http://tauri.localhost` | Comma-separated exact origins; a nonempty value replaces the defaults |
+
+CORS covers API responses and SSE, plus `OPTIONS` preflight for `GET`/`POST` with `Content-Type`, `Authorization`, or `X-Mob-Token`. Use the client's origin (scheme, host, and port, without a trailing slash), not the office API address. CORS does not replace authentication or LAN/VPN access controls.

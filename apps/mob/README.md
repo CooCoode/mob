@@ -73,7 +73,17 @@ Checks: `npm test` covers conversation lifecycle, stale requests, duplicate send
 
 ### CORS note
 
-The UI uses browser `fetch` / `EventSource` against `MOBD_URL`. If the browser blocks cross-origin calls, enable CORS on `mobd` (Phase 1 follow-up) or run on the same origin. Tauri webview has the same CORS rules for `fetch`.
+The UI uses browser `fetch` / `EventSource` against `MOBD_URL`. `mobd` allows `http://localhost:1420`, `http://127.0.0.1:1420`, `tauri://localhost`, and `http://tauri.localhost` by default. For another home-client origin, set `MOBD_CORS_ORIGINS` in the office machine's `scripts/.env` to a comma-separated allowlist (replaces the defaults). Use the origin shown in the error, without a trailing slash; `localhost:1420` here refers to the client UI, even when the office API is on another machine.
+
+After updating office Go code, restart `mobd`; the service script rebuilds `bin/mobd` when Go sources are newer:
+
+```bash
+# Office machine, repo root
+./scripts/mobd.sh restart
+curl -i -H 'Origin: http://localhost:1420' http://127.0.0.1:8080/health
+```
+
+The response should include `Access-Control-Allow-Origin: http://localhost:1420`. Then retry Health in the home app; no client rebuild is needed for this server fix.
 
 ### svnc stub
 

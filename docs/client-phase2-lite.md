@@ -21,7 +21,7 @@ Skim of current `cmd/mobd` + `internal/` vs [implementation-phase1.md](implement
 | --- | --- |
 | **Codex path hardening** | Office end-to-end: `POST /tasks` → real `codex exec` + `mob-mcp` drives UI; verify MCP `-c` / args on real Codex CLI; clearer failure messages; optional concurrency limit (one running task); tune sandbox / workdir docs from office findings |
 | **Health** | Keep `/health`; extend readiness hints (Codex on `PATH`, `mob-mcp` binary exists) without blocking listen |
-| **Config** | Document / optionally add file-based config later; ensure `MOBD_VNC_VIEW_URL` is set for clients; **CORS** (or same-origin static) so a home browser/App can call `mobd` on LAN/VPN |
+| **Config** | CORS is implemented via `MOBD_CORS_ORIGINS` (Tauri defaults); office scripts load `scripts/.env`. Ensure `MOBD_VNC_VIEW_URL` is set for clients |
 | **Optional static dispatch page** | `web/` or served by `mobd`: prompt + status + link/embed placeholder — useful before the native shell; skip if `apps/mob` lands first |
 | **Auth** | **Deferred** — do not block on `MOBD_SHARED_SECRET`; add with App (Phase 2) |
 

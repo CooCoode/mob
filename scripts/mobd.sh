@@ -16,7 +16,13 @@ start() {
     return 0
   fi
   rm -f "${MOBD_PID_FILE}"
+  local needs_build=0
   if [[ ! -x "${MOBD_BIN}" ]]; then
+    needs_build=1
+  elif find "${ROOT_DIR}/cmd" "${ROOT_DIR}/internal" -type f -newer "${MOBD_BIN}" -print -quit | grep -q .; then
+    needs_build=1
+  fi
+  if (( needs_build )); then
     command -v go >/dev/null 2>&1 || { echo "mobd binary missing and Go is not installed: ${MOBD_BIN}" >&2; return 1; }
     mkdir -p "$(dirname "${MOBD_BIN}")"
     echo "Building mobd -> ${MOBD_BIN}"
