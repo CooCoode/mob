@@ -39,7 +39,24 @@ Optional: another VNC server (e.g. TigerVNC) is fine if you already run one; MOB
 
 Browsers cannot open raw TCP VNC. [svnc](https://github.com/xrdavies/svnc) expects a **WebSocket** that carries RFB bytes. Use **[websockify](https://github.com/novnc/websockify)** (or an equivalent WS↔TCP bridge). svnc itself does not ship a production bridge.
 
-Example (illustrative listen and target ports — change as needed):
+### Recommended: MOB helper scripts
+
+Repo helpers wrap websockify start/stop/status (still **outside** `mobd`):
+
+See **[scripts/office-vnc/README.md](../scripts/office-vnc/README.md)**.
+
+```bash
+cd scripts/office-vnc
+cp env.example .env   # set VNC_HOST/VNC_PORT, WS_LISTEN_*, optional VNC_PASSWORD
+# pip3 install websockify   # once, if not already on PATH
+./start.sh
+./status.sh
+# ./stop.sh when done
+```
+
+Defaults match the example below (`6080` → `127.0.0.1:5900`). Point home `VNC_WS_URL` / apps/mob at the printed `ws://…` URL.
+
+### Manual one-liner (same idea)
 
 ```bash
 # Example only: listen on WS port 6080, forward to local Screen Sharing on 5900
@@ -51,8 +68,9 @@ Notes:
 - Bind the bridge to **loopback** or a private interface when possible; put VPN or a reverse proxy in front for remote viewers.
 - Pin the TCP target (do not run an open relay that can connect anywhere).
 - Alternatives: a native WebSocket VNC server (no bridge), or a thin lab bridge such as svnc’s non-production [`examples/ws-tcp-bridge/`](https://github.com/xrdavies/svnc/tree/main/examples/ws-tcp-bridge) for local experiments only.
+- A future **`mobvnc`** package may replace these scripts; the viewer contract remains a WebSocket RFB URL.
 
-Leave this process running while you test (launchd/plist later is optional).
+Leave the bridge running while you test (launchd/plist later is optional; scripts already background websockify).
 
 ## 3. TLS / WSS (when the path leaves a trusted LAN)
 
@@ -122,6 +140,7 @@ Checklist row: [office-smoke-checklist.md](office-smoke-checklist.md) §3 / acce
 
 - [svnc](https://github.com/xrdavies/svnc) — MIT npm package `svnc`
 - [websockify](https://github.com/novnc/websockify)
+- [scripts/office-vnc](../scripts/office-vnc/README.md) — start/stop/status helpers
 - [Office smoke checklist](office-smoke-checklist.md)
 - [Office smoke test report](office-smoke-test-report.md)
 - [Architecture](architecture.md)

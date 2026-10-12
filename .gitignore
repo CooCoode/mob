@@ -72,3 +72,8 @@ bin/
 /mobd
 cmd/mobd/mobd
 vendor/
+
+# Office VNC helper runtime / local env
+scripts/office-vnc/.env
+scripts/office-vnc/run/*
+!scripts/office-vnc/run/.gitkeep
