@@ -6,22 +6,46 @@ See [research-computer-use.md](research-computer-use.md) and [ADR 0007](adr/0007
 
 **Out of scope here:** shipping third-party desktop MCPs as product defaults, human remote keyboard/mouse, and `mobd` / the MOB task API.
 
-**Do not** install [nix18/ControlMCP](https://github.com/nix18/ControlMCP) (GPL-3.0; abandoned for MOB’s purposes — [ADR 0006](adr/0006-actuation-controlmcp-first.md) superseded).
+**Do not** install [nix18/ControlMCP](https://github.com/nix18/ControlMCP) (GPL-3.0; abandoned for MOB’s purposes — [ADR 0006](adr/0006-actuation-controlmcp-first.md) superseded). Default actuation is **`services/mob-mcp`**.
 
-## 1. mob-mcp — build, permissions, verify actuation
+## 1. mob-mcp — install, permissions, verify actuation
 
-1. On the office Mac, check out this repo and run **`services/mob-mcp`** once that package exists (stdio MCP under MOB MIT). Until the package lands, you may temporarily spike Codex against an MIT third-party such as [CursorTouch/MacOS-MCP](https://github.com/CursorTouch/MacOS-MCP) **only** to validate Accessibility / Screen Recording — not a product dependency.
+1. On the office Mac, check out this repo and install **`services/mob-mcp`** (see that package [README](../services/mob-mcp/README.md)):
+
+   ```bash
+   cd services/mob-mcp
+   python3 -m venv .venv
+   source .venv/bin/activate
+   pip install -e .
+   mob-mcp   # stdio server; Ctrl+C after a quick sanity start, or leave for Codex
+   ```
+
 2. System Settings → Privacy & Security:
-   - Grant **Accessibility** to the MCP host (terminal / binary that launches the server).
-   - Grant **Screen Recording** (needed for screenshots / UI observation).
-3. Run a smoke check (screenshot + a harmless click or window focus) and confirm the **real** desktop UI changes—not only a text reply.
+   - Grant **Accessibility** to the MCP host (Terminal / iTerm / Codex binary that launches `mob-mcp`).
+   - Grant **Screen Recording** (needed for `screenshot`).
+3. Run a smoke check via Codex (next section) or by calling tools: `screenshot`, then a harmless `open_app` / click. Confirm the **real** desktop UI changes—not only a text reply.
 
 If Accessibility or Screen Recording is missing, stop and fix permissions before continuing.
+
+Temporary MIT third-party spikes (e.g. [CursorTouch/MacOS-MCP](https://github.com/CursorTouch/MacOS-MCP)) are **optional** only if you need to validate TCC prompts while debugging — **not** a product dependency and **not** the documented default.
 
 ## 2. Codex CLI — auth and wire mob-mcp
 
 1. Install the Codex CLI on the office Mac and authenticate (login / API credentials as required by current Codex docs).
-2. Add `mob-mcp` to Codex’s MCP configuration (`command` / `args` pointing at `services/mob-mcp`). Restart Codex or reload MCP so the server is listed as available.
+2. Add `mob-mcp` to Codex’s MCP configuration. Example (absolute paths):
+
+   ```json
+   {
+     "mcpServers": {
+       "mob-mcp": {
+         "command": "/absolute/path/to/mob/services/mob-mcp/.venv/bin/mob-mcp",
+         "args": []
+       }
+     }
+   }
+   ```
+
+   Or: `"command": "…/.venv/bin/python", "args": ["-m", "mob_mcp"]`. Restart Codex or reload MCP so the server is listed as available.
 3. **Smoke prompt (must drive real UI):** ask Codex to do something observable on the desktop via tools, for example open Safari (or another installed app) and navigate to a known URL, or open TextEdit and type a short unique string.
 
 **Pass:** you see the office UI change accordingly (app opens, URL loads, text appears).  
@@ -42,7 +66,7 @@ If Accessibility or Screen Recording is missing, stop and fix permissions before
 
 | Check | Criterion |
 | --- | --- |
-| **A — Actuation** | Codex + mob-mcp (or documented temporary MIT spike) changes the office Mac UI (step 2). |
+| **A — Actuation** | Codex + **mob-mcp** changes the office Mac UI (step 2). |
 | **B — View-only monitor** | Home svnc shows that desktop; human input is disabled (step 3). |
 
 Both A and B must pass. After that, Phase 1 coding can attach `mobd` to the same `mob-mcp` + VNC path ([implementation-phase1.md](implementation-phase1.md)).
@@ -51,11 +75,12 @@ Both A and B must pass. After that, Phase 1 coding can attach `mobd` to the same
 
 - Run install and actuation steps on the **office Mac**; use home only for the svnc viewer (and later task dispatch).
 - Prefer **intranet / VPN**; see [security.md](security.md) for exposure rules.
-- Third-party MCPs (including GhostDesk) are **not** required for this checklist; see research + ADR 0007.
+- Third-party MCPs (including ControlMCP / GhostDesk) are **not** required; see research + ADR 0007.
 - **`mobd` is not required yet**—this checklist is the manual vertical slice before the Go control plane.
 
 ## References
 
+- [mob-mcp README](../services/mob-mcp/README.md)
 - [Computer-use research](research-computer-use.md)
 - [Phase 1 implementation plan](implementation-phase1.md)
 - [Architecture](architecture.md)

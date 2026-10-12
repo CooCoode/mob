@@ -6,7 +6,7 @@ MOB is a private alternative shape to cloud desktop agents (e.g. Manus, Grok Bot
 
 ## Current status
 
-**Design docs.** Architecture, ADRs, roadmap, [computer-use research](docs/research-computer-use.md), and the [Phase 1 implementation plan](docs/implementation-phase1.md) (**Go** `mobd` + in-repo **`mob-mcp`** + Codex + svnc viewOnly) live under [`docs/`](docs/). No application runtime is shipped yet; `services/mob-mcp/` is the planned actuation tree.
+**Design docs + mob-mcp MVP.** Architecture, ADRs, roadmap, [computer-use research](docs/research-computer-use.md), and the [Phase 1 implementation plan](docs/implementation-phase1.md) (**Go** `mobd` + in-repo **`mob-mcp`** + Codex + svnc viewOnly) live under [`docs/`](docs/). Actuation MCP: [`services/mob-mcp/`](services/mob-mcp/) (Python stdio). Go `mobd` is not shipped yet.
 
 ## Relationship to svnc
 

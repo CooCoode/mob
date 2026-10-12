@@ -121,6 +121,7 @@ Other MCP servers remain **config-swappable later** after license review; Phase 
 
 ## Suggested implementation order
 
+0. **`services/mob-mcp`** Phase 1 MVP (this package) — office smoke with Codex ([office-smoke-checklist.md](office-smoke-checklist.md))
 1. `internal/task` + in-memory store and status transitions
 2. `internal/api` REST + SSE (can stub runner with a no-op process first)
 3. `internal/runner/codex` + mob-mcp config injection; real spawn/cancel
@@ -130,10 +131,13 @@ Other MCP servers remain **config-swappable later** after license review; Phase 
 
 ## References
 
+- [mob-mcp README](../services/mob-mcp/README.md)
 - [Office Mac smoke checklist](office-smoke-checklist.md)
+- [Computer-use research](research-computer-use.md)
 - [Architecture](architecture.md)
 - [Roadmap](roadmap.md)
 - [ADR 0005 — Backend: Go](adr/0005-backend-go.md)
-- [ADR 0006 — Actuation: mob-mcp first](adr/0006-actuation-controlmcp-first.md)
+- [ADR 0006 — Actuation: ControlMCP first](adr/0006-actuation-controlmcp-first.md) (**superseded**)
+- [ADR 0007 — Actuation: in-repo mob-mcp](adr/0007-actuation-mob-mcp.md)
 - [ADR 0004 — Runner: Codex first](adr/0004-runner-codex-first.md)
 - [ADR 0001 — Screen view: VNC + svnc](adr/0001-screen-view-vnc-svnc.md)
