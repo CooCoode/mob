@@ -2,7 +2,7 @@
 
 Date: 2026-10-12  
 Repository: `mob`  
-Commit under test: `83bdb3d` (`feat(mob-mcp): Phase 1 stdio MCP for office Mac`)
+Code baseline: `d048da1` (`docs: VNC and svnc viewOnly setup`)
 
 ## Scope
 
@@ -50,6 +50,12 @@ Passed:
 5. Called `screenshot` and received a real PNG image plus metadata.
 6. Called `open_app("Safari")`; the command reported Safari opened and the subsequent window list contained Safari.
 
+### VNC connectivity
+
+Passed: a second machine on the office LAN connected to the office Mac's native Screen Sharing VNC endpoint at `192.168.50.86:5900`. The office Mac's Screen Sharing service was running and the endpoint returned an RFB greeting.
+
+This verifies native LAN VNC reachability only. It does not by itself verify the browser WebSocket bridge or svnc's `viewOnly` input blocking.
+
 ### Fixes made during verification
 
 The initial implementation had two runtime issues that the unit tests did not cover:
@@ -65,6 +71,7 @@ A regression test now checks that the screenshot tool returns MCP `image` and `t
 | --- | --- | --- |
 | A — local actuation path | **Passed for direct MCP smoke** | `list_windows`, `screenshot`, and `open_app("Safari")` succeeded through `mob-mcp`; Safari appeared in the real window list. |
 | A — Codex prompt acceptance | **Pending** | Codex is configured, but a separate interactive Codex prompt driving a harmless UI change was not run as part of this report. |
-| B — view-only VNC monitor | **Pending** | Screen Sharing/VNC, websockify/WSS, home svnc, and input-blocking verification were not configured in this run. Procedure: [vnc-svnc-setup.md](vnc-svnc-setup.md). |
+| B1 — native LAN VNC reachability | **Passed** | A second LAN machine connected to `192.168.50.86:5900` through native Screen Sharing. |
+| B2 — svnc view-only monitor | **Pending** | websockify/WSS, svnc rendering, and viewer input-blocking verification remain. Procedure: [vnc-svnc-setup.md](vnc-svnc-setup.md). |
 
 Before declaring the full checklist complete, run a Codex prompt that opens a harmless app or types a unique marker, then validate the office desktop from a home/VPN svnc session with `viewOnly: true` and confirm viewer input cannot control the office Mac. Use [vnc-svnc-setup.md](vnc-svnc-setup.md) for Screen Sharing, websockify/WSS, and the home `viewOnly` connect example; update this report when B passes.
