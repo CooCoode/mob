@@ -8,7 +8,7 @@ from mcp.server.fastmcp import FastMCP, Image
 
 from mob_mcp import __version__
 from mob_mcp.tools import input as input_tools
-from mob_mcp.tools import screenshot as screenshot_tools
+from mob_mcp.tools.screenshot import screenshot as capture_screenshot
 from mob_mcp.tools import windows as windows_tools
 
 INSTRUCTIONS = """\
@@ -27,12 +27,12 @@ mcp = FastMCP(
 )
 
 
-@mcp.tool()
+@mcp.tool(structured_output=False)
 def screenshot() -> list[Any]:
     """Capture the primary display. Returns PNG image plus JSON metadata
     (scale_factor, point/pixel sizes). Use point coordinates for click().
     """
-    result = screenshot_tools.screenshot()
+    result = capture_screenshot()
     return [
         Image(data=result["png"], format="png"),
         result["meta_json"],
