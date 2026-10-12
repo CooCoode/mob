@@ -51,7 +51,7 @@ const STORAGE_ACTIVE = "mob.activeMachineId";
 const STORAGE_LEGACY_MOBD = "mob.mobdUrl";
 const STORAGE_LEGACY_VNC = "mob.vncWsUrl";
 const SCREEN_EMPTY =
-  "Connect to watch the office desktop. Mouse and keyboard stay off.";
+  "Connect to the office desktop. Mouse and keyboard input is enabled for testing.";
 
 const machineTree = document.querySelector<HTMLElement>("#machine-tree")!;
 const sidebarEmpty = document.querySelector<HTMLElement>("#sidebar-empty")!;
@@ -98,6 +98,7 @@ const btnRefresh = document.querySelector<HTMLButtonElement>("#btn-refresh")!;
 const btnConnect = document.querySelector<HTMLButtonElement>("#btn-connect")!;
 const btnDisconnect =
   document.querySelector<HTMLButtonElement>("#btn-disconnect")!;
+const btnExpand = document.querySelector<HTMLButtonElement>("#btn-expand")!;
 const btnFsExit = document.querySelector<HTMLButtonElement>("#btn-fs-exit")!;
 const btnMfPing = document.querySelector<HTMLButtonElement>("#btn-mf-ping")!;
 const btnMfNew = document.querySelector<HTMLButtonElement>("#btn-mf-new")!;
@@ -533,6 +534,7 @@ function syncVncStatusText(text: string): void {
 function setVncConnected(on: boolean): void {
   btnConnect.disabled = on;
   btnDisconnect.disabled = !on;
+  btnExpand.disabled = !on;
   setDot(dotVnc, on ? "ok" : "off");
   vncChipText.textContent = on ? "on" : "off";
 }
@@ -561,14 +563,15 @@ async function connectVnc(): Promise<void> {
     vncClient = await svncConnect(screenEl, {
       url,
       credentials: password ? { password } : undefined,
-      viewOnly: true,
+      // shortcut: remote input stays enabled for testing, restore viewOnly when testing ends.
+      viewOnly: false,
     });
     setVncConnected(true);
     const d = vncClient.desktop;
     syncVncStatusText(
       d
-        ? `connected ${d.width}×${d.height} (viewOnly)`
-        : "connected (viewOnly)",
+        ? `connected ${d.width}×${d.height} (input enabled)`
+        : "connected (input enabled)",
     );
     vncClient.on("disconnect", () => {
       vncClient = null;
@@ -615,6 +618,7 @@ function enterPreviewFullscreen(): void {
   screenEl.classList.add("fullscreen-mode");
   screenEl.classList.remove("thumbnail");
   screenFsHost.appendChild(screenEl);
+  screenEl.querySelector("canvas")?.focus();
   fsVncStatus.textContent = vncStatus.textContent;
 }
 
@@ -630,11 +634,7 @@ function exitPreviewFullscreen(): void {
   const hint = previewPane.querySelector(".hint");
   if (hint) previewPane.insertBefore(screenEl, hint);
   else previewPane.appendChild(screenEl);
-}
-
-function togglePreviewFullscreen(): void {
-  if (previewExpanded) exitPreviewFullscreen();
-  else enterPreviewFullscreen();
+  btnExpand.focus();
 }
 
 /* —— Settings —— */
@@ -792,13 +792,8 @@ function boot(): void {
   btnRefresh.addEventListener("click", () => void refreshTasks());
   btnConnect.addEventListener("click", () => void connectVnc());
   btnDisconnect.addEventListener("click", () => disconnectVnc());
+  btnExpand.addEventListener("click", () => enterPreviewFullscreen());
   btnFsExit.addEventListener("click", () => exitPreviewFullscreen());
-
-  screenEl.addEventListener("dblclick", () => {
-    if (screenEl.classList.contains("stub") && !vncClient) return;
-    togglePreviewFullscreen();
-  });
-  screenFsHost.addEventListener("dblclick", () => exitPreviewFullscreen());
 
   document.addEventListener("keydown", (ev) => {
     if (ev.key === "Escape") {
@@ -821,7 +816,7 @@ function boot(): void {
   void loadSvnc().then(() => {
     appendChat(
       svncConnect
-        ? "svnc ready (viewOnly embed)"
+        ? "svnc ready (input enabled for testing)"
         : `svnc stub: ${svncLoadError ?? "unavailable"}`,
       "system",
     );

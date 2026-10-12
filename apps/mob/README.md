@@ -1,6 +1,6 @@
 # apps/mob
 
-Home Mac **mob** client: Grok-like shell (sessions · chat · thumbnail preview) — task dispatch to office **`mobd`** + embedded **[svnc](https://github.com/xrdavies/svnc)** (`viewOnly: true`).
+Home Mac **mob** client: Grok-like shell (sessions · chat · thumbnail preview) — task dispatch to office **`mobd`** + embedded **[svnc](https://github.com/xrdavies/svnc)**. Human input is temporarily enabled for testing (`viewOnly: false`); restore viewOnly when testing ends.
 
 Plan: [docs/client-phase2-lite.md](../../docs/client-phase2-lite.md) · UI: [docs/apps-mob-ui.md](../../docs/apps-mob-ui.md)
 
@@ -62,9 +62,9 @@ npm run tauri build
 
 - **Left:** sessions / agents grouped by remote machine (localStorage)
 - **Center:** chat-style dispatch — `POST /tasks`, cancel, SSE (`GET /tasks/:id/events`)
-- **Right:** viewOnly thumbnail; double-click → App-fullscreen preview; Esc back
+- **Right:** interactive thumbnail; Expand → App-fullscreen preview; Exit preview returns to the thumbnail
 - **Settings:** add/edit machines (`MOBD_URL`, `VNC_WS_URL`, …)
-- **Live view:** `SVNCClient.connect(..., { viewOnly: true })` — no human mouse/keyboard
+- **Live view:** `SVNCClient.connect(..., { viewOnly: false })` temporarily enables mouse and keyboard input for testing. Click the desktop to type; while it is focused, Escape is sent to the remote machine.
 - **Auth:** deferred (intranet/VPN only)
 
 ### CORS note
@@ -77,4 +77,4 @@ If `postinstall` cannot build svnc, the view pane shows a stub message; task dis
 
 ## Out of scope (MVP)
 
-iPhone, auth, human remote input, shipping websockify inside the App.
+iPhone, auth, permanent human remote input, shipping websockify inside the App.

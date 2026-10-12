@@ -380,7 +380,7 @@ body {
   border-radius: 8px;
   overflow: hidden;
   position: relative;
-  cursor: zoom-in;
+  cursor: default;
 }
 
 .screen.thumbnail {
@@ -400,7 +400,6 @@ body {
   height: auto !important;
   object-fit: contain;
   outline: none;
-  pointer-events: none; /* viewOnly — no RFB; dblclick on container */
 }
 
 .screen.stub {
@@ -457,7 +456,7 @@ body {
   align-items: center;
   justify-content: center;
   overflow: hidden;
-  cursor: zoom-out;
+  cursor: default;
 }
 
 .screen-fs-host .screen,
@@ -469,7 +468,7 @@ body {
   width: 100%;
   height: 100%;
   max-height: none;
-  cursor: zoom-out;
+  cursor: default;
 }
 
 #screen.fullscreen-mode canvas {
@@ -478,7 +477,6 @@ body {
   width: auto !important;
   height: auto !important;
   object-fit: contain;
-  pointer-events: none;
 }
 
 body.is-preview-fs .app {

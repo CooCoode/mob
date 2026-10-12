@@ -12,7 +12,7 @@
       <header class="top">
         <div class="brand">
           <h1>mob</h1>
-          <p class="tag">dispatch + viewOnly monitor</p>
+          <p class="tag">dispatch + remote desktop</p>
         </div>
         <div class="header-status" aria-label="Connection status">
           <span class="status-chip" title="Office mobd">
@@ -85,12 +85,15 @@
         <section class="preview" aria-labelledby="preview-heading">
           <div class="preview-head">
             <h2 id="preview-heading">
-              Live view <span class="badge">viewOnly</span>
+              Live view <span class="badge">input enabled</span>
             </h2>
             <div class="row preview-actions">
               <button type="button" id="btn-connect" class="btn-sm">Connect</button>
               <button type="button" id="btn-disconnect" class="btn-secondary btn-sm" disabled>
                 Disconnect
+              </button>
+              <button type="button" id="btn-expand" class="btn-secondary btn-sm" disabled>
+                Expand
               </button>
               <span id="vnc-status" class="muted">disconnected</span>
             </div>
@@ -99,13 +102,11 @@
             id="screen"
             class="screen stub thumbnail"
             tabindex="-1"
-            title="Double-click to expand"
           >
-            Connect to watch the office desktop. Mouse and keyboard stay off.
+            Connect to the office desktop. Mouse and keyboard input is enabled for testing.
           </div>
           <p class="hint">
-            Double-click to expand · Human input disabled · Agent actuates via
-            mob-mcp
+            Temporary test mode · Mouse and keyboard enabled · Click the desktop to type
           </p>
         </section>
       </div>
@@ -119,10 +120,10 @@
       aria-hidden="true"
     >
       <div class="fs-bar">
-        <span>Live view <span class="badge">viewOnly</span></span>
+        <span>Live view <span class="badge">input enabled</span></span>
         <span id="fs-vnc-status" class="muted"></span>
         <button type="button" id="btn-fs-exit" class="btn-ghost btn-sm">
-          Esc / exit
+          Exit preview
         </button>
       </div>
       <div id="screen-fs-host" class="screen-fs-host"></div>
