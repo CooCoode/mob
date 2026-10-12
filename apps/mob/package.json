@@ -1,0 +1,23 @@
+{
+  "name": "mob",
+  "private": true,
+  "version": "0.1.0",
+  "description": "MOB home Mac client — task dispatch + viewOnly svnc",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview",
+    "tauri": "tauri",
+    "postinstall": "node scripts/build-svnc.mjs"
+  },
+  "dependencies": {
+    "@tauri-apps/api": "^2",
+    "svnc": "github:xrdavies/svnc#main"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2",
+    "typescript": "~5.8.3",
+    "vite": "^6.3.5"
+  }
+}

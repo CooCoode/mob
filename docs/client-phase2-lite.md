@@ -1,6 +1,6 @@
 # Phase 2 lite — home Mac App `apps/mob` (embed svnc)
 
-**Status:** plan only (docs first). Full UI ships in a later coding turn.  
+**Status:** scaffold landed in [`apps/mob`](../apps/mob) (Tauri 2 + Vite/TS MVP). Auth still deferred.  
 **Decision (user):** intranet auth is **deferred** until this App work; Phase 1 `MOBD_SHARED_SECRET` stays optional and unset for now.
 
 ## Goals
@@ -88,7 +88,7 @@ apps/
     README.md
 ```
 
-Stub folder may exist with a pointer README only until implementation starts.
+Scaffold is under `apps/mob` — see that README for Mac run steps.
 
 ## Out of scope for mob App MVP
 

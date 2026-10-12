@@ -1,13 +1,77 @@
-# apps/mob (stub)
+# apps/mob
 
-Home Mac **mob** client (product name: mob): task dispatch + embedded svnc (`viewOnly`).
+Home Mac **mob** client: task dispatch to office **`mobd`** + embedded **[svnc](https://github.com/xrdavies/svnc)** (`viewOnly: true`).
 
-Office daemon stays **`mobd`** under `cmd/mobd`. This folder is the home App only.
+Plan: [docs/client-phase2-lite.md](../../docs/client-phase2-lite.md)
 
-**Plan:** [docs/client-phase2-lite.md](../../docs/client-phase2-lite.md)
+## Stack
 
-**Stack (recommended):** Tauri 2 + Vite / TypeScript + npm `svnc`.
+- **Tauri 2** shell (`src-tauri/`)
+- **Vite + TypeScript** UI (`src/`)
+- **svnc** from GitHub (`github:xrdavies/svnc`) — not on the public npm registry yet; `postinstall` builds `dist/`
 
-**Env (client):** `MOBD_URL`, `VNC_WS_URL`.
+## Prerequisites (macOS)
 
-UI implementation is intentionally not here yet — docs first; code in a follow-up turn.
+1. [Xcode Command Line Tools](https://developer.apple.com/xcode/) / full Xcode
+2. [Rust](https://rustup.rs/) stable (`rustup default stable`)
+3. Node.js 18+ (npm)
+4. Office side reachable on LAN/VPN: `mobd` + VNC WebSocket (websockify). See [docs/vnc-svnc-setup.md](../../docs/vnc-svnc-setup.md)
+
+## Configure
+
+```bash
+cd apps/mob
+cp .env.example .env
+# edit MOBD_URL and VNC_WS_URL
+```
+
+Fields are also editable in the UI; env values only prefill.
+
+| Variable | Meaning |
+| --- | --- |
+| `MOBD_URL` | Office `mobd` base URL, e.g. `http://192.168.50.86:8080` |
+| `VNC_WS_URL` | WebSocket for svnc, e.g. `ws://192.168.50.86:6080/` |
+
+## Install & run
+
+```bash
+cd apps/mob
+npm install
+```
+
+**Browser prototype** (no Rust / Tauri window):
+
+```bash
+npm run dev
+# open http://localhost:1420
+```
+
+**Desktop App** (recommended on Mac):
+
+```bash
+npm run tauri dev
+```
+
+Production build:
+
+```bash
+npm run tauri build
+```
+
+## MVP behavior
+
+- **Task pane:** `POST /tasks`, cancel, list, SSE (`GET /tasks/:id/events`)
+- **Live view:** `SVNCClient.connect(..., { viewOnly: true })` — no human mouse/keyboard
+- **Auth:** deferred (intranet/VPN only)
+
+### CORS note
+
+The UI uses browser `fetch` / `EventSource` against `MOBD_URL`. If the browser blocks cross-origin calls, enable CORS on `mobd` (Phase 1 follow-up) or run on the same origin. Tauri webview has the same CORS rules for `fetch`.
+
+### svnc stub
+
+If `postinstall` cannot build svnc, the view pane shows a stub message; task dispatch still works. Re-run `npm install` or build `node_modules/svnc` with `npx tsc -p tsconfig.json` inside that package.
+
+## Out of scope (MVP)
+
+iPhone, auth, human remote input, shipping websockify inside the App.

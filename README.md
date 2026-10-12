@@ -6,7 +6,7 @@ MOB is a private alternative shape to cloud desktop agents (e.g. Manus, Grok Bot
 
 ## Current status
 
-**Phase 1 scaffold in progress.** Docs under [`docs/`](docs/). Actuation: [`services/mob-mcp/`](services/mob-mcp/). Control plane: Go **`mobd`** — [`cmd/mobd`](cmd/mobd) (task API + Codex runner scaffold). See [cmd/mobd/README.md](cmd/mobd/README.md).
+**Phase 1 + lite client scaffold.** Docs under [`docs/`](docs/). Actuation: [`services/mob-mcp/`](services/mob-mcp/). Control plane: Go **`mobd`** — [`cmd/mobd`](cmd/mobd). Home App: Tauri **`apps/mob`** — [`apps/mob/README.md`](apps/mob/README.md).
 
 ## Relationship to svnc
 

@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>mob</title>
+    <link rel="stylesheet" href="/src/styles.css" />
+    <script type="module" src="/src/main.ts" defer></script>
+  </head>
+  <body>
+    <header class="top">
+      <h1>mob</h1>
+      <p class="tag">dispatch + viewOnly monitor</p>
+    </header>
+
+    <section class="config">
+      <label>
+        MOBD_URL
+        <input id="mobd-url" type="url" placeholder="http://192.168.x.x:8080" autocomplete="off" />
+      </label>
+      <label>
+        VNC_WS_URL
+        <input id="vnc-ws-url" type="url" placeholder="ws://192.168.x.x:6080/" autocomplete="off" />
+      </label>
+      <label class="narrow">
+        VNC password
+        <input id="vnc-password" type="password" placeholder="optional" autocomplete="off" />
+      </label>
+      <button type="button" id="btn-health">Ping /health</button>
+      <span id="health-status" class="muted"></span>
+    </section>
+
+    <div class="panes">
+      <section class="pane task-pane">
+        <h2>Task</h2>
+        <textarea id="prompt" rows="5" placeholder="Use mob-mcp to open Safari and go to example.com"></textarea>
+        <div class="row">
+          <button type="button" id="btn-submit">Submit</button>
+          <button type="button" id="btn-cancel" disabled>Cancel</button>
+          <button type="button" id="btn-refresh">Refresh list</button>
+        </div>
+        <div id="task-meta" class="muted">No active task</div>
+        <pre id="task-log" class="log" aria-live="polite"></pre>
+        <h3>Recent</h3>
+        <ul id="task-list" class="task-list"></ul>
+      </section>
+
+      <section class="pane view-pane">
+        <h2>Live view <span class="badge">viewOnly</span></h2>
+        <div class="row">
+          <button type="button" id="btn-connect">Connect</button>
+          <button type="button" id="btn-disconnect" disabled>Disconnect</button>
+          <span id="vnc-status" class="muted">disconnected</span>
+        </div>
+        <div id="screen" class="screen" tabindex="-1"></div>
+        <p class="hint">
+          Human input is disabled. Office Agent actuates via mob-mcp; this pane only watches.
+        </p>
+      </section>
+    </div>
+  </body>
+</html>

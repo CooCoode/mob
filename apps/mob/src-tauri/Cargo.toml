@@ -1,0 +1,25 @@
+[package]
+name = "mob"
+version = "0.1.0"
+description = "MOB home Mac client — dispatch + viewOnly svnc"
+authors = ["Frozen <1884084+xrdavies@users.noreply.github.com>"]
+edition = "2021"
+
+[lib]
+name = "mob_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = [] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+[profile.release]
+codegen-units = 1
+lto = true
+opt-level = 3
+panic = "abort"
+strip = true
