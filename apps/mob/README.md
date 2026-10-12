@@ -2,7 +2,7 @@
 
 Home Mac **mob** client: task dispatch to office **`mobd`** + embedded **[svnc](https://github.com/xrdavies/svnc)** (`viewOnly: true`).
 
-Plan: [docs/client-phase2-lite.md](../../docs/client-phase2-lite.md)
+Plan: [docs/client-phase2-lite.md](../../docs/client-phase2-lite.md) · UI: [docs/apps-mob-ui.md](../../docs/apps-mob-ui.md)
 
 ## Stack
 

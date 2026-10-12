@@ -9,11 +9,23 @@
   </head>
   <body>
     <header class="top">
-      <h1>mob</h1>
-      <p class="tag">dispatch + viewOnly monitor</p>
+      <div class="brand">
+        <h1>mob</h1>
+        <p class="tag">dispatch + viewOnly monitor</p>
+      </div>
+      <div class="header-status" aria-label="Connection status">
+        <span class="status-chip" title="Office mobd">
+          <span id="dot-office" class="dot" data-state="unknown"></span>
+          office <span id="health-status" class="chip-text">—</span>
+        </span>
+        <span class="status-chip" title="VNC monitor">
+          <span id="dot-vnc" class="dot" data-state="off"></span>
+          vnc <span id="vnc-chip-text" class="chip-text">off</span>
+        </span>
+      </div>
     </header>
 
-    <section class="config">
+    <section class="config" aria-label="Connection">
       <label>
         MOBD_URL
         <input id="mobd-url" type="url" placeholder="http://192.168.x.x:8080" autocomplete="off" />
@@ -27,32 +39,43 @@
         <input id="vnc-password" type="password" placeholder="optional" autocomplete="off" />
       </label>
       <button type="button" id="btn-health">Ping /health</button>
-      <span id="health-status" class="muted"></span>
     </section>
 
     <div class="panes">
-      <section class="pane task-pane">
-        <h2>Task</h2>
-        <textarea id="prompt" rows="5" placeholder="Use mob-mcp to open Safari and go to example.com"></textarea>
+      <section class="pane task-pane" aria-labelledby="dispatch-heading">
+        <h2 id="dispatch-heading">Dispatch</h2>
+        <textarea
+          id="prompt"
+          rows="5"
+          placeholder="Use mob-mcp to open Safari and go to example.com"
+          aria-label="Task prompt"
+        ></textarea>
+        <p class="kbd-hint">Submit with <kbd>⌘</kbd>/<kbd>Ctrl</kbd>+<kbd>Enter</kbd></p>
         <div class="row">
           <button type="button" id="btn-submit">Submit</button>
           <button type="button" id="btn-cancel" disabled>Cancel</button>
           <button type="button" id="btn-refresh">Refresh list</button>
         </div>
-        <div id="task-meta" class="muted">No active task</div>
-        <pre id="task-log" class="log" aria-live="polite"></pre>
+        <div id="task-meta" class="task-meta muted">
+          <span class="pill" data-status="none">idle</span>
+          <span id="task-meta-text">No active task</span>
+        </div>
+        <pre id="task-log" class="log" aria-live="polite" data-empty="Event log — submit a task to see SSE updates."></pre>
         <h3>Recent</h3>
         <ul id="task-list" class="task-list"></ul>
+        <p id="task-list-empty" class="empty-hint">No tasks yet. Submit a prompt or Refresh after mobd is up.</p>
       </section>
 
-      <section class="pane view-pane">
-        <h2>Live view <span class="badge">viewOnly</span></h2>
+      <section class="pane view-pane" aria-labelledby="monitor-heading">
+        <h2 id="monitor-heading">Live view <span class="badge">viewOnly</span></h2>
         <div class="row">
           <button type="button" id="btn-connect">Connect</button>
           <button type="button" id="btn-disconnect" disabled>Disconnect</button>
           <span id="vnc-status" class="muted">disconnected</span>
         </div>
-        <div id="screen" class="screen" tabindex="-1"></div>
+        <div id="screen" class="screen stub" tabindex="-1">
+          Connect to watch the office desktop. Mouse and keyboard stay off.
+        </div>
         <p class="hint">
           Human input is disabled. Office Agent actuates via mob-mcp; this pane only watches.
         </p>

@@ -98,6 +98,10 @@ Scaffold is under `apps/mob` — see that README for Mac run steps.
 - Shipping websockify inside the App (office still runs VNC + bridge)
 - Replacing VNC with WebRTC (`DesktopView` later)
 
+## UI plan
+
+Living wireframes / MVP checklist: [apps-mob-ui.md](apps-mob-ui.md).
+
 ## References
 
 - [svnc](https://github.com/xrdavies/svnc) — `SVNCClient`, `viewOnly`, examples/lite
