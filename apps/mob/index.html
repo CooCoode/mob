@@ -8,78 +8,192 @@
     <script type="module" src="/src/main.ts" defer></script>
   </head>
   <body>
-    <header class="top">
-      <div class="brand">
-        <h1>mob</h1>
-        <p class="tag">dispatch + viewOnly monitor</p>
+    <div id="app" class="app">
+      <header class="top">
+        <div class="brand">
+          <h1>mob</h1>
+          <p class="tag">dispatch + viewOnly monitor</p>
+        </div>
+        <div class="header-status" aria-label="Connection status">
+          <span class="status-chip" title="Office mobd">
+            <span id="dot-office" class="dot" data-state="unknown"></span>
+            office <span id="health-status" class="chip-text">—</span>
+          </span>
+          <span class="status-chip" title="VNC monitor">
+            <span id="dot-vnc" class="dot" data-state="off"></span>
+            vnc <span id="vnc-chip-text" class="chip-text">off</span>
+          </span>
+        </div>
+        <button type="button" id="btn-settings" class="btn-ghost" title="Settings">
+          Settings
+        </button>
+      </header>
+
+      <div class="shell">
+        <!-- Left: sessions by machine -->
+        <aside class="sidebar" aria-label="Sessions">
+          <div class="sidebar-head">
+            <h2>Sessions</h2>
+            <button type="button" id="btn-add-machine" class="btn-ghost btn-sm" title="Add machine">
+              +
+            </button>
+          </div>
+          <div id="machine-tree" class="machine-tree"></div>
+          <p id="sidebar-empty" class="empty-hint">
+            No machines yet. Open Settings to add one.
+          </p>
+        </aside>
+
+        <!-- Center: chat dispatch -->
+        <main class="chat" aria-labelledby="chat-heading">
+          <div class="chat-head">
+            <h2 id="chat-heading">Chat</h2>
+            <div id="task-meta" class="task-meta muted">
+              <span class="pill" data-status="none">idle</span>
+              <span id="task-meta-text">No active task</span>
+            </div>
+            <button type="button" id="btn-cancel" class="btn-danger btn-sm" disabled>
+              Cancel
+            </button>
+          </div>
+          <div
+            id="chat-stream"
+            class="chat-stream"
+            aria-live="polite"
+            data-empty="Send a prompt to dispatch a task. SSE events appear here."
+          ></div>
+          <div class="composer">
+            <textarea
+              id="prompt"
+              rows="3"
+              placeholder="Use mob-mcp to open Safari and go to example.com"
+              aria-label="Task prompt"
+            ></textarea>
+            <div class="composer-actions">
+              <span class="kbd-hint"
+                ><kbd>⌘</kbd>/<kbd>Ctrl</kbd>+<kbd>Enter</kbd></span
+              >
+              <button type="button" id="btn-refresh" class="btn-secondary btn-sm">
+                Refresh
+              </button>
+              <button type="button" id="btn-submit">Send</button>
+            </div>
+          </div>
+        </main>
+
+        <!-- Right: thumbnail preview -->
+        <section class="preview" aria-labelledby="preview-heading">
+          <div class="preview-head">
+            <h2 id="preview-heading">
+              Live view <span class="badge">viewOnly</span>
+            </h2>
+            <div class="row preview-actions">
+              <button type="button" id="btn-connect" class="btn-sm">Connect</button>
+              <button type="button" id="btn-disconnect" class="btn-secondary btn-sm" disabled>
+                Disconnect
+              </button>
+              <span id="vnc-status" class="muted">disconnected</span>
+            </div>
+          </div>
+          <div
+            id="screen"
+            class="screen stub thumbnail"
+            tabindex="-1"
+            title="Double-click to expand"
+          >
+            Connect to watch the office desktop. Mouse and keyboard stay off.
+          </div>
+          <p class="hint">
+            Double-click to expand · Human input disabled · Agent actuates via
+            mob-mcp
+          </p>
+        </section>
       </div>
-      <div class="header-status" aria-label="Connection status">
-        <span class="status-chip" title="Office mobd">
-          <span id="dot-office" class="dot" data-state="unknown"></span>
-          office <span id="health-status" class="chip-text">—</span>
-        </span>
-        <span class="status-chip" title="VNC monitor">
-          <span id="dot-vnc" class="dot" data-state="off"></span>
-          vnc <span id="vnc-chip-text" class="chip-text">off</span>
-        </span>
+    </div>
+
+    <!-- Fullscreen preview overlay -->
+    <div
+      id="preview-fullscreen"
+      class="preview-fullscreen"
+      hidden
+      aria-hidden="true"
+    >
+      <div class="fs-bar">
+        <span>Live view <span class="badge">viewOnly</span></span>
+        <span id="fs-vnc-status" class="muted"></span>
+        <button type="button" id="btn-fs-exit" class="btn-ghost btn-sm">
+          Esc / exit
+        </button>
       </div>
-    </header>
+      <div id="screen-fs-host" class="screen-fs-host"></div>
+    </div>
 
-    <section class="config" aria-label="Connection">
-      <label>
-        MOBD_URL
-        <input id="mobd-url" type="url" placeholder="http://192.168.x.x:8080" autocomplete="off" />
-      </label>
-      <label>
-        VNC_WS_URL
-        <input id="vnc-ws-url" type="url" placeholder="ws://192.168.x.x:6080/" autocomplete="off" />
-      </label>
-      <label class="narrow">
-        VNC password
-        <input id="vnc-password" type="password" placeholder="optional" autocomplete="off" />
-      </label>
-      <button type="button" id="btn-health">Ping /health</button>
-    </section>
-
-    <div class="panes">
-      <section class="pane task-pane" aria-labelledby="dispatch-heading">
-        <h2 id="dispatch-heading">Dispatch</h2>
-        <textarea
-          id="prompt"
-          rows="5"
-          placeholder="Use mob-mcp to open Safari and go to example.com"
-          aria-label="Task prompt"
-        ></textarea>
-        <p class="kbd-hint">Submit with <kbd>⌘</kbd>/<kbd>Ctrl</kbd>+<kbd>Enter</kbd></p>
-        <div class="row">
-          <button type="button" id="btn-submit">Submit</button>
-          <button type="button" id="btn-cancel" disabled>Cancel</button>
-          <button type="button" id="btn-refresh">Refresh list</button>
+    <!-- Settings overlay -->
+    <div id="settings-overlay" class="overlay" hidden aria-hidden="true">
+      <div
+        class="overlay-panel"
+        role="dialog"
+        aria-labelledby="settings-title"
+      >
+        <div class="overlay-head">
+          <h2 id="settings-title">Settings — remote machines</h2>
+          <button type="button" id="btn-settings-close" class="btn-ghost">
+            Close
+          </button>
         </div>
-        <div id="task-meta" class="task-meta muted">
-          <span class="pill" data-status="none">idle</span>
-          <span id="task-meta-text">No active task</span>
-        </div>
-        <pre id="task-log" class="log" aria-live="polite" data-empty="Event log — submit a task to see SSE updates."></pre>
-        <h3>Recent</h3>
-        <ul id="task-list" class="task-list"></ul>
-        <p id="task-list-empty" class="empty-hint">No tasks yet. Submit a prompt or Refresh after mobd is up.</p>
-      </section>
-
-      <section class="pane view-pane" aria-labelledby="monitor-heading">
-        <h2 id="monitor-heading">Live view <span class="badge">viewOnly</span></h2>
-        <div class="row">
-          <button type="button" id="btn-connect">Connect</button>
-          <button type="button" id="btn-disconnect" disabled>Disconnect</button>
-          <span id="vnc-status" class="muted">disconnected</span>
-        </div>
-        <div id="screen" class="screen stub" tabindex="-1">
-          Connect to watch the office desktop. Mouse and keyboard stay off.
-        </div>
-        <p class="hint">
-          Human input is disabled. Office Agent actuates via mob-mcp; this pane only watches.
+        <p class="muted settings-intro">
+          Connection info lives here — not in the main chrome. Each machine has
+          its own MOBD_URL and VNC_WS_URL.
         </p>
-      </section>
+        <ul id="settings-machine-list" class="settings-list"></ul>
+        <form id="machine-form" class="machine-form">
+          <input type="hidden" id="mf-id" value="" />
+          <label>
+            Display name
+            <input id="mf-name" type="text" placeholder="Office Mac" required />
+          </label>
+          <label>
+            MOBD_URL
+            <input
+              id="mf-mobd"
+              type="url"
+              placeholder="http://192.168.x.x:8080"
+              required
+            />
+          </label>
+          <label>
+            VNC_WS_URL
+            <input
+              id="mf-vnc"
+              type="url"
+              placeholder="ws://192.168.x.x:6080/"
+              required
+            />
+          </label>
+          <label class="narrow">
+            VNC password
+            <input
+              id="mf-password"
+              type="password"
+              placeholder="optional"
+              autocomplete="off"
+            />
+          </label>
+          <div class="row">
+            <button type="submit" id="btn-mf-save">Save machine</button>
+            <button type="button" id="btn-mf-ping" class="btn-secondary">
+              Ping /health
+            </button>
+            <button type="button" id="btn-mf-new" class="btn-ghost">
+              New
+            </button>
+            <button type="button" id="btn-mf-delete" class="btn-danger" hidden>
+              Delete
+            </button>
+          </div>
+          <p id="mf-status" class="muted"></p>
+        </form>
+      </div>
     </div>
   </body>
 </html>
