@@ -57,6 +57,7 @@ flowchart LR
 - [Office smoke test report](docs/office-smoke-test-report.md)
 - [VNC + svnc viewOnly setup](docs/vnc-svnc-setup.md)
 - [Roadmap](docs/roadmap.md)
+- [Phase 2 lite client (embed svnc)](docs/client-phase2-lite.md)
 - [Security notes](docs/security.md)
 - ADRs:
   - [0001 — Screen view: VNC + svnc](docs/adr/0001-screen-view-vnc-svnc.md)

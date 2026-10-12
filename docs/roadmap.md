@@ -9,13 +9,17 @@ Phased delivery. Do not skip the separation of **view** (human) and **actuation*
 - Human monitor: **svnc** in viewOnly (separate window / browser is fine)
 - Minimal task dispatch via the thin MOB Go API (`POST /tasks`, status, SSE) to start work on the office machine
 
+**Auth:** Phase 1 optional shared secret (`MOBD_SHARED_SECRET`) stays **deferred / unset**. Do not block the loop on intranet auth; rely on intranet/VPN bind. Auth moves to Phase 2 with the App.
+
+**Remaining (non-auth):** Codex path hardening on office Mac via `mobd`, richer `/health` readiness hints, CORS/config for home clients, optional static `web/` dispatch page. Detail: [client-phase2-lite.md](client-phase2-lite.md) (Phase 1 leftover table) and [implementation-phase1.md](implementation-phase1.md).
+
 **Exit criteria:** From home, dispatch a Codex task that drives the office Mac UI, and watch the desktop live over VNC via svnc without sending human input.
 
 ## Phase 2 — Productize the client
 
-- Integrate the svnc viewer into MOB clients (home Mac + iPhone)
-- Unified UX: chat / task list + embedded live desktop
-- Harden task API (auth on intranet, basic audit log)
+- Integrate the svnc viewer into MOB clients (home Mac first, then iPhone) — see **[client-phase2-lite.md](client-phase2-lite.md)** (recommended stack: **Tauri 2 + Vite/TS**)
+- Unified UX: chat / task list + embedded live desktop (`viewOnly`)
+- **Intranet auth and basic audit log land with the App** (not as a Phase 1 gate). Wire tokens/session to `mobd` when the home client exists.
 
 **Exit criteria:** One MOB client surface for dispatch + monitor on home Mac; iPhone usable for the same core flow.
 

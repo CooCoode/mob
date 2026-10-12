@@ -66,5 +66,5 @@ curl -s -X POST localhost:8080/tasks \
 | `MOBD_CODEX_WORKDIR` | process cwd | Codex working directory |
 | `MOBD_MOB_MCP_COMMAND` | `mob-mcp` | MCP server command for Codex `-c` injection |
 | `MOBD_MOB_MCP_ARGS` | `[]` | JSON array of args |
-| `MOBD_SHARED_SECRET` | empty | Optional auth for POST create/cancel |
+| `MOBD_SHARED_SECRET` | empty | Optional auth for POST create/cancel — **deferred** until Phase 2 App; leave unset |
 | `MOBD_VNC_VIEW_URL` | empty | Returned on tasks / health for svnc viewOnly |

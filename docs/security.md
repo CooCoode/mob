@@ -19,6 +19,10 @@ Keeping these channels apart limits accidental remote control and makes auditing
 - Do not ship credentials in the client. Office-side runner and MCP hold tool credentials as needed.
 - Later: require human approval in the control plane before high-risk actions (payments, password managers, destructive system changes).
 
+## Task API auth (deferred)
+
+Phase 1 leaves `MOBD_SHARED_SECRET` **unset**. Rely on intranet/VPN and network posture, not application auth. Shared-secret / session auth and basic audit land with the **home App** in Phase 2 ([client-phase2-lite.md](client-phase2-lite.md), [roadmap.md](roadmap.md)).
+
 ## Client trust
 
 Home Mac and iPhone clients are untrusted relative to the office machine: they may dispatch tasks and watch video/framebuffer, but should not become a general remote-desktop console unless an explicit Phase 3 input channel is enabled.

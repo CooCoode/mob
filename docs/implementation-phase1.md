@@ -71,7 +71,7 @@ Suggested task shape (illustrative):
 }
 ```
 
-Auth for Phase 1: optional shared secret / intranet-only bind. Harden in Phase 2.
+Auth for Phase 1: **deferred**. Leave `MOBD_SHARED_SECRET` unset; bind to intranet/VPN only. Intranet auth and audit land with the home App in Phase 2 — see [client-phase2-lite.md](client-phase2-lite.md) and [roadmap.md](roadmap.md).
 
 ## Office Mac install checklist
 
@@ -98,7 +98,7 @@ Minimum knobs (names illustrative):
 | mob-mcp command / args | How `runner/codex` injects MCP into Codex (path to binary, flags) |
 | Codex executable / working dir | Spawn parameters for the Codex CLI |
 | VNC view URL | URL (or host/port/path) clients use with svnc viewOnly — returned or documented for the dispatch UI |
-| Optional shared secret | Simple gate for `POST /tasks` on a trusted intranet |
+| Optional shared secret | **Deferred** until Phase 2 App; leave unset in Phase 1 |
 
 Other MCP servers remain **config-swappable later** after license review; Phase 1 defaults to in-repo `mob-mcp` only ([ADR 0007](adr/0007-actuation-mob-mcp.md)).
 
@@ -116,8 +116,19 @@ Other MCP servers remain **config-swappable later** after license review; Phase 
 - WebRTC / ScreenCaptureKit view backend
 - Human remote input channel
 - Approval gates for payments/credentials (design later; not required for exit criteria)
-- Production auth, multi-tenant task DB, HA control plane
+- Intranet/production auth (deferred to Phase 2 App), multi-tenant task DB, HA control plane
 - Forking or embedding Paseo / Orca
+
+## Remaining Phase 1 work (auth deferred)
+
+Scaffold exists under `cmd/mobd` and `internal/`. Finish these **without** auth:
+
+1. **Codex path hardening** — office `POST /tasks` → real Codex + mob-mcp UI drive; clearer errors; optional single-flight concurrency.
+2. **Health** — readiness hints on `/health` (Codex / mob-mcp present) without refusing to listen.
+3. **Config / CORS** — so a home browser or lite App can call `mobd` on LAN/VPN; keep documenting `MOBD_VNC_VIEW_URL`.
+4. **Optional** `web/` static dispatch page — skip if [home-lite App](client-phase2-lite.md) starts immediately.
+
+Do **not** treat `MOBD_SHARED_SECRET` as a Phase 1 exit gate.
 
 ## Suggested implementation order
 
