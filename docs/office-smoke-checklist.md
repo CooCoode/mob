@@ -55,9 +55,11 @@ Temporary MIT third-party spikes (e.g. [CursorTouch/MacOS-MCP](https://github.co
 
 ## 3. VNC + websockify/WSS + home svnc (viewOnly)
 
-1. On the office Mac, enable a VNC-capable desktop server: **System Settings → General → Sharing → Screen Sharing**, or another VNC server you prefer. Note host, port, and credentials.
-2. Bridge VNC to a browser-reachable WebSocket with **websockify** (or equivalent). Prefer **WSS** (TLS) when the path leaves a trusted LAN; keep the service on intranet/VPN ([svnc](https://github.com/xrdavies/svnc) deployment notes).
-3. From the **home** Mac (or any machine on the VPN), open [svnc](https://github.com/xrdavies/svnc) against that endpoint with **`viewOnly: true`**.
+Step-by-step (Screen Sharing, websockify examples, WSS, home `viewOnly` snippet): **[vnc-svnc-setup.md](vnc-svnc-setup.md)**.
+
+1. On the office Mac, enable **System Settings → General → Sharing → Screen Sharing** (or another VNC server). Note host, port, and credentials — ports are site-specific; see setup doc for examples only.
+2. Bridge TCP VNC → WebSocket with **websockify** (or equivalent). Prefer **intranet/VPN**; use **WSS** (or SSH/VPN) when the path leaves a trusted LAN ([svnc](https://github.com/xrdavies/svnc) peripheral security).
+3. From the **home** Mac (or VPN), connect with [svnc](https://github.com/xrdavies/svnc) using **`viewOnly: true`**.
 
 **Pass:** the office desktop is visible in near real time.  
 **Pass (input):** mouse and keyboard from the viewer do **not** control the office Mac.
@@ -80,6 +82,7 @@ Both A and B must pass. After that, Phase 1 coding can attach `mobd` to the same
 
 ## References
 
+- [VNC + svnc viewOnly setup](vnc-svnc-setup.md)
 - [mob-mcp README](../services/mob-mcp/README.md)
 - [Computer-use research](research-computer-use.md)
 - [Phase 1 implementation plan](implementation-phase1.md)

@@ -54,6 +54,8 @@ flowchart LR
 - [Computer-use research](docs/research-computer-use.md)
 - [Phase 1 implementation plan](docs/implementation-phase1.md)
 - [Office Mac smoke checklist](docs/office-smoke-checklist.md)
+- [Office smoke test report](docs/office-smoke-test-report.md)
+- [VNC + svnc viewOnly setup](docs/vnc-svnc-setup.md)
 - [Roadmap](docs/roadmap.md)
 - [Security notes](docs/security.md)
 - ADRs:
