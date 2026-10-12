@@ -125,8 +125,8 @@ Scaffold exists under `cmd/mobd` and `internal/`. Finish these **without** auth:
 
 1. **Codex path hardening** — office `POST /tasks` → real Codex + mob-mcp UI drive; clearer errors; optional single-flight concurrency.
 2. **Health** — readiness hints on `/health` (Codex / mob-mcp present) without refusing to listen.
-3. **Config / CORS** — so a home browser or lite App can call `mobd` on LAN/VPN; keep documenting `MOBD_VNC_VIEW_URL`.
-4. **Optional** `web/` static dispatch page — skip if [home-lite App](client-phase2-lite.md) starts immediately.
+3. **Config / CORS** — so a home browser or `apps/mob` can call `mobd` on LAN/VPN; keep documenting `MOBD_VNC_VIEW_URL`.
+4. **Optional** `web/` static dispatch page — skip if [`apps/mob`](client-phase2-lite.md) starts immediately.
 
 Do **not** treat `MOBD_SHARED_SECRET` as a Phase 1 exit gate.
 

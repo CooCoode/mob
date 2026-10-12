@@ -1,4 +1,4 @@
-# Phase 2 lite — home Mac client (embed svnc)
+# Phase 2 lite — home Mac App `apps/mob` (embed svnc)
 
 **Status:** plan only (docs first). Full UI ships in a later coding turn.  
 **Decision (user):** intranet auth is **deferred** until this App work; Phase 1 `MOBD_SHARED_SECRET` stays optional and unset for now.
@@ -22,7 +22,7 @@ Skim of current `cmd/mobd` + `internal/` vs [implementation-phase1.md](implement
 | **Codex path hardening** | Office end-to-end: `POST /tasks` → real `codex exec` + `mob-mcp` drives UI; verify MCP `-c` / args on real Codex CLI; clearer failure messages; optional concurrency limit (one running task); tune sandbox / workdir docs from office findings |
 | **Health** | Keep `/health`; extend readiness hints (Codex on `PATH`, `mob-mcp` binary exists) without blocking listen |
 | **Config** | Document / optionally add file-based config later; ensure `MOBD_VNC_VIEW_URL` is set for clients; **CORS** (or same-origin static) so a home browser/App can call `mobd` on LAN/VPN |
-| **Optional static dispatch page** | `web/` or served by `mobd`: prompt + status + link/embed placeholder — useful before the native shell; skip if lite App lands first |
+| **Optional static dispatch page** | `web/` or served by `mobd`: prompt + status + link/embed placeholder — useful before the native shell; skip if `apps/mob` lands first |
 | **Auth** | **Deferred** — do not block on `MOBD_SHARED_SECRET`; add with App (Phase 2) |
 
 Exit criteria for Phase 1 remain: from home, dispatch a Codex UI task and watch viewOnly VNC (svnc or Screen Sharing for smoke).
@@ -38,7 +38,7 @@ Exit criteria for Phase 1 remain: from home, dispatch a Codex UI task and watch 
 
 ### Recommendation: **Tauri 2 + Vite / TypeScript**
 
-**One stack for the lite App.** Rationale:
+**One stack for the home App (`apps/mob`).** Rationale:
 
 1. **svnc is already a browser library** — the MVP screen is HTML/Canvas + `SVNCClient.connect(..., { viewOnly: true })`; Tauri’s webview is the natural host.
 2. **Task API is plain HTTP/SSE** — fetch from the frontend to `MOBD_URL`; no need for Electron’s Node in the renderer.
@@ -74,7 +74,7 @@ No chat history persistence required for MVP; in-memory UI state is enough.
 
 Notes:
 
-- Office side may also set `MOBD_VNC_VIEW_URL` (human-facing page URL). The lite App should prefer explicit `VNC_WS_URL` for the embedded RFB connection.
+- Office side may also set `MOBD_VNC_VIEW_URL` (human-facing page URL). The mob App should prefer explicit `VNC_WS_URL` for the embedded RFB connection.
 - VNC password, if any, stays in client local config / OS keychain later — not in the repo.
 - Until App auth lands, bind `mobd` to intranet/VPN only ([security.md](security.md)).
 
@@ -82,7 +82,7 @@ Notes:
 
 ```text
 apps/
-  home-lite/           # Tauri 2 + Vite/TS MVP (home Mac)
+  mob/                 # Tauri 2 + Vite/TS MVP (home Mac; product name: mob)
     src/               # UI: task pane + svnc viewOnly
     src-tauri/         # Tauri shell
     README.md
@@ -90,7 +90,7 @@ apps/
 
 Stub folder may exist with a pointer README only until implementation starts.
 
-## Out of scope for lite MVP
+## Out of scope for mob App MVP
 
 - Intranet auth / tokens (follow-on in Phase 2 with App)
 - iPhone client

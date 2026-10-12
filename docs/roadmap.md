@@ -17,7 +17,7 @@ Phased delivery. Do not skip the separation of **view** (human) and **actuation*
 
 ## Phase 2 — Productize the client
 
-- Integrate the svnc viewer into MOB clients (home Mac first, then iPhone) — see **[client-phase2-lite.md](client-phase2-lite.md)** (recommended stack: **Tauri 2 + Vite/TS**)
+- Integrate the svnc viewer into MOB clients (home Mac first via **`apps/mob`**, then iPhone) — see **[client-phase2-lite.md](client-phase2-lite.md)** (recommended stack: **Tauri 2 + Vite/TS**)
 - Unified UX: chat / task list + embedded live desktop (`viewOnly`)
 - **Intranet auth and basic audit log land with the App** (not as a Phase 1 gate). Wire tokens/session to `mobd` when the home client exists.
 
