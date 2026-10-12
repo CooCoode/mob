@@ -1,6 +1,6 @@
 # apps/mob
 
-Home Mac **mob** client: task dispatch to office **`mobd`** + embedded **[svnc](https://github.com/xrdavies/svnc)** (`viewOnly: true`).
+Home Mac **mob** client: Grok-like shell (sessions · chat · thumbnail preview) — task dispatch to office **`mobd`** + embedded **[svnc](https://github.com/xrdavies/svnc)** (`viewOnly: true`).
 
 Plan: [docs/client-phase2-lite.md](../../docs/client-phase2-lite.md) · UI: [docs/apps-mob-ui.md](../../docs/apps-mob-ui.md)
 
@@ -25,7 +25,7 @@ cp .env.example .env
 # edit MOBD_URL and VNC_WS_URL
 ```
 
-Fields are also editable in the UI; env values only prefill.
+Env values prefill a default **machine**. Manage machines (name, `MOBD_URL`, `VNC_WS_URL`, optional password) in **Settings**; persisted in localStorage.
 
 | Variable | Meaning |
 | --- | --- |
@@ -60,7 +60,10 @@ npm run tauri build
 
 ## MVP behavior
 
-- **Task pane:** `POST /tasks`, cancel, list, SSE (`GET /tasks/:id/events`)
+- **Left:** sessions / agents grouped by remote machine (localStorage)
+- **Center:** chat-style dispatch — `POST /tasks`, cancel, SSE (`GET /tasks/:id/events`)
+- **Right:** viewOnly thumbnail; double-click → App-fullscreen preview; Esc back
+- **Settings:** add/edit machines (`MOBD_URL`, `VNC_WS_URL`, …)
 - **Live view:** `SVNCClient.connect(..., { viewOnly: true })` — no human mouse/keyboard
 - **Auth:** deferred (intranet/VPN only)
 

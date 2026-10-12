@@ -49,21 +49,14 @@ Prototype shortcut (optional, same frontend): run the Vite app in Chrome against
 
 ## MVP screens
 
-Single window, two panes (or stacked on small height):
+Grok-like three-column shell (see [apps-mob-ui.md](apps-mob-ui.md)):
 
-1. **Task pane**
-   - Prompt textarea
-   - Submit → `POST ${MOBD_URL}/tasks` with `{ "prompt": "..." }`
-   - Show task id / status; subscribe to `GET .../tasks/:id/events` (SSE) for logs
-   - Cancel button → `POST .../tasks/:id/cancel`
-   - Optional: recent task list from `GET /tasks`
-2. **Live view pane**
-   - Canvas/container for svnc
-   - Connect with **`viewOnly: true`** to `VNC_WS_URL` (WebSocket after websockify/WSS)
-   - Disconnect / reconnect; never enable human input in MVP
-   - If `GET /health` returns `vncViewUrl`, may open/document that URL; primary embed still uses `VNC_WS_URL` for the RFB WebSocket
+1. **Left — Sessions** — remote machines (localStorage) with nested sessions/tasks; select active machine.
+2. **Center — Chat** — prompt composer → `POST ${MOBD_URL}/tasks`; SSE stream (`GET .../tasks/:id/events`); Cancel → `POST .../cancel`.
+3. **Right — Preview** — svnc thumbnail with **`viewOnly: true`** on `VNC_WS_URL`; double-click expands to App-fullscreen; Esc returns. Never enable human input.
+4. **Settings** — add/edit machines (`MOBD_URL`, `VNC_WS_URL`, optional password, display name). Connection fields are not a permanent main-chrome strip.
 
-No chat history persistence required for MVP; in-memory UI state is enough.
+No chat history DB required for MVP; in-memory UI + localStorage machines is enough.
 
 ## Environment variables (client)
 
@@ -75,7 +68,7 @@ No chat history persistence required for MVP; in-memory UI state is enough.
 Notes:
 
 - Office side may also set `MOBD_VNC_VIEW_URL` (human-facing page URL). The mob App should prefer explicit `VNC_WS_URL` for the embedded RFB connection.
-- VNC password, if any, stays in client local config / OS keychain later — not in the repo.
+- Client stores machines (name + URLs + optional password) in **localStorage** via Settings; env vars only prefill a default machine. VNC password never in the repo; OS keychain later.
 - Until App auth lands, bind `mobd` to intranet/VPN only ([security.md](security.md)).
 
 ## Proposed repo layout (next coding turn)
@@ -83,7 +76,7 @@ Notes:
 ```text
 apps/
   mob/                 # Tauri 2 + Vite/TS MVP (home Mac; product name: mob)
-    src/               # UI: task pane + svnc viewOnly
+    src/               # UI: sessions | chat | thumbnail preview + Settings
     src-tauri/         # Tauri shell
     README.md
 ```
