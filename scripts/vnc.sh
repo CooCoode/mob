@@ -8,6 +8,12 @@ source "${SCRIPT_DIR}/common.sh"
 load_env
 ensure_run_dir
 
+case "${1:-start}" in
+  start) ;;
+  restart) "${SCRIPT_DIR}/vnc-stop.sh" ;;
+  *) echo "Usage: $0 {start|restart}" >&2; exit 2 ;;
+esac
+
 if is_running; then
   pid="$(cat "${PID_FILE}")"
   echo "Already running (pid ${pid})."
@@ -44,8 +50,7 @@ run_websockify() {
   elif python3 -c "import websockify" >/dev/null 2>&1; then
     nohup python3 -m websockify --heartbeat 30 "${listen}" "${target}" >>"${LOG_FILE}" 2>&1 &
   else
-    echo "websockify not found. Install with: pip3 install websockify" >&2
-    echo "Or set WEBSOCKIFY_BIN in scripts/office-vnc/.env" >&2
+    echo "websockify not found; install it with 'uv tool install websockify' or set WEBSOCKIFY_BIN in scripts/.env" >&2
     return 1
   fi
   echo $! >"${PID_FILE}"

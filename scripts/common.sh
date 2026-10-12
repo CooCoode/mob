@@ -3,7 +3,7 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-ROOT_DIR="$(cd "${SCRIPT_DIR}/../.." && pwd)"
+ROOT_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
 
 load_env() {
   local env_file="${SCRIPT_DIR}/.env"
@@ -21,35 +21,17 @@ load_env() {
   VNC_PASSWORD="${VNC_PASSWORD:-}"
   WEBSOCKIFY_BIN="${WEBSOCKIFY_BIN:-}"
   RUN_DIR="${RUN_DIR:-${SCRIPT_DIR}/run}"
+  MOBD_BIN="${MOBD_BIN:-${ROOT_DIR}/bin/mobd}"
+  MOBD_RUN_DIR="${MOBD_RUN_DIR:-${RUN_DIR}}"
+  MOBD_PID_FILE="${MOBD_RUN_DIR}/mobd.pid"
+  MOBD_LOG_FILE="${MOBD_RUN_DIR}/mobd.log"
 
   PID_FILE="${RUN_DIR}/websockify.pid"
   LOG_FILE="${RUN_DIR}/websockify.log"
 }
 
 ensure_run_dir() {
-  mkdir -p "${RUN_DIR}"
-}
-
-resolve_websockify() {
-  if [[ -n "${WEBSOCKIFY_BIN}" ]]; then
-    if [[ -x "${WEBSOCKIFY_BIN}" ]] || command -v "${WEBSOCKIFY_BIN}" >/dev/null 2>&1; then
-      echo "${WEBSOCKIFY_BIN}"
-      return 0
-    fi
-    echo "WEBSOCKIFY_BIN is set but not executable: ${WEBSOCKIFY_BIN}" >&2
-    return 1
-  fi
-  if command -v websockify >/dev/null 2>&1; then
-    command -v websockify
-    return 0
-  fi
-  if python3 -c "import websockify" >/dev/null 2>&1; then
-    echo "python3 -m websockify"
-    return 0
-  fi
-  echo "websockify not found. Install with: pip3 install websockify" >&2
-  echo "Or set WEBSOCKIFY_BIN in scripts/office-vnc/.env" >&2
-  return 1
+  mkdir -p "${RUN_DIR}" "${MOBD_RUN_DIR}"
 }
 
 is_running() {
@@ -65,6 +47,25 @@ is_running() {
     return 0
   fi
   return 1
+}
+
+is_mobd_running() {
+  if [[ ! -f "${MOBD_PID_FILE}" ]]; then
+    return 1
+  fi
+  local pid
+  pid="$(cat "${MOBD_PID_FILE}" 2>/dev/null || true)"
+  [[ -n "${pid}" ]] && kill -0 "${pid}" 2>/dev/null
+}
+
+mobd_mcp_command() {
+  if [[ -n "${MOBD_MOB_MCP_COMMAND:-}" ]]; then
+    echo "${MOBD_MOB_MCP_COMMAND}"
+  elif [[ -x "${ROOT_DIR}/services/mob-mcp/.venv/bin/mob-mcp" ]]; then
+    echo "${ROOT_DIR}/services/mob-mcp/.venv/bin/mob-mcp"
+  else
+    echo "mob-mcp"
+  fi
 }
 
 ws_url_hint() {

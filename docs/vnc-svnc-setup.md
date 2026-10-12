@@ -41,17 +41,16 @@ Browsers cannot open raw TCP VNC. [svnc](https://github.com/xrdavies/svnc) expec
 
 ### Recommended: MOB helper scripts
 
-Repo helpers wrap websockify start/stop/status (still **outside** `mobd`):
+Repo helpers wrap websockify start/stop/status. The same scripts also manage the office `mobd` process:
 
-See **[scripts/office-vnc/README.md](../scripts/office-vnc/README.md)**.
+See **[scripts/README.md](../scripts/README.md)**.
 
 ```bash
-cd scripts/office-vnc
-cp env.example .env   # set VNC_HOST/VNC_PORT, WS_LISTEN_*, optional VNC_PASSWORD
-# pip3 install websockify   # once, if not already on PATH
-./start.sh
-./status.sh
-# ./stop.sh when done
+cp scripts/env.example scripts/.env   # set VNC_HOST/VNC_PORT, WS_LISTEN_*, and MOBD_*
+# uv tool install websockify   # once, if not already on PATH
+./scripts/start.sh
+./scripts/status.sh
+# ./scripts/stop.sh when done
 ```
 
 Defaults match the example below (`6080` → `127.0.0.1:5900`). Point home `VNC_WS_URL` / apps/mob at the printed `ws://…` URL.
@@ -70,7 +69,7 @@ Notes:
 - Alternatives: a native WebSocket VNC server (no bridge), or a thin lab bridge such as svnc’s non-production [`examples/ws-tcp-bridge/`](https://github.com/xrdavies/svnc/tree/main/examples/ws-tcp-bridge) for local experiments only.
 - A future **`mobvnc`** package may replace these scripts; the viewer contract remains a WebSocket RFB URL.
 
-Leave the bridge running while you test (launchd/plist later is optional; scripts already background websockify).
+Leave the services running while you test (launchd/plist later is optional; scripts already background websockify and mobd). Restart one service independently with `./scripts/mobd.sh restart` or `./scripts/vnc-stop.sh && ./scripts/vnc.sh`.
 
 ## 3. TLS / WSS (when the path leaves a trusted LAN)
 
@@ -140,7 +139,7 @@ Checklist row: [office-smoke-checklist.md](office-smoke-checklist.md) §3 / acce
 
 - [svnc](https://github.com/xrdavies/svnc) — MIT npm package `@xrdavies/svnc`
 - [websockify](https://github.com/novnc/websockify)
-- [scripts/office-vnc](../scripts/office-vnc/README.md) — start/stop/status helpers
+- [scripts](../scripts/README.md) — office service start/stop/status helpers
 - [Office smoke checklist](office-smoke-checklist.md)
 - [Office smoke test report](office-smoke-test-report.md)
 - [Architecture](architecture.md)

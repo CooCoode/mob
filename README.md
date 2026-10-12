@@ -58,7 +58,7 @@ flowchart LR
 - [Office Mac smoke checklist](docs/office-smoke-checklist.md)
 - [Office smoke test report](docs/office-smoke-test-report.md)
 - [VNC + svnc viewOnly setup](docs/vnc-svnc-setup.md)
-- [Office VNC websockify helpers](scripts/office-vnc/README.md)
+- [Office service scripts](scripts/README.md)
 - [Roadmap](docs/roadmap.md)
 - [Phase 2 lite home App `apps/mob` (embed svnc)](docs/client-phase2-lite.md)
 - [apps/mob UI plan](docs/apps-mob-ui.md)

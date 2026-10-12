@@ -58,7 +58,7 @@ Temporary MIT third-party spikes (e.g. [CursorTouch/MacOS-MCP](https://github.co
 Step-by-step (Screen Sharing, websockify examples, WSS, home `viewOnly` snippet): **[vnc-svnc-setup.md](vnc-svnc-setup.md)**.
 
 1. On the office Mac, enable **System Settings → General → Sharing → Screen Sharing** (or another VNC server). Note host, port, and credentials — ports are site-specific; see setup doc for examples only.
-2. Bridge TCP VNC → WebSocket with **websockify** (or equivalent). Prefer repo helpers [`scripts/office-vnc/`](../scripts/office-vnc/README.md) (`start.sh` / `stop.sh` / `status.sh`). Prefer **intranet/VPN**; use **WSS** (or SSH/VPN) when the path leaves a trusted LAN ([svnc](https://github.com/xrdavies/svnc) peripheral security).
+2. Bridge TCP VNC → WebSocket with **websockify** (or equivalent). Prefer repo helpers [`scripts/`](../scripts/README.md) (`vnc.sh` / `vnc-stop.sh` / `vnc-status.sh`). Prefer **intranet/VPN**; use **WSS** (or SSH/VPN) when the path leaves a trusted LAN ([svnc](https://github.com/xrdavies/svnc) peripheral security).
 3. From the **home** Mac (or VPN), connect with [svnc](https://github.com/xrdavies/svnc) using **`viewOnly: true`**.
 
 **Pass:** the office desktop is visible in near real time.  
