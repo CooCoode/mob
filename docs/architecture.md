@@ -37,7 +37,7 @@ Process(es) on the office Mac that:
 - start or attach a **Codex** session with the configured computer-use / MCP tools
 - report progress back to the control plane
 
-The runner host is part of the same **Go** binary boundary as the control plane in Phase 1. Claude, Grok, and others are intended as later pluggable runners behind the same interface. See [ADR 0004](adr/0004-runner-codex-first.md).
+**Codex** and **Claude Code** are the built runners; others (Gemini, opencode, pi) are pluggable behind the same interface. See [ADR 0004](adr/0004-runner-codex-first.md).
 
 ### Actuation (local MCP)
 

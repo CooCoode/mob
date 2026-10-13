@@ -47,7 +47,7 @@ flowchart LR
 | --- | --- |
 | Client | Chat / dispatch tasks; embed or open svnc as monitor |
 | Control plane | Thin task API owned by MOB — **Go** (`mobd`) |
-| Office runner | Starts with **Codex**; Claude / Grok pluggable later |
+| Office runner | **Codex** (default) and **Claude Code**; pluggable interface for others |
 | Actuation | **`mob-mcp`** tools served by `mobd mcp` (local stdio MCP, Go, MIT); third-party MCPs optional after license review; svnc Automation as fallback |
 | View | VNC + svnc; later protocols behind a `DesktopView` abstraction |
 

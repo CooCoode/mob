@@ -28,7 +28,7 @@ src/
 1. [Xcode Command Line Tools](https://developer.apple.com/xcode/) / full Xcode
 2. [Rust](https://rustup.rs/) stable (`rustup default stable`)
 3. Node.js 24+ (npm) — tests run TypeScript directly through Node's type stripping
-4. Office side reachable on LAN/VPN: `mobd` (API v3) with Screen Sharing turned on. mobd relays the live view, so no websockify is needed ([ADR 0010](../../docs/adr/0010-vnc-relay-in-mobd.md))
+4. Office side reachable on LAN/VPN: `mobd` (API v3) with Screen Sharing turned on. mobd relays the live view ([ADR 0010](../../docs/adr/0010-vnc-relay-in-mobd.md))
 
 ## Configure
 

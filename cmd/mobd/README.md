@@ -92,7 +92,7 @@ curl -s -X DELETE localhost:8080/sessions/SESSION_ID -o /dev/null -w '%{http_cod
 # timeline: messages + activities (tool calls, commands, plans…) + task usage
 curl -s localhost:8080/sessions/SESSION_ID | jq '.activities'
 
-# live view: WebSocket relay to Screen Sharing (what websockify used to do; ADR 0010)
+# live view: WebSocket relay to Screen Sharing (ADR 0010)
 # ws://localhost:8080/vnc   ← svnc / the App connect here
 
 # global live stream (session / session.deleted / task / queue / reset)
@@ -134,7 +134,7 @@ curl -s -X POST localhost:8080/tasks \
 | `MOBD_CLAUDE_PERMISSIONS` | `bypass` | `approve` makes Claude ask you before shell commands and other prompted actions |
 | `MOBD_CLAUDE_SETTING_SOURCES` | `project` | Claude settings loaded; `all` includes your personal `~/.claude` |
 | `MOBD_DEFAULT_RUNNER` | `codex` | Runner for new conversations ([runners](../../docs/runners.md)) |
-| `MOBD_CODEX_MODELS` | empty | Comma-separated Codex model IDs for the App's picker (`MOBD_MODELS` is still read) |
+| `MOBD_CODEX_MODELS` | empty | Comma-separated Codex model IDs for the App picker (`MOBD_MODELS` is still read for backward compatibility) |
 | `MOBD_VNC_ADDR` | `127.0.0.1:5900` | VNC server (macOS Screen Sharing) relayed by `GET /vnc` and checked by `/health` |
 
 ## Conversations and runner lifecycle

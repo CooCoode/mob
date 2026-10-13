@@ -1,6 +1,6 @@
 # Runners
 
-A **runner** connects mobd to one agent CLI (Codex today; Claude Code, Gemini, opencode, pi later). mobd never sees an agent's own output format: each runner translates it into neutral events, and the API, store and App only deal with those.
+A **runner** connects mobd to one agent CLI (Codex and Claude Code today; Gemini, opencode, pi are candidates). mobd never sees an agent's own output format: each runner translates it into neutral events, and the API, store and App only deal with those.
 
 Related: [mobd-v3.md](mobd-v3.md) (API), [ADR 0004](adr/0004-runner-codex-first.md) (Codex first), [ADR 0008](adr/0008-actuation-in-mobd.md) (desktop tools via `mobd mcp`).
 

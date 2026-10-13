@@ -165,7 +165,7 @@ Per-task timelines stay on `/tasks/{id}/events`. The global stream carries only 
 | --- | --- | --- |
 | `MOBD_MAX_RUNNING` | `1` | Tasks allowed to run at once (one desktop → 1) |
 | `MOBD_DATA_DIR` | directory of `MOBD_STATE_PATH` | Root for `artifacts/` (screenshots, uploads) |
-| `MOBD_CODEX_MODELS` | empty | Codex model IDs offered to clients (`MOBD_MODELS` still read) |
+| `MOBD_CODEX_MODELS` | empty | Codex model IDs offered to clients (`MOBD_MODELS` is still read for backward compatibility) |
 | `MOBD_VNC_ADDR` | `127.0.0.1:5900` | VNC server relayed by `GET /vnc` and checked by `/health` |
 | `MOBD_QUESTION_TIMEOUT` | `30m` | How long a turn waits for an answer to `ask_user` / `request_approval` |
 
