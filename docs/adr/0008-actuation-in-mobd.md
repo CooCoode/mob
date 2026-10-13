@@ -2,7 +2,7 @@
 
 ## Status
 
-Accepted. Supersedes the **Python implementation** choice in [ADR 0007](0007-actuation-mob-mcp.md). The rest of 0007 still applies: actuation stays in-repo, MIT, a local MCP, and the documented default.
+Accepted and implemented (2026-10-13): `internal/actuate`, `internal/mcpserver`, `mobd mcp`; `services/mob-mcp` removed. Supersedes the **Python implementation** choice in [ADR 0007](0007-actuation-mob-mcp.md). The rest of 0007 still applies: actuation stays in-repo, MIT, a local MCP, and the documented default.
 
 ## Context
 

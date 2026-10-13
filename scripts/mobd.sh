@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Manage the office mobd control plane. mob-mcp is spawned by mobd per task.
+# Manage the office mobd control plane. Codex starts `mobd mcp` (actuation) per task.
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -48,7 +48,7 @@ start() {
     echo "mobd process started but health check failed; see ${MOBD_LOG_FILE}" >&2
     return 1
   fi
-  echo "mobd started (pid $(cat "${MOBD_PID_FILE}")); MCP=$(mobd_mcp_command)"
+  echo "mobd started (pid $(cat "${MOBD_PID_FILE}")); MCP=${MOBD_MOB_MCP_COMMAND:-built-in (mobd mcp)}"
 }
 
 stop() {
@@ -70,10 +70,13 @@ stop() {
 
 status() {
   echo "mobd: $(is_mobd_running && echo "RUNNING (pid $(cat "${MOBD_PID_FILE}"))" || echo STOPPED)"
-  echo "mob-mcp: $(mobd_mcp_command)"
-  if [[ "$(mobd_mcp_command)" == */* ]]; then
+  if [[ -z "$(mobd_mcp_command)" ]]; then
+    echo "mob-mcp: built-in (mobd mcp); permissions: curl -s localhost:${MOBD_LISTEN##*:}/health"
+  elif [[ "$(mobd_mcp_command)" == */* ]]; then
+    echo "mob-mcp: $(mobd_mcp_command)"
     [[ -x "$(mobd_mcp_command)" ]] && echo "  available" || echo "  missing (mobd tasks will fail until installed)"
   else
+    echo "mob-mcp: $(mobd_mcp_command)"
     command -v "$(mobd_mcp_command)" >/dev/null 2>&1 && echo "  available" || echo "  missing (mobd tasks will fail until installed)"
   fi
   is_mobd_running

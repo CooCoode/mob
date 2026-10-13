@@ -58,14 +58,9 @@ is_mobd_running() {
   [[ -n "${pid}" ]] && kill -0 "${pid}" 2>/dev/null
 }
 
+# Empty means mobd's built-in actuation server (`mobd mcp`, ADR 0008).
 mobd_mcp_command() {
-  if [[ -n "${MOBD_MOB_MCP_COMMAND:-}" ]]; then
-    echo "${MOBD_MOB_MCP_COMMAND}"
-  elif [[ -x "${ROOT_DIR}/services/mob-mcp/.venv/bin/mob-mcp" ]]; then
-    echo "${ROOT_DIR}/services/mob-mcp/.venv/bin/mob-mcp"
-  else
-    echo "mob-mcp"
-  fi
+  echo "${MOBD_MOB_MCP_COMMAND:-}"
 }
 
 ws_url_hint() {

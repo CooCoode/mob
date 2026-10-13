@@ -1,6 +1,6 @@
 # Office service scripts
 
-These scripts manage the services that run on the office Mac. Copy `env.example` to `scripts/.env` once and set the LAN bind, ports, and the installed `mob-mcp` path if it is not in the repository virtual environment.
+These scripts manage the services that run on the office Mac. Copy `env.example` to `scripts/.env` once and set the LAN bind and ports.
 
 ```bash
 cp scripts/env.example scripts/.env
@@ -23,7 +23,7 @@ Each service can be restarted without touching the other one:
 ./scripts/mobd.sh stop
 ```
 
-`mobd.sh` builds `bin/mobd` when needed and starts it with the environment from `scripts/.env`. `mob-mcp` is an MCP-over-stdio server, so `mobd` starts it for each Codex task; it is not a standalone daemon. `mobd.sh status` checks that the configured MCP command is available.
+`mobd.sh` builds `bin/mobd` when needed and starts it with the environment from `scripts/.env`. Desktop actuation is built into the same binary ([ADR 0008](../docs/adr/0008-actuation-in-mobd.md)): Codex starts `bin/mobd mcp` over stdio for each task, so there is no separate daemon or Python environment. Grant **Accessibility** and **Screen Recording** to the app that launches `mobd` (Terminal/iTerm when using these scripts); `GET /health` reports both under `checks`. Set `MOBD_MOB_MCP_COMMAND` only to try an external MCP server.
 
 Runtime files are kept in `scripts/run/` and are ignored by Git. Logs are `websockify.log` and `mobd.log`.
 

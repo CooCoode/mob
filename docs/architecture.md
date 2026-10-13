@@ -43,8 +43,7 @@ The runner host is part of the same **Go** binary boundary as the control plane 
 
 How the agent opens apps and operates the GUI on the office Mac.
 
-- **Default:** the in-repo `mob-mcp` tool set on the office machine, with macOS Accessibility + Screen Recording. See [ADR 0007](adr/0007-actuation-mob-mcp.md) and [research-computer-use.md](research-computer-use.md).
-- **Moving into mobd:** [ADR 0008](adr/0008-actuation-in-mobd.md) ports it to Go (`internal/actuate`) and serves it as `mobd mcp` over stdio, so one binary holds the permissions and mobd can reuse actuation for `/screen` and readiness checks.
+- **Default:** the `mob-mcp` tool set, built into the `mobd` binary (`internal/actuate`, served by `mobd mcp` over stdio; Codex launches it per task). One binary holds the macOS Accessibility + Screen Recording grants, and mobd reuses actuation for `/screen` and the `/health` permission checks. See [ADR 0008](adr/0008-actuation-in-mobd.md), [ADR 0007](adr/0007-actuation-mob-mcp.md) and [research-computer-use.md](research-computer-use.md).
 - **Later optional:** other local MCP servers via configuration **after license review** (GhostDesk FSL Competing Use is a poor fit to ship as MOB’s core; see research).
 - **Fallback:** svnc Automation (click / type over VNC), on a path separate from the human viewOnly session.
 
@@ -82,7 +81,7 @@ flowchart TB
   subgraph officeNet [Office network]
     API[MOB task API - Go]
     Runner[Codex runner]
-    MCP[mob-mcp]
+    MCP[mobd mcp]
     VNC[VNC server]
   end
 

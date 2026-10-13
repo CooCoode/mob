@@ -10,6 +10,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/xrdavies/mob/internal/actuate"
 	"github.com/xrdavies/mob/internal/task"
 )
 
@@ -56,17 +57,40 @@ func (s *Server) readiness(ctx context.Context) map[string]check {
 	ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
 	defer cancel()
 	checks := map[string]check{
-		"codex":           codexCheck(ctx, s.cfg.CodexBin),
-		"actuation":       binaryCheck(s.cfg.MobMCPCommand),
-		"accessibility":   {Unknown: true, Detail: "reported once actuation runs inside mobd"},
-		"screenRecording": {Unknown: true, Detail: "reported once actuation runs inside mobd"},
+		"codex":     codexCheck(ctx, s.cfg.CodexBin),
+		"actuation": binaryCheck(s.cfg.MobMCPCommand),
 	}
+	if s.cfg.UsesBuiltinMCP() {
+		checks["actuation"] = check{OK: true, Detail: "built-in (mobd mcp)"}
+	}
+	checks["accessibility"], checks["screenRecording"] = permissionChecks()
 	if s.cfg.VNCAddr != "" {
 		checks["vnc"] = dialCheck(ctx, s.cfg.VNCAddr)
 	}
 	s.health.at, s.health.checks = time.Now(), checks
 	return checks
 }
+
+// permissionChecks reports macOS TCC grants as seen by mobd; `mobd mcp`
+// children launched through Codex share the same responsible app.
+func permissionChecks() (check, check) {
+	p, err := currentPermissions()
+	if err != nil {
+		return check{Unknown: true, Detail: err.Error()}, check{Unknown: true, Detail: err.Error()}
+	}
+	ax := check{OK: p.Accessibility}
+	if !ax.OK {
+		ax.Detail = "grant Accessibility to the app that launches mobd (System Settings > Privacy & Security > Accessibility)"
+	}
+	sr := check{OK: p.ScreenRecording}
+	if !sr.OK {
+		sr.Detail = "grant Screen Recording to the app that launches mobd (System Settings > Privacy & Security > Screen & System Audio Recording)"
+	}
+	return ax, sr
+}
+
+// currentPermissions is swapped in tests.
+var currentPermissions = actuate.CurrentPermissions
 
 func codexCheck(ctx context.Context, bin string) check {
 	path, err := exec.LookPath(bin)

@@ -41,3 +41,19 @@ func TestLoadCORSOrigins(t *testing.T) {
 		})
 	}
 }
+
+func TestMCPDefaultsToBuiltinServer(t *testing.T) {
+	t.Setenv("MOBD_MOB_MCP_COMMAND", "")
+	t.Setenv("MOBD_MOB_MCP_ARGS", "[]") // as in scripts/env.example; must not drop "mcp"
+	cfg := Load()
+	exe, _ := BuiltinMCP()
+	if cfg.MobMCPCommand != exe || !reflect.DeepEqual(cfg.MobMCPArgs, []string{"mcp"}) || !cfg.UsesBuiltinMCP() {
+		t.Fatalf("builtin: %q %v", cfg.MobMCPCommand, cfg.MobMCPArgs)
+	}
+	t.Setenv("MOBD_MOB_MCP_COMMAND", "/opt/other-mcp")
+	t.Setenv("MOBD_MOB_MCP_ARGS", `["--flag"]`)
+	cfg = Load()
+	if cfg.MobMCPCommand != "/opt/other-mcp" || !reflect.DeepEqual(cfg.MobMCPArgs, []string{"--flag"}) || cfg.UsesBuiltinMCP() {
+		t.Fatalf("external: %q %v", cfg.MobMCPCommand, cfg.MobMCPArgs)
+	}
+}

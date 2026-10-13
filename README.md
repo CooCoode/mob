@@ -6,7 +6,7 @@ MOB is a private alternative shape to cloud desktop agents (e.g. Manus, Grok Bot
 
 ## Current status
 
-**Phase 1 + lite client scaffold.** Docs under [`docs/`](docs/). Actuation: [`services/mob-mcp/`](services/mob-mcp/). Control plane: Go **`mobd`** — [`cmd/mobd`](cmd/mobd). Home App: Tauri **`apps/mob`** — [`apps/mob/README.md`](apps/mob/README.md).
+**Phase 1 + lite client scaffold.** Docs under [`docs/`](docs/). Control plane and actuation: Go **`mobd`** — [`cmd/mobd`](cmd/mobd) (actuation is the built-in `mobd mcp` server). Home App: Tauri **`apps/mob`** — [`apps/mob/README.md`](apps/mob/README.md).
 
 ## Relationship to svnc
 
@@ -14,7 +14,7 @@ Screen viewing uses the VNC protocol. The human-facing viewer is the sibling pro
 
 For current client testing, human input is temporarily enabled in [`apps/mob`](apps/mob/README.md).
 
-MOB owns task dispatch, the office runner, and the client shell that embeds svnc. Actuation prefers an in-repo local computer-use MCP (**`mob-mcp`**, [ADR 0007](docs/adr/0007-actuation-mob-mcp.md); moving into the `mobd` binary per [ADR 0008](docs/adr/0008-actuation-in-mobd.md)) and stays separate from the human viewOnly VNC session.
+MOB owns task dispatch, the office runner, and the client shell that embeds svnc. Actuation prefers an in-repo local computer-use MCP (**`mob-mcp`**, [ADR 0007](docs/adr/0007-actuation-mob-mcp.md); built into the `mobd` binary as `mobd mcp` per [ADR 0008](docs/adr/0008-actuation-in-mobd.md)) and stays separate from the human viewOnly VNC session.
 
 ## High-level architecture
 
@@ -31,7 +31,7 @@ flowchart LR
 
   subgraph office [Office Mac]
     R[Runner - Codex first]
-    A[Actuation - mob-mcp]
+    A[Actuation - mobd mcp]
     V[VNC server]
   end
 
@@ -47,7 +47,7 @@ flowchart LR
 | Client | Chat / dispatch tasks; embed or open svnc as monitor |
 | Control plane | Thin task API owned by MOB — **Go** (`mobd`) |
 | Office runner | Starts with **Codex**; Claude / Grok pluggable later |
-| Actuation | In-repo **`mob-mcp`** (local MCP, MIT); third-party MCPs optional after license review; svnc Automation as fallback |
+| Actuation | **`mob-mcp`** tools served by `mobd mcp` (local stdio MCP, Go, MIT); third-party MCPs optional after license review; svnc Automation as fallback |
 | View | VNC + svnc; later protocols behind a `DesktopView` abstraction |
 
 ## Docs

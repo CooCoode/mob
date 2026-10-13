@@ -30,8 +30,8 @@ type Config struct {
 //	MOBD_LISTEN          HTTP bind (default :8080)
 //	MOBD_CODEX_BIN       Codex executable (default codex)
 //	MOBD_CODEX_WORKDIR   Working directory for Codex (default cwd)
-//	MOBD_MOB_MCP_COMMAND Absolute path to mob-mcp (or python -m launcher)
-//	MOBD_MOB_MCP_ARGS    JSON array of args, e.g. ["-m","mob_mcp"] (default [])
+//	MOBD_MOB_MCP_COMMAND External MCP server for Codex (default: this mobd binary)
+//	MOBD_MOB_MCP_ARGS    JSON array of args for an external MCP command (default [])
 //	MOBD_SHARED_SECRET   Optional bearer/shared secret for mutating routes
 //	MOBD_VNC_VIEW_URL    Human svnc viewOnly URL (returned in health/info)
 //	MOBD_STATE_PATH      Conversation snapshot (default user config dir/mob/state.json)
@@ -50,7 +50,7 @@ func Load() Config {
 		ListenAddr:    envOr("MOBD_LISTEN", ":8080"),
 		CodexBin:      envOr("MOBD_CODEX_BIN", "codex"),
 		CodexWorkDir:  envOr("MOBD_CODEX_WORKDIR", cwd),
-		MobMCPCommand: envOr("MOBD_MOB_MCP_COMMAND", "mob-mcp"),
+		MobMCPCommand: os.Getenv("MOBD_MOB_MCP_COMMAND"),
 		MobMCPArgs:    nil,
 		SharedSecret:  os.Getenv("MOBD_SHARED_SECRET"),
 		VNCViewURL:    os.Getenv("MOBD_VNC_VIEW_URL"),
@@ -64,6 +64,12 @@ func Load() Config {
 	if n, err := strconv.Atoi(strings.TrimSpace(os.Getenv("MOBD_MAX_RUNNING"))); err == nil && n > 0 {
 		cfg.MaxRunning = n
 	}
+	if strings.TrimSpace(cfg.MobMCPCommand) == "" {
+		// Built-in actuation: Codex launches `mobd mcp` (ADR 0008); args only apply to external servers.
+		cfg.MobMCPCommand, cfg.MobMCPArgs = BuiltinMCP()
+		return cfg
+	}
+	cfg.MobMCPCommand = strings.TrimSpace(cfg.MobMCPCommand)
 	if raw := strings.TrimSpace(os.Getenv("MOBD_MOB_MCP_ARGS")); raw != "" {
 		var args []string
 		if err := json.Unmarshal([]byte(raw), &args); err == nil {
@@ -79,6 +85,23 @@ func Load() Config {
 		}
 	}
 	return cfg
+}
+
+// BuiltinMCP returns the command and args that run this binary's MCP server.
+func BuiltinMCP() (string, []string) {
+	exe, err := os.Executable()
+	if err != nil {
+		exe = "mobd"
+	} else if resolved, err := filepath.EvalSymlinks(exe); err == nil {
+		exe = resolved
+	}
+	return exe, []string{"mcp"}
+}
+
+// UsesBuiltinMCP reports whether Codex will launch this binary's MCP server.
+func (c Config) UsesBuiltinMCP() bool {
+	exe, args := BuiltinMCP()
+	return c.MobMCPCommand == exe && len(c.MobMCPArgs) == 1 && c.MobMCPArgs[0] == args[0]
 }
 
 func corsOrigins(raw string) []string {

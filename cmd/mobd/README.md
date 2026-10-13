@@ -1,6 +1,6 @@
 # mobd
 
-Phase 1 office control plane: HTTP task API + Codex runner that injects in-repo **mob-mcp**.
+Office control plane: HTTP task API + Codex runner. The same binary is the desktop actuation MCP server (`mobd mcp`, [ADR 0008](../../docs/adr/0008-actuation-in-mobd.md)); Codex launches it for each task.
 
 See [docs/implementation-phase1.md](../../docs/implementation-phase1.md).
 
@@ -13,8 +13,8 @@ go build -o bin/mobd ./cmd/mobd
 export MOBD_LISTEN=":8080"
 export MOBD_CODEX_BIN="codex"   # or absolute path
 export MOBD_CODEX_WORKDIR="$HOME"   # or a dedicated workspace
-export MOBD_MOB_MCP_COMMAND="/absolute/path/to/mob/services/mob-mcp/.venv/bin/mob-mcp"
 # optional:
+# export MOBD_MOB_MCP_COMMAND="/path/to/external-mcp"   # default: this binary with args ["mcp"]
 # export MOBD_MOB_MCP_ARGS='[]'
 # export MOBD_SHARED_SECRET="intranet-token"
 # export MOBD_VNC_VIEW_URL="https://office.example/svnc/"
@@ -22,6 +22,16 @@ export MOBD_MOB_MCP_COMMAND="/absolute/path/to/mob/services/mob-mcp/.venv/bin/mo
 # export MOBD_CORS_ORIGINS="http://localhost:1420,https://home.example"
 
 ./bin/mobd
+```
+
+### Desktop actuation (`mobd mcp`)
+
+`mobd mcp` is a stdio MCP server named `mob-mcp` with the tools `screenshot`, `click`, `type_text`, `key`, `list_windows` and `open_app` (coordinates in points; screenshot returns a PNG plus geometry metadata). It is built with cgo against CoreGraphics, so build on macOS with the Xcode command line tools; other platforms compile stub tools that return a "macOS only" error.
+
+Grant **Accessibility** (click/key/type) and **Screen Recording** (screenshot, window titles) to the app that launches `mobd` — Terminal/iTerm when started from a shell, or `mobd` itself under launchd. `GET /health` reports both under `checks`. To use it from another MCP client:
+
+```json
+{ "mcpServers": { "mob-mcp": { "command": "/absolute/path/to/bin/mobd", "args": ["mcp"] } } }
 ```
 
 If `codex` is not on `PATH`, creating a task still works: the runner logs a clear error and marks the task **failed** (safe stub — mobd does not crash).
@@ -106,8 +116,8 @@ curl -s -X POST localhost:8080/tasks \
 | `MOBD_LISTEN` | `:8080` | HTTP bind |
 | `MOBD_CODEX_BIN` | `codex` | Codex CLI |
 | `MOBD_CODEX_WORKDIR` | process cwd | Codex working directory |
-| `MOBD_MOB_MCP_COMMAND` | `mob-mcp` | MCP server command for Codex `-c` injection |
-| `MOBD_MOB_MCP_ARGS` | `[]` | JSON array of args |
+| `MOBD_MOB_MCP_COMMAND` | this `mobd` binary | MCP server command for Codex `-c` injection; empty = built-in `mobd mcp` |
+| `MOBD_MOB_MCP_ARGS` | `["mcp"]` when built-in, else `[]` | JSON array of args (external command only) |
 | `MOBD_SHARED_SECRET` | empty | Optional auth for POST create/cancel — **deferred** until Phase 2 App; leave unset |
 | `MOBD_VNC_VIEW_URL` | empty | Returned on tasks / health for svnc viewOnly |
 | `MOBD_STATE_PATH` | user config directory + `mob/state.json` | Private conversation snapshot; on macOS: `~/Library/Application Support/mob/state.json` |

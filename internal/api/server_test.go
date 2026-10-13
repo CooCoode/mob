@@ -837,6 +837,9 @@ func TestHealthReadiness(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer ln.Close()
+	perms := actuate.Permissions{Accessibility: true}
+	currentPermissions = func() (actuate.Permissions, error) { return perms, nil }
+	t.Cleanup(func() { currentPermissions = actuate.CurrentPermissions })
 	cfg := config.Config{CodexBin: bin, MobMCPCommand: "mob-mcp-missing", VNCAddr: ln.Addr().String(),
 		Models: []string{"gpt-5.5"}, DataDir: dir}
 	s := New(cfg, task.NewStore(), codex.New(cfg))
@@ -857,7 +860,7 @@ func TestHealthReadiness(t *testing.T) {
 		t.Fatalf("health %+v", body)
 	}
 	if !c["codex"].OK || !strings.Contains(c["codex"].Detail, "codex-cli 9.9.9") || c["actuation"].OK ||
-		!c["vnc"].OK || !c["accessibility"].Unknown {
+		!c["vnc"].OK || c["accessibility"].OK != perms.Accessibility || c["screenRecording"].OK || c["screenRecording"].Detail == "" {
 		t.Fatalf("checks %+v", c)
 	}
 }

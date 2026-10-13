@@ -6,22 +6,19 @@ See [research-computer-use.md](research-computer-use.md) and [ADR 0007](adr/0007
 
 **Out of scope here:** shipping third-party desktop MCPs as product defaults, human remote keyboard/mouse, and `mobd` / the MOB task API.
 
-**Do not** install [nix18/ControlMCP](https://github.com/nix18/ControlMCP) (GPL-3.0; abandoned for MOB’s purposes — [ADR 0006](adr/0006-actuation-controlmcp-first.md) superseded). Default actuation is **`services/mob-mcp`**.
+**Do not** install [nix18/ControlMCP](https://github.com/nix18/ControlMCP) (GPL-3.0; abandoned for MOB’s purposes — [ADR 0006](adr/0006-actuation-controlmcp-first.md) superseded). Default actuation is the built-in **`mobd mcp`** server ([ADR 0008](adr/0008-actuation-in-mobd.md)).
 
 ## 1. mob-mcp — install, permissions, verify actuation
 
-1. On the office Mac, check out this repo and install **`services/mob-mcp`** (see that package [README](../services/mob-mcp/README.md)):
+1. On the office Mac, check out this repo and build `mobd` (Go + Xcode command line tools; see [cmd/mobd/README.md](../cmd/mobd/README.md)):
 
    ```bash
-   cd services/mob-mcp
-   python3 -m venv .venv
-   source .venv/bin/activate
-   pip install -e .
-   mob-mcp   # stdio server; Ctrl+C after a quick sanity start, or leave for Codex
+   go build -o bin/mobd ./cmd/mobd
+   ./bin/mobd mcp   # stdio MCP server; Ctrl+C after a quick sanity start, or leave for Codex
    ```
 
 2. System Settings → Privacy & Security:
-   - Grant **Accessibility** to the MCP host (Terminal / iTerm / Codex binary that launches `mob-mcp`).
+   - Grant **Accessibility** to the host that launches `mobd` (Terminal / iTerm, or `mobd` itself under launchd).
    - Grant **Screen Recording** (needed for `screenshot`).
 3. Run a smoke check via Codex (next section) or by calling tools: `screenshot`, then a harmless `open_app` / click. Confirm the **real** desktop UI changes—not only a text reply.
 
@@ -38,14 +35,14 @@ Temporary MIT third-party spikes (e.g. [CursorTouch/MacOS-MCP](https://github.co
    {
      "mcpServers": {
        "mob-mcp": {
-         "command": "/absolute/path/to/mob/services/mob-mcp/.venv/bin/mob-mcp",
-         "args": []
+         "command": "/absolute/path/to/mob/bin/mobd",
+         "args": ["mcp"]
        }
      }
    }
    ```
 
-   Or: `"command": "…/.venv/bin/python", "args": ["-m", "mob_mcp"]`. Restart Codex or reload MCP so the server is listed as available.
+   Restart Codex or reload MCP so the server is listed as available.
 3. **Smoke prompt (must drive real UI):** ask Codex to do something observable on the desktop via tools, for example open Safari (or another installed app) and navigate to a known URL, or open TextEdit and type a short unique string.
 
 **Pass:** you see the office UI change accordingly (app opens, URL loads, text appears).  
@@ -83,7 +80,7 @@ Both A and B must pass. After that, Phase 1 coding can attach `mobd` to the same
 ## References
 
 - [VNC + svnc viewOnly setup](vnc-svnc-setup.md)
-- [mob-mcp README](../services/mob-mcp/README.md)
+- [mobd README (actuation)](../cmd/mobd/README.md#desktop-actuation-mobd-mcp)
 - [Computer-use research](research-computer-use.md)
 - [Phase 1 implementation plan](implementation-phase1.md)
 - [Architecture](architecture.md)

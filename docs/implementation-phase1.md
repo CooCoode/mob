@@ -1,5 +1,7 @@
 # Phase 1 implementation plan
 
+> **Note (2026-10-13):** actuation has since moved into the `mobd` binary as `mobd mcp` ([ADR 0008](adr/0008-actuation-in-mobd.md)); `services/mob-mcp` (Python) references below are historical. Current API: [mobd-v3.md](mobd-v3.md).
+
 Prove the dispatch → office Codex + **mob-mcp** → view-only VNC loop. Language and tooling choices below match ADRs 0001–0005 and **0007** (0006 superseded). See [research-computer-use.md](research-computer-use.md).
 
 ## Goals and exit criteria
