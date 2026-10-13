@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { chat, useChat } from "@/hooks/useChat";
 import { useHealth, useMachineEvents, useQueue } from "@/hooks/useMachine";
+import { useQuestionAlerts } from "@/hooks/useQuestionAlerts";
 import { vnc } from "@/lib/vnc";
 import { baseUrl, useActiveMachine, useApp, vncUrl } from "@/store/app";
 import { useComposer } from "@/store/composer";
@@ -64,6 +65,7 @@ export default function App() {
   const { data: queue } = useQueue(base, supports(health.data, "queue"));
   const dark = useDarkMode();
   useMachineEvents(base);
+  useQuestionAlerts(chatState);
 
   // Load the selected machine's conversations; restore its last session.
   useEffect(() => {

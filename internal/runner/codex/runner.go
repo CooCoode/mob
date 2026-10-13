@@ -4,8 +4,10 @@ package codex
 import (
 	"context"
 	"fmt"
+	"maps"
 	"os"
 	"os/exec"
+	"slices"
 	"strings"
 
 	"github.com/xrdavies/mob/internal/config"
@@ -55,12 +57,12 @@ func (r *Runner) Start(ctx context.Context, t *task.Task, opts runner.Options, e
 		return cli.Missing("codex", r.cfg.CodexBin, "MOBD_CODEX_BIN", err, emit)
 	}
 	return cli.Run(ctx, cli.Command{
-		Name: "codex", Path: path, Args: r.buildArgs(t, opts.Images),
+		Name: "codex", Path: path, Args: r.buildArgs(t, opts),
 		Dir: r.cfg.CodexWorkDir, Env: os.Environ(), Stdin: strings.NewReader(t.Prompt),
 	}, newParser(emit, opts.SaveImage), emit)
 }
 
-func (r *Runner) buildArgs(t *task.Task, images []string) []string {
+func (r *Runner) buildArgs(t *task.Task, opts runner.Options) []string {
 	// Non-interactive: codex exec. Desktop actuation needs a permissive sandbox
 	// on the office Mac; tune via future config if needed.
 	args := []string{
@@ -75,6 +77,18 @@ func (r *Runner) buildArgs(t *task.Task, images []string) []string {
 	} else {
 		args = append(args, "-c", "mcp_servers.mob-mcp.args=[]")
 	}
+	// mob-mcp's tools never wait for Codex's own approval (we gate risky actions
+	// with request_approval), and ask_user may block until the user answers.
+	args = append(args, "-c", `mcp_servers.mob-mcp.default_tools_approval_mode="approve"`)
+	if opts.ToolTimeout > 0 {
+		args = append(args, "-c", fmt.Sprintf("mcp_servers.mob-mcp.tool_timeout_sec=%d", int(opts.ToolTimeout.Seconds())))
+	}
+	if len(opts.MCPEnv) > 0 {
+		args = append(args, "-c", "mcp_servers.mob-mcp.env="+tomlInlineTable(opts.MCPEnv))
+	}
+	if opts.Instructions != "" {
+		args = append(args, "-c", fmt.Sprintf("developer_instructions=%s", tomlString(opts.Instructions)))
+	}
 	if t.Effort != "" {
 		args = append(args, "-c", fmt.Sprintf("model_reasoning_effort=%q", t.Effort))
 	}
@@ -83,7 +97,7 @@ func (r *Runner) buildArgs(t *task.Task, images []string) []string {
 	if t.Model != "" {
 		turn = append(turn, "--model="+t.Model)
 	}
-	for _, image := range images {
+	for _, image := range opts.Images {
 		turn = append(turn, "--image="+image)
 	}
 	if t.ResumeID != "" {
@@ -100,7 +114,40 @@ func (r *Runner) buildArgs(t *task.Task, images []string) []string {
 func tomlStringArray(items []string) string {
 	parts := make([]string, len(items))
 	for i, s := range items {
-		parts[i] = fmt.Sprintf("%q", s)
+		parts[i] = tomlString(s)
 	}
 	return "[" + strings.Join(parts, ", ") + "]"
+}
+
+// tomlInlineTable renders {KEY="value", …} with sorted keys.
+func tomlInlineTable(m map[string]string) string {
+	keys := slices.Sorted(maps.Keys(m))
+	parts := make([]string, len(keys))
+	for i, k := range keys {
+		parts[i] = k + "=" + tomlString(m[k])
+	}
+	return "{" + strings.Join(parts, ", ") + "}"
+}
+
+// tomlString is a TOML basic string (escapes quotes, backslashes and control characters).
+func tomlString(s string) string {
+	var b strings.Builder
+	b.WriteByte('"')
+	for _, r := range s {
+		switch {
+		case r == '"' || r == '\\':
+			b.WriteByte('\\')
+			b.WriteRune(r)
+		case r == '\n':
+			b.WriteString(`\n`)
+		case r == '\t':
+			b.WriteString(`\t`)
+		case r < 0x20 || r == 0x7f:
+			fmt.Fprintf(&b, `\u%04X`, r)
+		default:
+			b.WriteRune(r)
+		}
+	}
+	b.WriteByte('"')
+	return b.String()
 }

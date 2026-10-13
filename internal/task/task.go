@@ -41,6 +41,8 @@ type Task struct {
 	FinishedAt     *time.Time `json:"finishedAt,omitempty"`
 	Error          *string    `json:"error"`
 	VNCViewURL     string     `json:"vncViewUrl,omitempty"`
+	// Waiting is true while the turn waits for the user to answer a question.
+	Waiting bool `json:"waiting,omitempty"`
 	// QueuePosition is computed on read (1-based) while the task waits for the desktop.
 	QueuePosition int `json:"queuePosition,omitempty"`
 }
@@ -92,6 +94,35 @@ type Activity struct {
 	UpdatedAt time.Time       `json:"updatedAt"`
 }
 
+// Question kinds and states. A pending question keeps its turn running.
+const (
+	QuestionAsk      = "question"
+	QuestionApproval = "approval"
+
+	QuestionPending   = "pending"
+	QuestionAnswered  = "answered"
+	QuestionExpired   = "expired"
+	QuestionCancelled = "cancelled"
+)
+
+// Question is a decision the agent asked the user for during a turn.
+type Question struct {
+	ID     string `json:"id"`
+	TaskID string `json:"taskId"`
+	Kind   string `json:"kind"`
+	// Text is the question, or for approvals the action to approve.
+	Text      string   `json:"text"`
+	Details   string   `json:"details,omitempty"`
+	Options   []string `json:"options,omitempty"`
+	AllowText bool     `json:"allowText"`
+	Status    string   `json:"status"`
+	Answer    string   `json:"answer,omitempty"`
+	// Approved is set for answered approvals.
+	Approved   *bool      `json:"approved,omitempty"`
+	CreatedAt  time.Time  `json:"createdAt"`
+	AnsweredAt *time.Time `json:"answeredAt,omitempty"`
+}
+
 type PlanItem struct {
 	Text      string `json:"text"`
 	Completed bool   `json:"completed"`
@@ -120,6 +151,7 @@ type Session struct {
 	ActiveTaskID   string    `json:"activeTaskId,omitempty"`
 	Status         Status    `json:"status"`
 	Pinned         bool      `json:"pinned"`
+	Waiting        bool      `json:"waiting,omitempty"`
 	Archived       bool      `json:"archived"`
 	CreatedAt      time.Time `json:"createdAt"`
 	UpdatedAt      time.Time `json:"updatedAt"`
@@ -129,12 +161,13 @@ type Session struct {
 // Event is streamed over SSE and retained for late subscribers.
 type Event struct {
 	ID        int64     `json:"id"`
-	Type      string    `json:"type"` // status | log | progress | error | resume | message | activity | usage
+	Type      string    `json:"type"` // status | log | progress | error | resume | message | activity | usage | question
 	Message   string    `json:"message,omitempty"`
 	MessageID string    `json:"messageId,omitempty"`
 	ResumeID  string    `json:"resumeId,omitempty"`
 	Status    Status    `json:"status,omitempty"`
 	Activity  *Activity `json:"activity,omitempty"`
+	Question  *Question `json:"question,omitempty"`
 	Usage     *Usage    `json:"usage,omitempty"`
 	Timestamp time.Time `json:"timestamp"`
 }

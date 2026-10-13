@@ -41,6 +41,28 @@ A conversation's `resumeId` only means something to the runner that created it. 
 - `runner` helpers: `ToolTitle` ("Click (412, 230)"), `CommandTitle`, `SplitMCPName` (`mcp__mob-mcp__click` → `mob-mcp`, `click`), so every agent's steps look the same in the App.
 - `runner/runnertest`: the **contract suite**. Each runner's test gives fake-agent scripts in its native format (reply, failure, hang) and the suite checks: info, missing binary, resume/message/step events, prompt delivery, resume and model passed to the agent, failure message, cancel.
 
+## Asking the user (`ask_user`, `request_approval`)
+
+`mobd mcp` offers two tools next to the desktop tools, for every runner:
+
+- `ask_user(question, options?, allow_text?)` returns the user's answer.
+- `request_approval(action, details?)` returns approved or denied (with an optional note). Unanswered means **denied**.
+
+How a call travels:
+
+1. When mobd dispatches a turn it creates a per-task secret and passes `MOB_API`, `MOB_TASK_ID` and `MOB_TASK_TOKEN` to the runner as `Options.MCPEnv`. The runner hands them to the mob-mcp server's environment.
+2. The tool calls `POST /internal/tasks/{id}/ask` on mobd (token in `X-Mob-Task-Token`). mobd stores a **question** on the turn, marks the turn and session `waiting`, and publishes a `question` event.
+3. The App shows a card; `POST /tasks/{id}/questions/{qid}/answer` with `{answer}` or `{approved, answer?}` settles it and the blocked tool call returns.
+4. The question becomes `expired` after `MOBD_QUESTION_TIMEOUT` (default 30m), `cancelled` if the turn is cancelled or the agent drops the call, and `expired` on a mobd restart. The turn keeps the desktop while it waits.
+
+Runners also receive `Options.Instructions` (when to ask, which actions need approval) and `Options.ToolTimeout` (question timeout + 1 minute) so the agent's MCP call is not cut off while the user decides.
+
+| Runner | Instructions | Long tool calls | mob-mcp tools allowed without prompts |
+| --- | --- | --- | --- |
+| `codex` | `-c developer_instructions=…` | `mcp_servers.mob-mcp.tool_timeout_sec` | `mcp_servers.mob-mcp.default_tools_approval_mode="approve"` |
+
+For Codex, approval is a soft gate: the instructions tell it to call `request_approval`, but `codex exec` cannot force it. A hard gate needs the app-server mode.
+
 ## Adding a runner
 
 1. `internal/runner/<name>/`: `Info`, `Check` (usually `cli.Version`), `Start` building the command line and a parser for the agent's JSON stream.

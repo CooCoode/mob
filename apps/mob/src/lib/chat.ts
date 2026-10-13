@@ -1,10 +1,10 @@
 import type {
-  Activity, ChatMessage, Queue, Session, SessionDetail, Task, TaskEvent, TaskStatus, TurnOptions,
+  Activity, ChatMessage, Queue, Question, Session, SessionDetail, Task, TaskEvent, TaskStatus, TurnOptions,
 } from "../api/types.ts";
 
-export type { Activity, ChatMessage, Session, Task, TaskStatus };
+export type { Activity, ChatMessage, Question, Session, Task, TaskStatus };
 
-const EVENT_TYPES = ["status", "message", "resume", "activity", "usage", "log", "progress", "error"];
+const EVENT_TYPES = ["status", "message", "resume", "activity", "question", "usage", "log", "progress", "error"];
 
 export function terminal(status: TaskStatus): boolean {
   return status === "succeeded" || status === "failed" || status === "cancelled";
@@ -18,6 +18,7 @@ export class Chat {
   session: Session | null = null;
   tasks: Task[] = [];
   activities: Activity[] = [];
+  questions: Question[] = [];
   ready = false;
   loading = false;
   submitting = false;
@@ -87,6 +88,7 @@ export class Chat {
     this.session = null;
     this.tasks = [];
     this.activities = [];
+    this.questions = [];
     this.error = "";
     this.loading = false;
     this.cancelling = false;
@@ -101,6 +103,7 @@ export class Chat {
     this.session = null;
     this.tasks = [];
     this.activities = [];
+    this.questions = [];
     this.error = "";
     this.loading = true;
     this.cancelling = false;
@@ -203,6 +206,37 @@ export class Chat {
     }
   }
 
+  /** Questions still waiting for the user, oldest first. */
+  get pendingQuestions(): Question[] {
+    return this.questions.filter((q) => q.status === "pending");
+  }
+
+  /** Sends the user's answer (or approval decision) for a pending question. */
+  async answer(q: Question, reply: { answer?: string; approved?: boolean }): Promise<boolean> {
+    try {
+      const updated = await this.request<Question>(`${this.url}/tasks/${q.taskId}/questions/${q.id}/answer`, {
+        method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(reply),
+      });
+      this.upsertQuestion(updated);
+      return true;
+    } catch (err) {
+      this.fail(err);
+      return false;
+    }
+  }
+
+  private upsertQuestion(q: Question): void {
+    const i = this.questions.findIndex((x) => x.id === q.id);
+    this.questions = i >= 0 ? this.questions.map((x, j) => (j === i ? q : x)) : [...this.questions, q];
+    const waiting = this.questions.some((x) => x.taskId === q.taskId && x.status === "pending");
+    const task = this.tasks.find((t) => t.id === q.taskId);
+    if (task) task.waiting = waiting;
+    if (this.session && this.currentTask?.id === q.taskId) this.session.waiting = waiting;
+    const summary = this.sessions.find((s) => s.id === this.sessionId);
+    if (summary && this.currentTask?.id === q.taskId) summary.waiting = waiting;
+    this.changed();
+  }
+
   /** Applies a session summary from the global event stream. */
   applySession(summary: Session): void {
     if (!this.ready) return;
@@ -286,6 +320,7 @@ export class Chat {
     this.session = detail.session;
     this.tasks = detail.tasks;
     this.activities = detail.activities ?? [];
+    this.questions = detail.questions ?? [];
     this.cursor = this.currentTask?.eventId ?? 0;
     if (!this.busy) this.cancelling = false;
   }
@@ -316,6 +351,9 @@ export class Chat {
             const i = this.activities.findIndex((x) => x.id === a.id);
             this.activities = i >= 0 ? this.activities.map((x, j) => (j === i ? a : x)) : [...this.activities, a];
             this.changed();
+          }
+          if (type === "question" && data.question) {
+            this.upsertQuestion(data.question);
           }
           if (type === "usage" && data.usage) {
             task.usage = data.usage;

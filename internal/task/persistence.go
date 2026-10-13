@@ -30,6 +30,7 @@ func OpenStore(path string) (*Store, error) {
 	if s.data.Tasks == nil || s.data.Sessions == nil {
 		return nil, errors.New("invalid conversation state")
 	}
+	migrated := false
 	if s.data.Activities == nil {
 		s.data.Activities = make(map[string][]Activity)
 	}
@@ -38,8 +39,21 @@ func OpenStore(path string) (*Store, error) {
 			return nil, errors.New("invalid activity in conversation state")
 		}
 	}
+	if s.data.Questions == nil {
+		s.data.Questions = make(map[string][]Question)
+	}
+	for id, questions := range s.data.Questions {
+		if s.data.Tasks[id] == nil {
+			return nil, errors.New("invalid question in conversation state")
+		}
+		// Nobody is waiting for an answer after a restart.
+		for i := range questions {
+			if questions[i].Status == QuestionPending {
+				questions[i].Status, migrated = QuestionExpired, true
+			}
+		}
+	}
 	seen := make(map[string]bool)
-	migrated := false
 	for _, id := range s.data.Order {
 		t := s.data.Tasks[id]
 		if t == nil || t.ID != id || s.data.Sessions[t.SessionID] == nil || seen[id] || t.EventID < 1 {
@@ -83,7 +97,7 @@ func OpenStore(path string) (*Store, error) {
 				return nil, errors.New("invalid message in conversation state")
 			}
 		}
-		session.ActiveTaskID = ""
+		session.ActiveTaskID, session.Waiting = "", false
 	}
 	recovered := false
 	for _, id := range s.data.Order {
@@ -91,6 +105,7 @@ func OpenStore(path string) (*Store, error) {
 		if !t.Status.Terminal() {
 			msg := "interrupted by mobd restart"
 			t.Status, t.Error, t.UpdatedAt, t.EventID = StatusFailed, &msg, time.Now().UTC(), t.EventID+1
+			t.Waiting = false
 			session := s.data.Sessions[t.SessionID]
 			session.Status, session.UpdatedAt = t.Status, t.UpdatedAt
 			recovered = true

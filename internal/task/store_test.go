@@ -326,3 +326,54 @@ func TestSessionsArePinnedToTheirRunner(t *testing.T) {
 		t.Fatalf("runner %q", r)
 	}
 }
+
+func TestQuestionsLifecycleAndRestart(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "state.json")
+	s, _ := OpenStore(path)
+	tk, _ := s.Create("book a flight", "")
+	if _, err := s.AddQuestion(tk.ID, Question{Kind: QuestionAsk, Text: "Which airline?"}); err != ErrInvalidTransition {
+		t.Fatalf("queued turn accepted a question: %v", err)
+	}
+	_, _ = s.UpdateStatus(tk.ID, StatusRunning, "")
+	q, err := s.AddQuestion(tk.ID, Question{Kind: QuestionAsk, Text: "Which airline?", Options: []string{"ANA", "JAL"}})
+	if err != nil || q.Status != QuestionPending || q.ID == "" {
+		t.Fatalf("%+v %v", q, err)
+	}
+	if got, _ := s.Get(tk.ID); !got.Waiting {
+		t.Fatal("task not waiting")
+	}
+	if list := s.ListSessions(nil); !list[0].Waiting {
+		t.Fatal("session not waiting")
+	}
+	answered, err := s.ResolveQuestion(tk.ID, q.ID, QuestionAnswered, "ANA", nil)
+	if err != nil || answered.Answer != "ANA" || answered.AnsweredAt == nil {
+		t.Fatalf("%+v %v", answered, err)
+	}
+	if _, err := s.ResolveQuestion(tk.ID, q.ID, QuestionAnswered, "JAL", nil); err != ErrNotPending {
+		t.Fatalf("answered twice: %v", err)
+	}
+	if got, _ := s.Get(tk.ID); got.Waiting {
+		t.Fatal("still waiting after answer")
+	}
+	events, _ := s.Events(tk.ID)
+	if n := len(events); events[n-1].Type != "question" || events[n-1].Question.Status != QuestionAnswered {
+		t.Fatalf("last event %+v", events[n-1])
+	}
+
+	// A question pending at shutdown expires; the interrupted turn stops waiting.
+	pending, _ := s.AddQuestion(tk.ID, Question{Kind: QuestionApproval, Text: "Pay $420?"})
+	restored, err := OpenStore(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	qs := restored.Questions(tk.SessionID)
+	if len(qs) != 2 || qs[1].ID != pending.ID || qs[1].Status != QuestionExpired {
+		t.Fatalf("questions %+v", qs)
+	}
+	if got, _ := restored.Get(tk.ID); got.Waiting || got.Status != StatusFailed {
+		t.Fatalf("task %+v", got)
+	}
+	if _, err := restored.DeleteSession(tk.SessionID); err != nil || len(restored.Questions(tk.SessionID)) != 0 {
+		t.Fatalf("delete %v", err)
+	}
+}

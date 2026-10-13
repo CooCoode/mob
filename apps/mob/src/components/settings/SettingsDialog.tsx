@@ -161,6 +161,25 @@ function AppearanceTab() {
   );
 }
 
+function NotificationsSetting() {
+  const supported = typeof Notification !== "undefined";
+  const [perm, setPerm] = useState(supported ? Notification.permission : "denied");
+  return (
+    <div className="grid gap-2">
+      <h3 className="text-[13px] font-semibold">Notifications</h3>
+      <p className="text-xs text-muted-foreground">Get a system notification when the agent asks you something while mob is in the background.</p>
+      {perm === "granted" ? (
+        <p className="text-xs text-success">Enabled</p>
+      ) : (
+        <Button variant="secondary" className="w-fit" disabled={!supported || perm === "denied"}
+          onClick={() => void Notification.requestPermission().then(setPerm)}>
+          {perm === "denied" ? "Blocked in system settings" : "Enable notifications"}
+        </Button>
+      )}
+    </div>
+  );
+}
+
 function LogTab() {
   const { lines, clear } = useLog();
   const [filter, setFilter] = useState("");
@@ -205,7 +224,7 @@ export function SettingsDialog() {
           </div>
           <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-y-auto p-5 pt-11">
             <TabsContent value="machines"><MachinesTab /></TabsContent>
-            <TabsContent value="appearance"><AppearanceTab /></TabsContent>
+            <TabsContent value="appearance"><div className="grid gap-6"><AppearanceTab /><NotificationsSetting /></div></TabsContent>
             <TabsContent value="log" className="h-full"><LogTab /></TabsContent>
             <TabsContent value="about">
               <div className="grid gap-1 text-[13px]">

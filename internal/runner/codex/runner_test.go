@@ -46,7 +46,7 @@ func TestBuildArgsIncludesMCP(t *testing.T) {
 		MobMCPCommand: "/opt/mob-mcp",
 		MobMCPArgs:    []string{"--verbose"},
 	})
-	args := r.buildArgs(&task.Task{}, nil)
+	args := r.buildArgs(&task.Task{}, runner.Options{})
 	joined := strings.Join(args, " ")
 	if !strings.Contains(joined, "exec") || !strings.Contains(joined, "mcp_servers.mob-mcp.command") {
 		t.Fatalf("args %v", args)
@@ -54,7 +54,7 @@ func TestBuildArgsIncludesMCP(t *testing.T) {
 	if args[len(args)-1] != "-" || !strings.Contains(joined, "--json") {
 		t.Fatalf("stdin prompt and JSON required: %v", args)
 	}
-	resumed := strings.Join(r.buildArgs(&task.Task{ResumeID: "thread-123"}, nil), " ")
+	resumed := strings.Join(r.buildArgs(&task.Task{ResumeID: "thread-123"}, runner.Options{}), " ")
 	if !strings.Contains(resumed, "resume -- thread-123 -") || strings.Contains(resumed, "--last") {
 		t.Fatalf("must resume explicit thread: %s", resumed)
 	}
@@ -265,12 +265,32 @@ func TestActivityMapping(t *testing.T) {
 
 func TestBuildArgsTurnOptions(t *testing.T) {
 	r := New(config.Config{MobMCPCommand: "mob-mcp"})
-	fresh := strings.Join(r.buildArgs(&task.Task{Model: "gpt-5.5", Effort: "high"}, []string{"/a.png"}), " ")
+	fresh := strings.Join(r.buildArgs(&task.Task{Model: "gpt-5.5", Effort: "high"}, runner.Options{Images: []string{"/a.png"}}), " ")
 	if !strings.Contains(fresh, `-c model_reasoning_effort="high"`) || !strings.HasSuffix(fresh, "--model=gpt-5.5 --image=/a.png -- -") {
 		t.Fatalf("fresh args: %s", fresh)
 	}
-	resumed := strings.Join(r.buildArgs(&task.Task{ResumeID: "th", Model: "m"}, []string{"/b.png"}), " ")
+	resumed := strings.Join(r.buildArgs(&task.Task{ResumeID: "th", Model: "m"}, runner.Options{Images: []string{"/b.png"}}), " ")
 	if !strings.HasSuffix(resumed, "resume --model=m --image=/b.png -- th -") {
 		t.Fatalf("resume args: %s", resumed)
+	}
+}
+
+func TestBuildArgsAskSettings(t *testing.T) {
+	r := New(config.Config{MobMCPCommand: "mob-mcp"})
+	args := r.buildArgs(&task.Task{}, runner.Options{
+		MCPEnv:       map[string]string{"MOB_TASK_TOKEN": "tok", "MOB_API": "http://127.0.0.1:8080"},
+		Instructions: "Ask \"first\"\nthen act",
+		ToolTimeout:  31 * time.Minute,
+	})
+	joined := strings.Join(args, "\x00")
+	for _, want := range []string{
+		`mcp_servers.mob-mcp.env={MOB_API="http://127.0.0.1:8080", MOB_TASK_TOKEN="tok"}`,
+		`mcp_servers.mob-mcp.tool_timeout_sec=1860`,
+		`mcp_servers.mob-mcp.default_tools_approval_mode="approve"`,
+		`developer_instructions="Ask \"first\"\nthen act"`,
+	} {
+		if !strings.Contains(joined, want) {
+			t.Fatalf("missing %s in %q", want, args)
+		}
 	}
 }

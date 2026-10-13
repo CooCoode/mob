@@ -42,7 +42,7 @@ func connect(t *testing.T, d Desktop) *mcp.ClientSession {
 	t.Helper()
 	ctx := context.Background()
 	st, ct := mcp.NewInMemoryTransports()
-	if _, err := New(d, "test").Connect(ctx, st, nil); err != nil {
+	if _, err := New(d, "test", nil).Connect(ctx, st, nil); err != nil {
 		t.Fatal(err)
 	}
 	cs, err := mcp.NewClient(&mcp.Implementation{Name: "test"}, nil).Connect(ctx, ct, nil)

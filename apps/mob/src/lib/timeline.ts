@@ -1,4 +1,7 @@
-import type { Activity, ChatMessage, Task } from "../api/types.ts";
+import type { Activity, ChatMessage, Question, Task } from "../api/types.ts";
+
+// The question card replaces the tool step that asked it.
+const ASK_TOOLS = new Set(["ask_user", "request_approval"]);
 
 // Consecutive steps fold into one expandable group from this many on.
 export const GROUP_MIN = 3;
@@ -7,12 +10,13 @@ export type TimelineItem =
   | { type: "user"; id: string; message: ChatMessage; task?: Task }
   | { type: "assistant"; id: string; message: ChatMessage }
   | { type: "steps"; id: string; activities: Activity[] }
+  | { type: "question"; id: string; question: Question }
   | { type: "group"; id: string; activities: Activity[] }
   | { type: "queued"; id: string; task: Task }
-  | { type: "working"; id: string; task: Task; latest?: Activity }
+  | { type: "working"; id: string; task: Task; latest?: Activity; waiting: boolean }
   | { type: "footer"; id: string; task: Task };
 
-type Entry = { at: number; order: number; message?: ChatMessage; activity?: Activity };
+type Entry = { at: number; order: number; message?: ChatMessage; activity?: Activity; question?: Question };
 
 function time(iso: string | undefined): number {
   const t = iso ? Date.parse(iso) : NaN;
@@ -20,21 +24,23 @@ function time(iso: string | undefined): number {
 }
 
 /** Builds the conversation timeline: per turn, the prompt, then replies and steps by time. */
-export function buildTimeline(tasks: Task[], messages: ChatMessage[], activities: Activity[]): TimelineItem[] {
+export function buildTimeline(tasks: Task[], messages: ChatMessage[], activities: Activity[], questions: Question[] = []): TimelineItem[] {
   const items: TimelineItem[] = [];
   const known = new Set(tasks.map((t) => t.id));
-  const byTask = new Map<string, { messages: ChatMessage[]; activities: Activity[] }>();
+  type Bucket = { messages: ChatMessage[]; activities: Activity[]; questions: Question[] };
+  const byTask = new Map<string, Bucket>();
   const bucket = (id: string) => {
     let b = byTask.get(id);
-    if (!b) byTask.set(id, (b = { messages: [], activities: [] }));
+    if (!b) byTask.set(id, (b = { messages: [], activities: [], questions: [] }));
     return b;
   };
   for (const m of messages) bucket(m.taskId).messages.push(m);
-  for (const a of activities) bucket(a.taskId).activities.push(a);
+  for (const a of activities) if (!ASK_TOOLS.has(a.tool ?? "")) bucket(a.taskId).activities.push(a);
+  for (const q of questions) bucket(q.taskId).questions.push(q);
   const orphanTasks = [...byTask.keys()].filter((id) => !known.has(id));
 
   for (const task of [...tasks, ...orphanTasks.map((id) => ({ id } as Task))]) {
-    const b = byTask.get(task.id) ?? { messages: [], activities: [] };
+    const b = byTask.get(task.id) ?? { messages: [], activities: [], questions: [] };
     const user = b.messages.find((m) => m.role === "user") ??
       (task.prompt ? { id: `${task.id}:user`, taskId: task.id, role: "user" as const, content: task.prompt, createdAt: task.createdAt ?? "" } : undefined);
     if (user) items.push({ type: "user", id: user.id, message: user, task: known.has(task.id) ? task : undefined });
@@ -50,6 +56,7 @@ export function buildTimeline(tasks: Task[], messages: ChatMessage[], activities
       }
       entries.push({ at: time(a.startedAt), order: order++, activity: a });
     }
+    for (const q of b.questions) entries.push({ at: time(q.createdAt), order: order++, question: q });
     entries.sort((x, y) => x.at - y.at || x.order - y.order);
 
     let run: Activity[] = [];
@@ -60,7 +67,10 @@ export function buildTimeline(tasks: Task[], messages: ChatMessage[], activities
     };
     for (const e of entries) {
       if (e.activity) run.push(e.activity);
-      else {
+      else if (e.question) {
+        flush();
+        items.push({ type: "question", id: `q:${e.question.id}`, question: e.question });
+      } else {
         flush();
         items.push({ type: "assistant", id: e.message!.id, message: e.message! });
       }
@@ -71,7 +81,8 @@ export function buildTimeline(tasks: Task[], messages: ChatMessage[], activities
     if (task.status === "queued") items.push({ type: "queued", id: `${task.id}:queued`, task });
     else if (task.status === "running") {
       const steps = b.activities.filter((a) => a.kind !== "notice");
-      items.push({ type: "working", id: `${task.id}:working`, task, latest: steps[steps.length - 1] });
+      const waiting = b.questions.some((q) => q.status === "pending");
+      items.push({ type: "working", id: `${task.id}:working`, task, latest: steps[steps.length - 1], waiting });
     } else items.push({ type: "footer", id: `${task.id}:footer`, task });
   }
   return items;

@@ -49,6 +49,10 @@ func ToolTitle(tool string, raw json.RawMessage) string {
 		return "Open " + str("name_or_bundle_id")
 	case "list_windows":
 		return "List windows"
+	case "ask_user":
+		return "Asked you: " + Clip(str("question"), 60)
+	case "request_approval":
+		return "Asked approval: " + Clip(str("action"), 60)
 	}
 	return strings.ReplaceAll(tool, "_", " ")
 }

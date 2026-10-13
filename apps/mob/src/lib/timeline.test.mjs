@@ -56,3 +56,18 @@ test("extracts click points and screenshot geometry", () => {
   assert.deepEqual(latestClick(acts), { id: "t:item_2", x: 412, y: 230 });
   assert.equal(latestClick([]), null);
 });
+
+test("questions appear in order, replace their tool step, and mark the turn waiting", () => {
+  const q = { id: "q1", taskId: "t1", kind: "question", text: "Which airline?", options: ["ANA"], allowText: false, status: "pending", createdAt: at(3) };
+  const items = buildTimeline(
+    [task("t1", "running")],
+    [msg("t1", "user", 0)],
+    [act("t1", 1, 1), act("t1", 2, 3, { tool: "ask_user", title: "Asked you: Which airline?" }), act("t1", 3, 5)],
+    [q],
+  );
+  assert.deepEqual(items.map((i) => i.type), ["user", "steps", "question", "steps", "working"]);
+  assert.equal(items[1].activities.length, 1);
+  assert.equal(items[4].waiting, true);
+  const answered = buildTimeline([task("t1", "running")], [], [], [{ ...q, status: "answered", answer: "ANA" }]);
+  assert.equal(answered.at(-1).waiting, false);
+});

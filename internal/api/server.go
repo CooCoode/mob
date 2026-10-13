@@ -32,8 +32,17 @@ type Server struct {
 
 	vncSessions atomic.Int64
 
+	// self is how `mobd mcp` reaches this server; empty uses cfg.SelfURL().
+	self string
+
+	// qmu orders question resolution with waking the agent waiting for it.
+	qmu     sync.Mutex
+	waiters map[string]chan struct{}
+
 	mu      sync.Mutex
 	cancels map[string]context.CancelFunc
+	// tokens authenticate `mobd mcp` calls from a dispatched turn.
+	tokens  map[string]string
 	closing bool
 	runs    sync.WaitGroup
 	done    chan struct{}
@@ -58,6 +67,7 @@ func New(cfg config.Config, store *task.Store, runners ...runner.Runner) *Server
 		cfg: cfg, store: store, runners: reg, hub: newHub(),
 		artifacts: artifact.New(filepath.Join(dataDir(cfg), "artifacts")),
 		cancels:   make(map[string]context.CancelFunc), done: make(chan struct{}),
+		tokens: make(map[string]string), waiters: make(map[string]chan struct{}),
 	}
 	store.SetNotifier(s.onChange)
 	return s
@@ -104,6 +114,8 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("POST /uploads", s.withAuth(s.handleUpload))
 	mux.HandleFunc("GET /artifacts/{id}", s.handleArtifact)
 	mux.HandleFunc("GET /vnc", s.handleVNC)
+	mux.HandleFunc("POST /tasks/{id}/questions/{qid}/answer", s.withAuth(s.handleAnswer))
+	mux.HandleFunc("POST /internal/tasks/{id}/ask", s.handleAsk)
 	return s.withCORS(mux)
 }
 
@@ -184,6 +196,7 @@ func (s *Server) scheduleLocked() {
 		}
 		ctx, cancel := context.WithCancel(context.Background())
 		s.cancels[next.ID] = cancel
+		s.tokens[next.ID] = newToken()
 		s.runs.Add(1)
 		go s.runTask(ctx, next.ID)
 	}
@@ -252,7 +265,9 @@ func (s *Server) handleGetSession(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, http.StatusNotFound, "session not found")
 		return
 	}
-	writeJSON(w, http.StatusOK, map[string]any{"session": session, "tasks": tasks, "activities": activities})
+	writeJSON(w, http.StatusOK, map[string]any{
+		"session": session, "tasks": tasks, "activities": activities, "questions": s.store.Questions(session.ID),
+	})
 }
 
 func (s *Server) handleListTasks(w http.ResponseWriter, r *http.Request) {
@@ -430,6 +445,7 @@ func (s *Server) runTask(ctx context.Context, id string) {
 		s.mu.Lock()
 		s.cancels[id]()
 		delete(s.cancels, id)
+		delete(s.tokens, id)
 		s.scheduleLocked()
 		s.mu.Unlock()
 		s.runs.Done()
@@ -442,6 +458,9 @@ func (s *Server) runTask(ctx context.Context, id string) {
 		} else {
 			err = rn.Start(ctx, t, s.runOptions(t), func(ev task.Event) error { return s.store.AppendEvent(id, ev) })
 		}
+	}
+	if t != nil {
+		s.cancelQuestions(t)
 	}
 	status, message := task.StatusSucceeded, ""
 	if ctx.Err() != nil {

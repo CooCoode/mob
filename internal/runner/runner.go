@@ -7,6 +7,7 @@ import (
 	"context"
 	"fmt"
 	"sort"
+	"time"
 
 	"github.com/xrdavies/mob/internal/task"
 )
@@ -23,6 +24,12 @@ type Options struct {
 	Images []string
 	// SaveImage persists screenshots from tool results; nil drops them.
 	SaveImage ImageSaver
+	// MCPEnv is the environment for the mob-mcp server (how ask_user reaches mobd).
+	MCPEnv map[string]string
+	// Instructions are extra developer/system instructions for the agent.
+	Instructions string
+	// ToolTimeout is the minimum time a mob-mcp tool call may block (ask_user).
+	ToolTimeout time.Duration
 }
 
 // Info describes what a runner supports. It is static: no processes are started.

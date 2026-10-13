@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"time"
 )
 
 // Config holds mobd runtime settings (env-driven for Phase 1).
@@ -23,7 +24,9 @@ type Config struct {
 	DataDir       string
 	CodexModels   []string
 	DefaultRunner string
-	VNCAddr       string
+	// QuestionTimeout bounds how long a turn waits for the user's answer.
+	QuestionTimeout time.Duration
+	VNCAddr         string
 }
 
 // Load reads configuration from environment variables.
@@ -41,6 +44,7 @@ type Config struct {
 //	MOBD_DATA_DIR        Root for artifacts/ (default: directory of MOBD_STATE_PATH)
 //	MOBD_CODEX_MODELS    Comma-separated Codex model IDs offered to clients (MOBD_MODELS also accepted)
 //	MOBD_DEFAULT_RUNNER  Runner for new conversations (default codex)
+//	MOBD_QUESTION_TIMEOUT How long a turn waits for an answer (Go duration, default 30m)
 //	MOBD_VNC_ADDR        VNC server relayed by GET /vnc and checked by /health (default 127.0.0.1:5900, Screen Sharing)
 func Load() Config {
 	cwd, _ := os.Getwd()
@@ -49,19 +53,23 @@ func Load() Config {
 		stateDir = cwd
 	}
 	cfg := Config{
-		ListenAddr:    envOr("MOBD_LISTEN", ":8080"),
-		CodexBin:      envOr("MOBD_CODEX_BIN", "codex"),
-		CodexWorkDir:  envOr("MOBD_CODEX_WORKDIR", cwd),
-		MobMCPCommand: os.Getenv("MOBD_MOB_MCP_COMMAND"),
-		MobMCPArgs:    nil,
-		SharedSecret:  os.Getenv("MOBD_SHARED_SECRET"),
-		VNCViewURL:    os.Getenv("MOBD_VNC_VIEW_URL"),
-		StatePath:     envOr("MOBD_STATE_PATH", filepath.Join(stateDir, "mob", "state.json")),
-		CORSOrigins:   corsOrigins(os.Getenv("MOBD_CORS_ORIGINS")),
-		MaxRunning:    1,
-		CodexModels:   splitList(envOr("MOBD_CODEX_MODELS", os.Getenv("MOBD_MODELS"))),
-		DefaultRunner: envOr("MOBD_DEFAULT_RUNNER", "codex"),
-		VNCAddr:       envOr("MOBD_VNC_ADDR", "127.0.0.1:5900"),
+		ListenAddr:      envOr("MOBD_LISTEN", ":8080"),
+		CodexBin:        envOr("MOBD_CODEX_BIN", "codex"),
+		CodexWorkDir:    envOr("MOBD_CODEX_WORKDIR", cwd),
+		MobMCPCommand:   os.Getenv("MOBD_MOB_MCP_COMMAND"),
+		MobMCPArgs:      nil,
+		SharedSecret:    os.Getenv("MOBD_SHARED_SECRET"),
+		VNCViewURL:      os.Getenv("MOBD_VNC_VIEW_URL"),
+		StatePath:       envOr("MOBD_STATE_PATH", filepath.Join(stateDir, "mob", "state.json")),
+		CORSOrigins:     corsOrigins(os.Getenv("MOBD_CORS_ORIGINS")),
+		MaxRunning:      1,
+		CodexModels:     splitList(envOr("MOBD_CODEX_MODELS", os.Getenv("MOBD_MODELS"))),
+		DefaultRunner:   envOr("MOBD_DEFAULT_RUNNER", "codex"),
+		QuestionTimeout: 30 * time.Minute,
+		VNCAddr:         envOr("MOBD_VNC_ADDR", "127.0.0.1:5900"),
+	}
+	if d, err := time.ParseDuration(strings.TrimSpace(os.Getenv("MOBD_QUESTION_TIMEOUT"))); err == nil && d > 0 {
+		cfg.QuestionTimeout = d
 	}
 	cfg.DataDir = envOr("MOBD_DATA_DIR", filepath.Dir(cfg.StatePath))
 	if n, err := strconv.Atoi(strings.TrimSpace(os.Getenv("MOBD_MAX_RUNNING"))); err == nil && n > 0 {
@@ -134,6 +142,15 @@ func envOr(key, def string) string {
 		return v
 	}
 	return def
+}
+
+// SelfURL is how local child processes (`mobd mcp`) reach this mobd.
+func (c Config) SelfURL() string {
+	port := "8080"
+	if i := strings.LastIndex(c.ListenAddr, ":"); i >= 0 && c.ListenAddr[i+1:] != "" {
+		port = c.ListenAddr[i+1:]
+	}
+	return "http://127.0.0.1:" + port
 }
 
 // PortHint returns listen port for docs (best-effort).

@@ -1,5 +1,5 @@
 import {
-  AppWindow, Brain, Camera, ChevronRight, FileDiff, Globe, Keyboard, ListChecks, MousePointerClick,
+  AppWindow, Brain, Camera, ChevronRight, CircleHelp, FileDiff, ShieldAlert, Globe, Keyboard, ListChecks, MousePointerClick,
   SquareTerminal, TriangleAlert, Wrench, type LucideIcon,
 } from "lucide-react";
 import { useState } from "react";
@@ -22,6 +22,10 @@ export function activityIcon(a: Activity): LucideIcon {
       case "open_app":
       case "list_windows":
         return AppWindow;
+      case "ask_user":
+        return CircleHelp;
+      case "request_approval":
+        return ShieldAlert;
     }
     return Wrench;
   }

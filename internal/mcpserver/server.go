@@ -81,8 +81,9 @@ func text(s string) *mcp.CallToolResult {
 	return &mcp.CallToolResult{Content: []mcp.Content{&mcp.TextContent{Text: s}}}
 }
 
-// New builds the MCP server around a desktop implementation.
-func New(d Desktop, version string) *mcp.Server {
+// New builds the MCP server around a desktop implementation. A non-nil asker
+// adds ask_user and request_approval.
+func New(d Desktop, version string, asker Asker) *mcp.Server {
 	s := mcp.NewServer(&mcp.Implementation{Name: "mob-mcp", Version: version}, &mcp.ServerOptions{Instructions: instructions})
 
 	mcp.AddTool(s, &mcp.Tool{Name: "screenshot", Description: "Capture the primary display. Returns PNG image plus JSON metadata " +
@@ -151,13 +152,16 @@ func New(d Desktop, version string) *mcp.Server {
 			}
 			return text(msg), nil, nil
 		})
+	if asker != nil {
+		registerAskTools(s, asker)
+	}
 	return s
 }
 
 // Run serves the macOS desktop over stdio until the client disconnects.
 // Nothing else may write to stdout: it is the MCP transport.
 func Run(ctx context.Context, version string) error {
-	if err := New(macDesktop{}, version).Run(ctx, &mcp.StdioTransport{}); err != nil && ctx.Err() == nil {
+	if err := New(macDesktop{}, version, askerFromEnv()).Run(ctx, &mcp.StdioTransport{}); err != nil && ctx.Err() == nil {
 		fmt.Fprintln(os.Stderr, "mob-mcp:", err)
 		return err
 	}

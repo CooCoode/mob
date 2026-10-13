@@ -164,7 +164,16 @@ func (s *Server) turnOptions(req task.CreateRequest) (task.TurnOptions, string, 
 
 // runOptions resolves attachments to files and lets the runner save screenshots.
 func (s *Server) runOptions(t *task.Task) runner.Options {
-	opts := runner.Options{SaveImage: s.artifacts.Save}
+	s.mu.Lock()
+	token := s.tokens[t.ID]
+	s.mu.Unlock()
+	opts := runner.Options{
+		SaveImage:    s.artifacts.Save,
+		Instructions: askInstructions,
+		// The agent's MCP call must outlive the user's answer time.
+		ToolTimeout: s.questionTimeout() + time.Minute,
+		MCPEnv:      map[string]string{"MOB_API": s.selfURL(), "MOB_TASK_ID": t.ID, "MOB_TASK_TOKEN": token},
+	}
 	for _, id := range t.Attachments {
 		if path, _, err := s.artifacts.Path(id); err == nil {
 			opts.Images = append(opts.Images, path)

@@ -1,4 +1,4 @@
-import { CircleSlash, X } from "lucide-react";
+import { CircleHelp, CircleSlash, X } from "lucide-react";
 import type { TaskStatus } from "@/api/types";
 import { cn } from "@/lib/utils";
 
@@ -9,6 +9,11 @@ export function Spinner({ className }: { className?: string }) {
       className={cn("inline-block size-3.5 shrink-0 animate-spin-slow rounded-full border-[1.5px] border-accent border-t-transparent", className)}
     />
   );
+}
+
+/** The agent is waiting for the user's answer. */
+export function WaitingIcon({ className }: { className?: string }) {
+  return <CircleHelp aria-label="Waiting for you" className={cn("size-3.5 text-warning", className)} />;
 }
 
 /** Status language used everywhere: success is silent. */

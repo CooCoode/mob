@@ -5,7 +5,7 @@ import {
 import { useEffect, useRef, useState } from "react";
 import { fetchArchived, supports } from "@/api/client";
 import type { Session } from "@/api/types";
-import { StatusIcon } from "@/components/StatusIcon";
+import { StatusIcon, WaitingIcon } from "@/components/StatusIcon";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import {
@@ -101,7 +101,7 @@ function SessionRow({ session, active, admin, onOpen, onAction, position }: {
           {session.pinned && <Star className="size-3 shrink-0 fill-warning text-warning" />}
           <span className="min-w-0 flex-1 truncate">{session.title}</span>
           <span className="flex w-7 shrink-0 justify-end group-hover:hidden group-focus-within:hidden">
-            {status ? <StatusIcon status={status} position={position} /> : <span className="text-[11px] text-muted-foreground">{shortAgo(session.updatedAt)}</span>}
+            {session.waiting ? <WaitingIcon /> : status ? <StatusIcon status={status} position={position} /> : <span className="text-[11px] text-muted-foreground">{shortAgo(session.updatedAt)}</span>}
           </span>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>

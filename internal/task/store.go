@@ -21,6 +21,7 @@ var (
 	ErrSessionBusy       = errors.New("session already has an active turn")
 	ErrInvalidTransition = errors.New("task has already finished")
 	ErrInvalidTitle      = errors.New("title must be 1-200 characters")
+	ErrNotPending        = errors.New("question was already answered or has expired")
 	ErrRunnerMismatch    = errors.New("this conversation belongs to another runner; start a new chat to switch")
 )
 
@@ -54,6 +55,8 @@ type state struct {
 	Order    []string            `json:"order"`
 	// Activities are keyed by task ID, in arrival order.
 	Activities map[string][]Activity `json:"activities,omitempty"`
+	// Questions are keyed by task ID, in the order they were asked.
+	Questions map[string][]Question `json:"questions,omitempty"`
 }
 
 // logLimit bounds memory-only debug lines kept per task for SSE replay.
@@ -321,6 +324,7 @@ func (s *Store) DeleteSession(id string) ([]string, error) {
 	}
 	next := s.next()
 	next.Activities = maps.Clone(s.data.Activities)
+	next.Questions = maps.Clone(s.data.Questions)
 	delete(next.Sessions, id)
 	var artifacts, removed []string
 	next.Order = make([]string, 0, len(s.data.Order))
@@ -336,6 +340,7 @@ func (s *Store) DeleteSession(id string) ([]string, error) {
 		}
 		delete(next.Tasks, taskID)
 		delete(next.Activities, taskID)
+		delete(next.Questions, taskID)
 		removed = append(removed, taskID)
 	}
 	if err := s.swap(next); err != nil {
@@ -396,6 +401,9 @@ func (s *Store) UpdateStatus(id string, status Status, errMsg string) (*Task, er
 	t := clone(stored)
 	t.Status, t.UpdatedAt, t.EventID = status, time.Now().UTC(), t.EventID+1
 	t.QueuePosition = 0
+	if status.Terminal() {
+		t.Waiting = false
+	}
 	if status == StatusRunning {
 		started := t.UpdatedAt
 		t.StartedAt = &started
@@ -411,7 +419,7 @@ func (s *Store) UpdateStatus(id string, status Status, errMsg string) (*Task, er
 	session := cloneSession(s.data.Sessions[t.SessionID])
 	session.Status, session.UpdatedAt = status, t.UpdatedAt
 	if status.Terminal() {
-		session.ActiveTaskID = ""
+		session.ActiveTaskID, session.Waiting = "", false
 	}
 	if err := s.commit(t, session, false, nil); err != nil {
 		return nil, err
@@ -571,8 +579,97 @@ func (s *Store) commit(t *Task, session *Session, added bool, activities []Activ
 func (s *Store) next() state {
 	return state{
 		Tasks: maps.Clone(s.data.Tasks), Sessions: maps.Clone(s.data.Sessions),
-		Order: s.data.Order, Activities: s.data.Activities,
+		Order: s.data.Order, Activities: s.data.Activities, Questions: s.data.Questions,
 	}
+}
+
+// AddQuestion records a pending question on a running turn and marks the turn
+// and its session as waiting for the user.
+func (s *Store) AddQuestion(taskID string, q Question) (Question, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	stored, ok := s.data.Tasks[taskID]
+	if !ok {
+		return Question{}, ErrNotFound
+	}
+	if stored.Status != StatusRunning {
+		return Question{}, ErrInvalidTransition
+	}
+	now := time.Now().UTC()
+	q.ID, q.TaskID, q.Status, q.CreatedAt = newID(), taskID, QuestionPending, now
+	q.Answer, q.Approved, q.AnsweredAt = "", nil, nil
+	q.Options = append([]string(nil), q.Options...)
+	questions := append(append([]Question(nil), s.data.Questions[taskID]...), q)
+	return q, s.commitQuestions(stored, questions, q, now)
+}
+
+// ResolveQuestion answers, expires or cancels a pending question.
+func (s *Store) ResolveQuestion(taskID, questionID, status, answer string, approved *bool) (Question, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	stored, ok := s.data.Tasks[taskID]
+	if !ok {
+		return Question{}, ErrNotFound
+	}
+	questions := append([]Question(nil), s.data.Questions[taskID]...)
+	for i := range questions {
+		if questions[i].ID != questionID {
+			continue
+		}
+		if questions[i].Status != QuestionPending {
+			return Question{}, ErrNotPending
+		}
+		now := time.Now().UTC()
+		q := questions[i]
+		q.Status, q.Answer, q.AnsweredAt = status, answer, &now
+		if approved != nil {
+			v := *approved
+			q.Approved = &v
+		}
+		questions[i] = q
+		return q, s.commitQuestions(stored, questions, q, now)
+	}
+	return Question{}, ErrNotFound
+}
+
+// commitQuestions saves a task's questions, recomputes the waiting flags and
+// publishes the changed question. Caller holds mu.
+func (s *Store) commitQuestions(stored *Task, questions []Question, changed Question, now time.Time) error {
+	t := clone(stored)
+	t.Waiting = false
+	for _, q := range questions {
+		t.Waiting = t.Waiting || q.Status == QuestionPending
+	}
+	t.UpdatedAt, t.EventID = now, t.EventID+1
+	session := cloneSession(s.data.Sessions[t.SessionID])
+	session.Waiting, session.UpdatedAt = t.Waiting, now
+	next := s.next()
+	next.Tasks[t.ID], next.Sessions[session.ID] = t, session
+	next.Questions = maps.Clone(s.data.Questions)
+	if next.Questions == nil {
+		next.Questions = make(map[string][]Question)
+	}
+	next.Questions[t.ID] = questions
+	if err := s.swap(next); err != nil {
+		return err
+	}
+	q := changed
+	s.publish(t.ID, Event{ID: t.EventID, Type: "question", Question: &q, Timestamp: now})
+	s.notifyLocked(session, t)
+	return nil
+}
+
+// Questions returns the questions asked in a conversation, oldest first.
+func (s *Store) Questions(sessionID string) []Question {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	out := make([]Question, 0)
+	for _, id := range s.data.Order {
+		if s.data.Tasks[id].SessionID == sessionID {
+			out = append(out, s.data.Questions[id]...)
+		}
+	}
+	return out
 }
 
 func (s *Store) swap(next state) error {

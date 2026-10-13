@@ -28,6 +28,8 @@ export interface Task {
   finishedAt?: string;
   error?: string | null;
   queuePosition?: number;
+  /** True while the turn waits for the user to answer a question. */
+  waiting?: boolean;
 }
 
 export interface ChatMessage {
@@ -47,6 +49,7 @@ export interface Session {
   activeTaskId?: string;
   status: TaskStatus;
   pinned?: boolean;
+  waiting?: boolean;
   archived?: boolean;
   createdAt?: string;
   updatedAt?: string;
@@ -77,10 +80,29 @@ export interface Activity {
   updatedAt: string;
 }
 
+export type QuestionStatus = "pending" | "answered" | "expired" | "cancelled";
+
+/** A decision the agent asked for (ask_user) or an action awaiting approval (request_approval). */
+export interface Question {
+  id: string;
+  taskId: string;
+  kind: "question" | "approval";
+  text: string;
+  details?: string;
+  options?: string[];
+  allowText: boolean;
+  status: QuestionStatus;
+  answer?: string;
+  approved?: boolean;
+  createdAt: string;
+  answeredAt?: string;
+}
+
 export interface SessionDetail {
   session: Session;
   tasks: Task[];
   activities?: Activity[];
+  questions?: Question[];
 }
 
 export interface TaskEvent {
@@ -91,6 +113,7 @@ export interface TaskEvent {
   resumeId?: string;
   status?: TaskStatus;
   activity?: Activity;
+  question?: Question;
   usage?: Usage;
   timestamp: string;
 }

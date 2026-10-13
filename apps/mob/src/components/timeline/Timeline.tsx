@@ -1,4 +1,4 @@
-import { ArrowDown, Check, Copy, RotateCcw, Sparkles } from "lucide-react";
+import { ArrowDown, Check, CircleHelp, Copy, RotateCcw, Sparkles } from "lucide-react";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { artifactUrl } from "@/api/client";
 import type { ChatMessage, Task } from "@/api/types";
@@ -9,6 +9,7 @@ import { buildTimeline, type TimelineItem } from "@/lib/timeline";
 import { cn, compactNumber, duration } from "@/lib/utils";
 import { useComposer } from "@/store/composer";
 import { ActivityGroup, ActivityRow } from "./activity";
+import { QuestionCard } from "./QuestionCard";
 import { Markdown } from "./Markdown";
 
 const EXAMPLES = [
@@ -105,6 +106,8 @@ function Item({ item, base, last }: { item: TimelineItem; base: string; last: bo
       return <UserMessage message={item.message} task={item.task} base={base} />;
     case "assistant":
       return <AssistantMessage message={item.message} />;
+    case "question":
+      return <QuestionCard q={item.question} />;
     case "steps":
       return (
         <div className="-my-1.5 grid grid-cols-[minmax(0,1fr)] gap-0.5 pl-9">
@@ -126,6 +129,14 @@ function Item({ item, base, last }: { item: TimelineItem; base: string; last: bo
         </div>
       );
     case "working":
+      if (item.waiting && !chat.cancelling) {
+        return (
+          <div className="flex items-center gap-2.5 pl-9 text-[13px] text-warning">
+            <CircleHelp className="size-3.5" />
+            <span>Waiting for your answer above · the desktop stays reserved for this turn</span>
+          </div>
+        );
+      }
       return (
         <div className="flex items-center gap-2.5 pl-9 text-[13px] text-muted-foreground">
           <Spinner />
@@ -168,11 +179,11 @@ export function Timeline({ machineName }: { machineName: string }) {
   const chat = useChat();
   const base = chat.baseUrl;
   // Chat mutates tasks and messages in place; rebuilding per render is cheap and never stale.
-  const items = buildTimeline(chat.tasks, chat.session?.messages ?? [], chat.activities);
+  const items = buildTimeline(chat.tasks, chat.session?.messages ?? [], chat.activities, chat.questions);
   const scroller = useRef<HTMLDivElement>(null);
   const [pinned, setPinned] = useState(true);
   const [unseen, setUnseen] = useState(false);
-  const signature = `${chat.sessionId}:${items.length}:${chat.activities.length}:${chat.session?.messages?.at(-1)?.content.length ?? 0}:${chat.currentTask?.status}`;
+  const signature = `${chat.sessionId}:${items.length}:${chat.activities.length}:${chat.questions.length}:${chat.session?.messages?.at(-1)?.content.length ?? 0}:${chat.currentTask?.status}`;
 
   useLayoutEffect(() => {
     const el = scroller.current;

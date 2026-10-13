@@ -126,6 +126,7 @@ curl -s -X POST localhost:8080/tasks \
 | `MOBD_STATE_PATH` | user config directory + `mob/state.json` | Private conversation snapshot; on macOS: `~/Library/Application Support/mob/state.json` |
 | `MOBD_MAX_RUNNING` | `1` | Tasks running at once across all sessions; others wait in the FIFO desktop queue |
 | `MOBD_DATA_DIR` | directory of `MOBD_STATE_PATH` | Root of `artifacts/` (tool screenshots, uploads) |
+| `MOBD_QUESTION_TIMEOUT` | `30m` | How long a turn waits for your answer to the agent's question or approval request |
 | `MOBD_DEFAULT_RUNNER` | `codex` | Runner for new conversations ([runners](../../docs/runners.md)) |
 | `MOBD_CODEX_MODELS` | empty | Comma-separated Codex model IDs for the App's picker (`MOBD_MODELS` is still read) |
 | `MOBD_VNC_ADDR` | `127.0.0.1:5900` | VNC server (macOS Screen Sharing) relayed by `GET /vnc` and checked by `/health` |
