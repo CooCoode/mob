@@ -6,18 +6,17 @@ import (
 	"net"
 	"net/http"
 	"os/exec"
-	"strings"
 	"sync"
 	"time"
 
 	"github.com/xrdavies/mob/internal/actuate"
-	"github.com/xrdavies/mob/internal/task"
+	"github.com/xrdavies/mob/internal/runner"
 )
 
 // APIVersion is advertised on /health; clients gate features on it.
 const APIVersion = 3
 
-var features = []string{"queue", "activities", "sessionAdmin", "events", "screen", "uploads", "taskOptions", "vncProxy"}
+var features = []string{"queue", "activities", "sessionAdmin", "events", "screen", "uploads", "taskOptions", "vncProxy", "runners"}
 
 // check is one readiness item; Unknown means mobd cannot tell yet.
 type check struct {
@@ -35,16 +34,29 @@ type healthCache struct {
 
 const healthTTL = 10 * time.Second
 
+// runnerHealth is a runner's capabilities plus its readiness on this Mac.
+type runnerHealth struct {
+	runner.Info
+	Available bool   `json:"available"`
+	Detail    string `json:"detail,omitempty"`
+	Default   bool   `json:"default"`
+}
+
 func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
-	models := s.cfg.Models
-	if models == nil {
-		models = []string{}
+	checks := s.readiness(r.Context())
+	var runners []runnerHealth
+	for _, rn := range s.runners.All() {
+		info := rn.Info()
+		c := checks[info.Name]
+		runners = append(runners, runnerHealth{Info: info, Available: c.OK, Detail: c.Detail, Default: info.Name == s.runners.Default()})
 	}
+	def, _ := s.runners.Get(s.runners.Default())
 	writeJSON(w, http.StatusOK, map[string]any{
 		"ok": true, "service": "mobd", "apiVersion": APIVersion,
-		"vncViewUrl": s.cfg.VNCViewURL, "runner": task.RunnerCodex, "mobMcp": s.cfg.MobMCPCommand,
+		"vncViewUrl": s.cfg.VNCViewURL, "runner": s.runners.Default(), "runners": runners, "mobMcp": s.cfg.MobMCPCommand,
 		"maxRunning": max(s.cfg.MaxRunning, 1), "features": features,
-		"models": models, "efforts": Efforts, "checks": s.readiness(r.Context()),
+		// models/efforts describe the default runner (API v3 clients read these).
+		"models": def.Info().Models, "efforts": def.Info().Efforts, "checks": checks,
 		"vncSessions": s.vncSessions.Load(),
 	})
 }
@@ -57,9 +69,10 @@ func (s *Server) readiness(ctx context.Context) map[string]check {
 	}
 	ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
 	defer cancel()
-	checks := map[string]check{
-		"codex":     codexCheck(ctx, s.cfg.CodexBin),
-		"actuation": binaryCheck(s.cfg.MobMCPCommand),
+	checks := map[string]check{"actuation": binaryCheck(s.cfg.MobMCPCommand)}
+	for _, rn := range s.runners.All() {
+		st := rn.Check(ctx)
+		checks[rn.Info().Name] = check{OK: st.OK, Detail: st.Detail}
 	}
 	if s.cfg.UsesBuiltinMCP() {
 		checks["actuation"] = check{OK: true, Detail: "built-in (mobd mcp)"}
@@ -93,18 +106,6 @@ func permissionChecks() (check, check) {
 
 // currentPermissions is swapped in tests.
 var currentPermissions = actuate.CurrentPermissions
-
-func codexCheck(ctx context.Context, bin string) check {
-	path, err := exec.LookPath(bin)
-	if err != nil {
-		return check{Detail: fmt.Sprintf("%q not found; install the Codex CLI or set MOBD_CODEX_BIN", bin)}
-	}
-	out, err := exec.CommandContext(ctx, path, "--version").Output()
-	if err != nil {
-		return check{Detail: fmt.Sprintf("%s --version failed: %v", path, err)}
-	}
-	return check{OK: true, Detail: fmt.Sprintf("%s (%s)", path, strings.TrimSpace(string(out)))}
-}
 
 func binaryCheck(bin string) check {
 	path, err := exec.LookPath(bin)

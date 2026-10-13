@@ -13,6 +13,7 @@ import (
 	"github.com/xrdavies/mob/internal/api"
 	"github.com/xrdavies/mob/internal/config"
 	"github.com/xrdavies/mob/internal/mcpserver"
+	"github.com/xrdavies/mob/internal/runner"
 	"github.com/xrdavies/mob/internal/runner/codex"
 	"github.com/xrdavies/mob/internal/task"
 )
@@ -42,8 +43,11 @@ func main() {
 	if err != nil {
 		log.Fatalf("open conversation state: %v", err)
 	}
-	runner := codex.New(cfg)
-	srv := api.New(cfg, store, runner)
+	runners := []runner.Runner{codex.New(cfg)}
+	if _, err := runner.NewRegistry(cfg.DefaultRunner, runners...); err != nil {
+		log.Fatalf("MOBD_DEFAULT_RUNNER: %v", err)
+	}
+	srv := api.New(cfg, store, runners...)
 
 	httpSrv := &http.Server{
 		Addr:              cfg.ListenAddr,
@@ -52,7 +56,7 @@ func main() {
 	}
 
 	go func() {
-		log.Printf("mobd listening on %s (codex=%s mob-mcp=%s %s)", cfg.ListenAddr, cfg.CodexBin, cfg.MobMCPCommand, strings.Join(cfg.MobMCPArgs, " "))
+		log.Printf("mobd listening on %s (default runner=%s codex=%s mob-mcp=%s %s)", cfg.ListenAddr, cfg.DefaultRunner, cfg.CodexBin, cfg.MobMCPCommand, strings.Join(cfg.MobMCPArgs, " "))
 		if err := httpSrv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			log.Fatalf("listen: %v", err)
 		}

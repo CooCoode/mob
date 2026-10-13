@@ -1,6 +1,6 @@
 import { ArrowUp, Brain, ChevronDown, Cpu, Paperclip, Square, X } from "lucide-react";
 import { useEffect, useRef, useState, type ClipboardEvent, type DragEvent } from "react";
-import { supports, uploadImage } from "@/api/client";
+import { runnerFor, supports, uploadImage } from "@/api/client";
 import type { Health } from "@/api/types";
 import { Spinner } from "@/components/StatusIcon";
 import { Button } from "@/components/ui/button";
@@ -64,8 +64,12 @@ export function Composer({ machineId, machineName, health }: { machineId: string
   const [dragging, setDragging] = useState(false);
   const input = useRef<HTMLTextAreaElement>(null);
   const file = useRef<HTMLInputElement>(null);
-  const canUpload = supports(health, "uploads");
+  const runner = runnerFor(health, chat.session?.runner);
+  const canUpload = supports(health, "uploads") && (runner?.images ?? true);
   const canOptions = supports(health, "taskOptions");
+  // Older mobd (no runner list) offers the default runner's models/efforts at the top level.
+  const models = runner?.models ?? health?.models ?? [];
+  const efforts = runner?.efforts ?? health?.efforts ?? [];
   const uploading = attachments.some((a) => !a.id && !a.error);
   const ready = attachments.filter((a) => a.id);
   const busy = chat.busy;
@@ -97,8 +101,9 @@ export function Composer({ machineId, machineName, health }: { machineId: string
     const prompt = text.trim();
     if (!prompt || !chat.canSend || uploading) return;
     const ok = await chat.submit(prompt, {
-      model: canOptions ? prefs.model : undefined,
-      effort: canOptions ? prefs.effort : undefined,
+      // Only send settings the turn's runner offers (prefs may come from another runner).
+      model: canOptions && prefs.model && (models.length === 0 || models.includes(prefs.model)) ? prefs.model : undefined,
+      effort: canOptions && prefs.effort && efforts.includes(prefs.effort) ? prefs.effort : undefined,
       attachments: ready.map((a) => a.id!),
     });
     if (ok) {
@@ -196,9 +201,9 @@ export function Composer({ machineId, machineName, health }: { machineId: string
           </Tooltip>
           {canOptions && (
             <>
-              <Picker icon={Cpu} label="Model" placeholder="Default model" value={prefs.model ?? ""} options={health?.models ?? []}
+              <Picker icon={Cpu} label="Model" placeholder="Default model" value={prefs.model ?? ""} options={models}
                 onChange={(model) => setTurnPrefs(machineId, { model })} />
-              <Picker icon={Brain} label="Reasoning effort" placeholder="Default effort" value={prefs.effort ?? ""} options={health?.efforts ?? []}
+              <Picker icon={Brain} label="Reasoning effort" placeholder="Default effort" value={prefs.effort ?? ""} options={efforts}
                 onChange={(effort) => setTurnPrefs(machineId, { effort })} />
             </>
           )}

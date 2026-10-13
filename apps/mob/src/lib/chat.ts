@@ -4,7 +4,7 @@ import type {
 
 export type { Activity, ChatMessage, Session, Task, TaskStatus };
 
-const EVENT_TYPES = ["status", "message", "thread", "activity", "usage", "log", "progress", "error"];
+const EVENT_TYPES = ["status", "message", "resume", "activity", "usage", "log", "progress", "error"];
 
 export function terminal(status: TaskStatus): boolean {
   return status === "succeeded" || status === "failed" || status === "cancelled";
@@ -149,7 +149,8 @@ export class Chat {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          prompt, sessionId: sessionId ?? undefined, model: options.model || undefined,
+          prompt, sessionId: sessionId ?? undefined, runner: sessionId ? undefined : options.runner || undefined,
+          model: options.model || undefined,
           effort: options.effort || undefined, attachments: options.attachments?.length ? options.attachments : undefined,
         }),
       });

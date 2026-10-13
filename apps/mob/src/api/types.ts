@@ -7,12 +7,13 @@ export interface Usage {
   cachedInputTokens: number;
   outputTokens: number;
   reasoningOutputTokens: number;
+  costUsd?: number;
 }
 
 export interface Task {
   id: string;
   sessionId: string;
-  threadId?: string;
+  resumeId?: string;
   eventId: number;
   prompt: string;
   status: TaskStatus;
@@ -40,7 +41,9 @@ export interface ChatMessage {
 export interface Session {
   id: string;
   title: string;
-  threadId?: string;
+  /** The runner this conversation is pinned to. */
+  runner?: string;
+  resumeId?: string;
   activeTaskId?: string;
   status: TaskStatus;
   pinned?: boolean;
@@ -85,7 +88,7 @@ export interface TaskEvent {
   type: string;
   message?: string;
   messageId?: string;
-  threadId?: string;
+  resumeId?: string;
   status?: TaskStatus;
   activity?: Activity;
   usage?: Usage;
@@ -98,11 +101,26 @@ export interface Check {
   detail?: string;
 }
 
+export interface RunnerInfo {
+  name: string;
+  label: string;
+  models: string[];
+  efforts: string[];
+  images: boolean;
+  resume: boolean;
+  cost: boolean;
+  available: boolean;
+  detail?: string;
+  default: boolean;
+}
+
 export interface Health {
   ok: boolean;
   service: string;
   apiVersion: number;
+  /** Default runner for new conversations. */
   runner?: string;
+  runners?: RunnerInfo[];
   vncViewUrl?: string;
   maxRunning?: number;
   features?: string[];
@@ -125,6 +143,7 @@ export interface Upload {
 }
 
 export interface TurnOptions {
+  runner?: string;
   model?: string;
   effort?: string;
   attachments?: string[];

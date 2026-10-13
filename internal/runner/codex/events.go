@@ -6,10 +6,10 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"regexp"
 	"strings"
 
 	"github.com/xrdavies/mob/internal/runner"
+	"github.com/xrdavies/mob/internal/runner/cli"
 	"github.com/xrdavies/mob/internal/task"
 )
 
@@ -64,83 +64,98 @@ type nativeItem struct {
 	} `json:"changes"`
 }
 
-// CLI JSONL carries provider IDs, completed messages and typed agent steps.
+// parser turns Codex JSONL (provider IDs, completed messages, typed steps) into events.
+type parser struct {
+	emit                  runner.EmitFunc
+	save                  runner.ImageSaver
+	completed, failed     bool
+	threadSeen, replySeen bool
+	failure               error
+}
+
+func newParser(emit runner.EmitFunc, save runner.ImageSaver) *parser {
+	return &parser{emit: emit, save: save}
+}
+
+// streamJSON parses a whole Codex output stream (tests and replays).
 func streamJSON(r io.Reader, emit runner.EmitFunc, save runner.ImageSaver) error {
-	completed := false
-	failed := false
-	threadSeen, replySeen := false, false
-	var failure error
-	err := streamLines(r, func(line string) error {
-		if strings.TrimSpace(line) == "" {
-			return nil
-		}
-		var native nativeEvent
-		if err := json.Unmarshal([]byte(line), &native); err != nil || native.Type == "" {
-			return fmt.Errorf("invalid Codex JSON event: %s", line)
-		}
-		switch native.Type {
-		case "thread.started":
-			if native.ThreadID == "" {
-				return errors.New("Codex thread.started is missing thread_id")
-			}
-			threadSeen = true
-			return emit(task.Event{Type: "thread", ThreadID: native.ThreadID})
-		case "item.started", "item.updated", "item.completed":
-			item := native.Item
-			if item.Type == "agent_message" {
-				if native.Type != "item.completed" {
-					return nil
-				}
-				if item.ID == "" {
-					return errors.New("Codex agent_message is missing item ID")
-				}
-				if strings.TrimSpace(item.Text) == "" {
-					break
-				}
-				replySeen = true
-				return emit(task.Event{Type: "message", MessageID: item.ID, Message: item.Text})
-			}
-			a, err := activityFor(item, native.Type == "item.completed", save)
-			if err != nil {
-				return err
-			}
-			if a != nil {
-				return emit(task.Event{Type: "activity", Activity: a})
-			}
-		case "turn.completed":
-			completed = true
-			if u := native.Usage; u != nil {
-				if err := emit(task.Event{Type: "usage", Usage: &task.Usage{
-					InputTokens: u.InputTokens, CachedInputTokens: u.CachedInputTokens,
-					OutputTokens: u.OutputTokens, ReasoningOutputTokens: u.ReasoningOutputTokens,
-				}}); err != nil {
-					return err
-				}
-			}
-		case "turn.failed":
-			failed = true
-			message := native.Error.Message
-			if message == "" {
-				message = "Codex turn failed"
-			}
-			failure = errors.New(message)
-		case "error":
-			if native.Message != "" {
-				failure = errors.New(native.Message)
-			}
-		}
-		return emit(task.Event{Type: "log", Message: "[codex] " + line})
-	})
-	if err != nil {
+	p := newParser(emit, save)
+	if err := cli.Lines(r, p.Line); err != nil {
 		return err
 	}
-	if failed || !completed {
-		if failure != nil {
-			return failure
+	return p.Finish()
+}
+
+func (p *parser) Line(line string) error {
+	if strings.TrimSpace(line) == "" {
+		return nil
+	}
+	var native nativeEvent
+	if err := json.Unmarshal([]byte(line), &native); err != nil || native.Type == "" {
+		return fmt.Errorf("invalid Codex JSON event: %s", line)
+	}
+	switch native.Type {
+	case "thread.started":
+		if native.ThreadID == "" {
+			return errors.New("Codex thread.started is missing thread_id")
+		}
+		p.threadSeen = true
+		return p.emit(task.Event{Type: "resume", ResumeID: native.ThreadID})
+	case "item.started", "item.updated", "item.completed":
+		item := native.Item
+		if item.Type == "agent_message" {
+			if native.Type != "item.completed" {
+				return nil
+			}
+			if item.ID == "" {
+				return errors.New("Codex agent_message is missing item ID")
+			}
+			if strings.TrimSpace(item.Text) == "" {
+				break
+			}
+			p.replySeen = true
+			return p.emit(task.Event{Type: "message", MessageID: item.ID, Message: item.Text})
+		}
+		a, err := activityFor(item, native.Type == "item.completed", p.save)
+		if err != nil {
+			return err
+		}
+		if a != nil {
+			return p.emit(task.Event{Type: "activity", Activity: a})
+		}
+	case "turn.completed":
+		p.completed = true
+		if u := native.Usage; u != nil {
+			if err := p.emit(task.Event{Type: "usage", Usage: &task.Usage{
+				InputTokens: u.InputTokens, CachedInputTokens: u.CachedInputTokens,
+				OutputTokens: u.OutputTokens, ReasoningOutputTokens: u.ReasoningOutputTokens,
+			}}); err != nil {
+				return err
+			}
+		}
+	case "turn.failed":
+		p.failed = true
+		message := native.Error.Message
+		if message == "" {
+			message = "Codex turn failed"
+		}
+		p.failure = errors.New(message)
+	case "error":
+		if native.Message != "" {
+			p.failure = errors.New(native.Message)
+		}
+	}
+	return p.emit(task.Event{Type: "log", Message: "[codex] " + line})
+}
+
+func (p *parser) Finish() error {
+	if p.failed || !p.completed {
+		if p.failure != nil {
+			return p.failure
 		}
 		return errors.New("Codex ended without turn.completed")
 	}
-	if !threadSeen || !replySeen {
+	if !p.threadSeen || !p.replySeen {
 		return errors.New("Codex completed without a thread ID or assistant message")
 	}
 	return nil
@@ -155,7 +170,7 @@ func activityFor(item nativeItem, done bool, save runner.ImageSaver) (*task.Acti
 		if len(item.Arguments) > 0 && string(item.Arguments) != "null" {
 			a.Arguments = item.Arguments
 		}
-		a.Title = toolTitle(item.Tool, item.Arguments)
+		a.Title = runner.ToolTitle(item.Tool, item.Arguments)
 		if item.Error != nil {
 			a.Error = item.Error.Message
 		}
@@ -189,7 +204,7 @@ func activityFor(item nativeItem, done bool, save runner.ImageSaver) (*task.Acti
 	case "command_execution":
 		a.Kind, a.Command, a.ExitCode = task.ActivityCommand, item.Command, item.ExitCode
 		a.Text = item.AggregatedOutput
-		a.Title = "Run " + clip(firstLine(unwrapShell(item.Command)), 60)
+		a.Title = runner.CommandTitle(item.Command)
 	case "reasoning":
 		a.Kind, a.Title, a.Text = task.ActivityReasoning, "Thinking", item.Text
 	case "todo_list":
@@ -207,12 +222,12 @@ func activityFor(item nativeItem, done bool, save runner.ImageSaver) (*task.Acti
 		for _, c := range item.Changes {
 			a.Changes = append(a.Changes, task.FileChange{Path: c.Path, Kind: c.Kind})
 		}
-		a.Title = fmt.Sprintf("Edited %d file%s", len(a.Changes), plural(len(a.Changes)))
+		a.Title = fmt.Sprintf("Edited %d file%s", len(a.Changes), runner.Plural(len(a.Changes)))
 	case "web_search":
-		a.Kind, a.Title = task.ActivityWebSearch, "Search “"+clip(item.Query, 60)+"”"
+		a.Kind, a.Title = task.ActivityWebSearch, "Search “"+runner.Clip(item.Query, 60)+"”"
 	case "error":
 		a.Kind, a.Status, a.Text = task.ActivityNotice, task.ActivityFailed, item.Message
-		a.Title = clip(firstLine(item.Message), 80)
+		a.Title = runner.Clip(runner.FirstLine(item.Message), 80)
 		return a, nil
 	default:
 		return nil, nil
@@ -228,70 +243,4 @@ func activityFor(item nativeItem, done bool, save runner.ImageSaver) (*task.Acti
 		}
 	}
 	return a, nil
-}
-
-func toolTitle(tool string, raw json.RawMessage) string {
-	var args map[string]any
-	_ = json.Unmarshal(raw, &args)
-	str := func(k string) string { s, _ := args[k].(string); return s }
-	num := func(k string) string {
-		if v, ok := args[k].(float64); ok {
-			return fmt.Sprintf("%g", v)
-		}
-		return "?"
-	}
-	switch tool {
-	case "screenshot":
-		return "Screenshot"
-	case "click":
-		verb := "Click"
-		if c, ok := args["count"].(float64); ok && c == 2 {
-			verb = "Double-click"
-		}
-		if str("button") == "right" {
-			verb = "Right-click"
-		}
-		return fmt.Sprintf("%s (%s, %s)", verb, num("x"), num("y"))
-	case "type_text":
-		return "Type “" + clip(str("text"), 40) + "”"
-	case "key":
-		return "Press " + str("combo")
-	case "open_app":
-		return "Open " + str("name_or_bundle_id")
-	case "list_windows":
-		return "List windows"
-	}
-	return strings.ReplaceAll(tool, "_", " ")
-}
-
-var shellWrapper = regexp.MustCompile(`^\S*\b(?:zsh|bash|sh) -l?c (?:'(.*)'|"(.*)")$`)
-
-func unwrapShell(cmd string) string {
-	if m := shellWrapper.FindStringSubmatch(strings.TrimSpace(cmd)); m != nil {
-		return m[1] + m[2]
-	}
-	return cmd
-}
-
-func firstLine(s string) string {
-	s = strings.TrimSpace(s)
-	if i := strings.IndexByte(s, '\n'); i >= 0 {
-		return s[:i] + " …"
-	}
-	return s
-}
-
-func clip(s string, n int) string {
-	r := []rune(s)
-	if len(r) <= n {
-		return s
-	}
-	return string(r[:n]) + "…"
-}
-
-func plural(n int) string {
-	if n == 1 {
-		return ""
-	}
-	return "s"
 }

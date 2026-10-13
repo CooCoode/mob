@@ -125,7 +125,8 @@ func waitTask(t *testing.T, s *Server, id string) *task.Task {
 		}
 		time.Sleep(10 * time.Millisecond)
 	}
-	t.Fatal("runner did not finish")
+	last, _ := s.store.Get(id)
+	t.Fatalf("runner did not finish: %+v", last)
 	return nil
 }
 
@@ -178,7 +179,7 @@ printf '%s\n' '{"type":"turn.completed"}'
 	}
 	first := post(s, "", "Remember 蓝鲸")
 	second := post(s, first.SessionID, "What did I say?")
-	if first.SessionID != second.SessionID || second.ThreadID != "provider-1" {
+	if first.SessionID != second.SessionID || second.ResumeID != "provider-1" {
 		t.Fatal("session/thread changed")
 	}
 	args, _ := os.ReadFile(filepath.Join(dir, "args-2"))
@@ -841,7 +842,7 @@ func TestHealthReadiness(t *testing.T) {
 	currentPermissions = func() (actuate.Permissions, error) { return perms, nil }
 	t.Cleanup(func() { currentPermissions = actuate.CurrentPermissions })
 	cfg := config.Config{CodexBin: bin, MobMCPCommand: "mob-mcp-missing", VNCAddr: ln.Addr().String(),
-		Models: []string{"gpt-5.5"}, DataDir: dir}
+		CodexModels: []string{"gpt-5.5"}, DataDir: dir}
 	s := New(cfg, task.NewStore(), codex.New(cfg))
 	t.Cleanup(s.Close)
 	var body struct {
@@ -851,6 +852,8 @@ func TestHealthReadiness(t *testing.T) {
 		Efforts    []string
 		Features   []string
 		Checks     map[string]check
+		Runner     string
+		Runners    []runnerHealth
 	}
 	if err := json.Unmarshal(doJSON(t, s, http.MethodGet, "/health", "").Body.Bytes(), &body); err != nil {
 		t.Fatal(err)
@@ -862,5 +865,33 @@ func TestHealthReadiness(t *testing.T) {
 	if !c["codex"].OK || !strings.Contains(c["codex"].Detail, "codex-cli 9.9.9") || c["actuation"].OK ||
 		!c["vnc"].OK || c["accessibility"].OK != perms.Accessibility || c["screenRecording"].OK || c["screenRecording"].Detail == "" {
 		t.Fatalf("checks %+v", c)
+	}
+	if body.Runner != "codex" || len(body.Runners) != 1 || !body.Runners[0].Available || !body.Runners[0].Default ||
+		!body.Runners[0].Resume || len(body.Runners[0].Efforts) != 5 || body.Runners[0].Models[0] != "gpt-5.5" {
+		t.Fatalf("runners %+v", body.Runners)
+	}
+}
+
+func TestTurnRunnerValidation(t *testing.T) {
+	s := testServer(t, "")
+	created := postTask(t, s, `{"prompt":"first"}`)
+	if created.Runner != "codex" {
+		t.Fatalf("default runner %q", created.Runner)
+	}
+	waitTask(t, s, created.ID)
+	for _, tc := range []struct {
+		body string
+		code int
+		want string
+	}{
+		{`{"prompt":"x","runner":"pi"}`, http.StatusBadRequest, "not enabled"},
+		{`{"prompt":"x","sessionId":"` + created.SessionID + `","runner":"claude"}`, http.StatusConflict, "another runner"},
+		{`{"prompt":"x","sessionId":"missing"}`, http.StatusNotFound, "session not found"},
+		{`{"prompt":"x","effort":"max"}`, http.StatusBadRequest, "minimal, low, medium, high, xhigh"},
+	} {
+		rr := doJSON(t, s, http.MethodPost, "/tasks", tc.body)
+		if rr.Code != tc.code || !strings.Contains(rr.Body.String(), tc.want) {
+			t.Fatalf("%s → %d %s", tc.body, rr.Code, rr.Body.String())
+		}
 	}
 }

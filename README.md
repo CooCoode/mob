@@ -71,6 +71,7 @@ make check        # Go vet + tests, App tests + typecheck
 - [Office smoke test report](docs/office-smoke-test-report.md)
 - [VNC + svnc viewOnly setup](docs/vnc-svnc-setup.md)
 - [Office service scripts](scripts/README.md)
+- [Runners (agent CLIs)](docs/runners.md)
 - [Roadmap](docs/roadmap.md)
 - [Phase 2 lite home App `apps/mob` (embed svnc)](docs/client-phase2-lite.md)
 - [apps/mob UI design (v2)](docs/apps-mob-ui.md)

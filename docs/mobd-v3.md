@@ -36,7 +36,7 @@ Auth/tokens, an audit log, multiple runners in production (the interface lands, 
 
 | Codex item / event | MOB result |
 | --- | --- |
-| `thread.started` | session `threadId` (unchanged) |
+| `thread.started` | `resume` event → session `resumeId` (was `threadId`; see [runners.md](runners.md)) |
 | `agent_message` | assistant **message** (unchanged) |
 | `mcp_tool_call` | activity `kind: "tool"` with `server`, `tool`, `arguments`, text `output`, `error`; image content blocks are stored as **artifacts** and referenced by ID |
 | `command_execution` | activity `kind: "command"` with `command`, `output` (truncated), `exitCode` |
@@ -54,7 +54,7 @@ Activities are **upserted by ID** (`<taskId>:<itemId>`): `item.started` creates 
 
 ```ts
 type Task = {
-  // existing: id, sessionId, threadId, eventId, prompt, status, runner, createdAt, updatedAt, error, vncViewUrl
+  // existing: id, sessionId, resumeId (was threadId), eventId, prompt, status, runner, createdAt, updatedAt, error, vncViewUrl
   model?: string;
   effort?: "minimal" | "low" | "medium" | "high" | "xhigh";
   attachments?: string[];          // upload artifact IDs
@@ -65,7 +65,7 @@ type Task = {
 };
 
 type Session = {
-  // existing: id, title, threadId, activeTaskId, status, createdAt, updatedAt, messages
+  // existing: id, title, runner, resumeId (was threadId), activeTaskId, status, createdAt, updatedAt, messages
   pinned: boolean;
   archived: boolean;
 };
@@ -104,7 +104,7 @@ Existing v2 endpoints keep their shape. New fields are additive.
 
 | Method | Path | Notes |
 | --- | --- | --- |
-| GET | `/health` | Adds `apiVersion: 3`, `features`, `checks`, `models`, `efforts`, `maxRunning` |
+| GET | `/health` | Adds `apiVersion: 3`, `features`, `checks`, `runners`, default runner's `models`/`efforts`, `maxRunning` |
 | GET | `/sessions` | `?archived=false` (default) \| `true` \| `all`. Sorted pinned first, then `updatedAt` descending |
 | GET | `/sessions/{id}` | Adds `activities` |
 | PATCH | `/sessions/{id}` | Body `{title?, pinned?, archived?}` → updated session |
@@ -140,7 +140,7 @@ Existing v2 endpoints keep their shape. New fields are additive.
 }
 ```
 
-`ok` stays true when mobd is serving. `checks` explain readiness without blocking anything and are cached for 10 s. Each check is `{ok, unknown?, detail?}`; permission checks come from `CGPreflightPostEventAccess` / `CGPreflightScreenCaptureAccess` in mobd ([ADR 0008](adr/0008-actuation-in-mobd.md)) and are `unknown` off macOS. `models` comes from `MOBD_MODELS` (comma-separated). An empty list means "Codex default only". The `vnc` check dials `MOBD_VNC_ADDR` (default `127.0.0.1:5900`); `vncSessions` counts open `/vnc` relays.
+`ok` stays true when mobd is serving. `checks` explain readiness without blocking anything and are cached for 10 s. Each check is `{ok, unknown?, detail?}`; permission checks come from `CGPreflightPostEventAccess` / `CGPreflightScreenCaptureAccess` in mobd ([ADR 0008](adr/0008-actuation-in-mobd.md)) and are `unknown` off macOS. `runners` lists each enabled runner's capabilities and readiness ([runners.md](runners.md)); top-level `models`/`efforts` describe the default runner. Codex models come from `MOBD_CODEX_MODELS`; an empty list means "the agent's default only". The `vnc` check dials `MOBD_VNC_ADDR` (default `127.0.0.1:5900`); `vncSessions` counts open `/vnc` relays.
 
 ### Global events (`GET /events`)
 
@@ -162,7 +162,7 @@ Per-task timelines stay on `/tasks/{id}/events`. The global stream carries only 
 | --- | --- | --- |
 | `MOBD_MAX_RUNNING` | `1` | Tasks allowed to run at once (one desktop → 1) |
 | `MOBD_DATA_DIR` | directory of `MOBD_STATE_PATH` | Root for `artifacts/` (screenshots, uploads) |
-| `MOBD_MODELS` | empty | Comma-separated model IDs offered to clients |
+| `MOBD_CODEX_MODELS` | empty | Codex model IDs offered to clients (`MOBD_MODELS` still read) |
 | `MOBD_VNC_ADDR` | `127.0.0.1:5900` | VNC server relayed by `GET /vnc` and checked by `/health` |
 
 ## Internal structure

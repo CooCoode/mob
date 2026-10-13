@@ -126,19 +126,20 @@ curl -s -X POST localhost:8080/tasks \
 | `MOBD_STATE_PATH` | user config directory + `mob/state.json` | Private conversation snapshot; on macOS: `~/Library/Application Support/mob/state.json` |
 | `MOBD_MAX_RUNNING` | `1` | Tasks running at once across all sessions; others wait in the FIFO desktop queue |
 | `MOBD_DATA_DIR` | directory of `MOBD_STATE_PATH` | Root of `artifacts/` (tool screenshots, uploads) |
-| `MOBD_MODELS` | empty | Comma-separated model IDs advertised on `/health` for client pickers |
+| `MOBD_DEFAULT_RUNNER` | `codex` | Runner for new conversations ([runners](../../docs/runners.md)) |
+| `MOBD_CODEX_MODELS` | empty | Comma-separated Codex model IDs for the App's picker (`MOBD_MODELS` is still read) |
 | `MOBD_VNC_ADDR` | `127.0.0.1:5900` | VNC server (macOS Screen Sharing) relayed by `GET /vnc` and checked by `/health` |
 
 ## Conversations and runner lifecycle
 
-Update the office **mobd** together with the client. `/health` advertises `apiVersion: 3` with `features`, `models`, `efforts` and readiness `checks`; v2 clients keep working because v3 only adds fields and routes. Old in-memory tasks cannot be recovered after upgrading/restarting.
+Update the office **mobd** together with the client. `/health` advertises `apiVersion: 3` with `features`, `runners` (each with models, efforts and readiness), the default runner's `models`/`efforts`, and readiness `checks`; v2 clients keep working because v3 only adds fields and routes. Old in-memory tasks cannot be recovered after upgrading/restarting.
 
 - Every new turn starts `queued`. A FIFO dispatcher runs at most `MOBD_MAX_RUNNING` turns at once so agents never fight over the desktop; queued tasks report `queuePosition`, and cancelling one finishes it without starting Codex. Queued turns are marked failed on restart, like running ones.
 - Codex `mcp_tool_call`, `command_execution`, `reasoning`, `todo_list`, `file_change`, `web_search` and `error` items become persisted **activities** (upserted by item ID, text capped at 16 KiB); tool screenshots are saved as artifacts. `turn.completed` usage is stored on the task.
 - `POST /tasks` without `sessionId` creates a conversation and its first turn atomically. With `sessionId`, it continues that conversation; an active turn returns **409**, without adding a user message.
-- The first turn uses `codex exec --json`; following turns use `codex exec … resume <threadId> -`. Prompts travel through stdin. Completed `agent_message` items become assistant messages; stderr/tool output stays in debug logs. Replies appear when Codex completes a message item, rather than token by token.
-- Conversation IDs, Codex thread IDs, messages and task states are written atomically before acknowledgement/delivery. The file has mode **0600**. Keep it and Codex's own session directory on the office host. Run one mobd writer per state path; this snapshot store is intended for a single office daemon.
-- On restart, interrupted turns become **failed** and are never rerun automatically. Completed messages and thread IDs remain available for continuation.
+- The first turn uses `codex exec --json`; following turns use `codex exec … resume <resumeId> -`. Each conversation is pinned to the runner that started it ([runners](../../docs/runners.md)). Prompts travel through stdin. Completed `agent_message` items become assistant messages; stderr/tool output stays in debug logs. Replies appear when Codex completes a message item, rather than token by token.
+- Conversation IDs, runner resume IDs, messages and task states are written atomically before acknowledgement/delivery. The file has mode **0600**. Keep it and Codex's own session directory on the office host. Run one mobd writer per state path; this snapshot store is intended for a single office daemon.
+- On restart, interrupted turns become **failed** and are never rerun automatically. Completed messages and resume IDs remain available for continuation.
 - Cancel returns **202** and keeps the conversation busy until the process stops and output readers finish. SIGINT/SIGTERM also cancels active turns before shutdown.
 - Use a service supervisor that cleans up child processes after a hard daemon crash/SIGKILL; otherwise stop any orphaned Codex process before resuming its conversation. Snapshot recovery marks the interrupted turn failed, but cannot stop a process left by a dead daemon.
 - SSE events have monotonic per-task `id` fields. `Last-Event-ID` / `?after=` resume in-process replay without duplicating messages. Raw logs are memory-only and capped at 2000 lines per task; after a daemon restart, `GET /sessions/:id` is the authoritative transcript and task snapshot.

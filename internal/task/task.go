@@ -16,28 +16,31 @@ const (
 	StatusCancelled Status = "cancelled"
 )
 
-// RunnerCodex is the only Phase 1 runner.
-const RunnerCodex = "codex"
+// LegacyRunner is the runner of conversations saved before runners were recorded.
+const LegacyRunner = "codex"
 
 // Task is the API-facing task snapshot.
 type Task struct {
-	ID          string     `json:"id"`
-	SessionID   string     `json:"sessionId"`
-	ThreadID    string     `json:"threadId,omitempty"`
-	EventID     int64      `json:"eventId"`
-	Prompt      string     `json:"prompt"`
-	Status      Status     `json:"status"`
-	Runner      string     `json:"runner"`
-	Model       string     `json:"model,omitempty"`
-	Effort      string     `json:"effort,omitempty"`
-	Attachments []string   `json:"attachments,omitempty"`
-	Usage       *Usage     `json:"usage,omitempty"`
-	CreatedAt   time.Time  `json:"createdAt"`
-	UpdatedAt   time.Time  `json:"updatedAt"`
-	StartedAt   *time.Time `json:"startedAt,omitempty"`
-	FinishedAt  *time.Time `json:"finishedAt,omitempty"`
-	Error       *string    `json:"error"`
-	VNCViewURL  string     `json:"vncViewUrl,omitempty"`
+	ID        string `json:"id"`
+	SessionID string `json:"sessionId"`
+	// ResumeID is the runner's opaque handle for continuing the conversation.
+	ResumeID string `json:"resumeId,omitempty"`
+	// LegacyThreadID is read from state written before resumeId; never written.
+	LegacyThreadID string     `json:"threadId,omitempty"`
+	EventID        int64      `json:"eventId"`
+	Prompt         string     `json:"prompt"`
+	Status         Status     `json:"status"`
+	Runner         string     `json:"runner"`
+	Model          string     `json:"model,omitempty"`
+	Effort         string     `json:"effort,omitempty"`
+	Attachments    []string   `json:"attachments,omitempty"`
+	Usage          *Usage     `json:"usage,omitempty"`
+	CreatedAt      time.Time  `json:"createdAt"`
+	UpdatedAt      time.Time  `json:"updatedAt"`
+	StartedAt      *time.Time `json:"startedAt,omitempty"`
+	FinishedAt     *time.Time `json:"finishedAt,omitempty"`
+	Error          *string    `json:"error"`
+	VNCViewURL     string     `json:"vncViewUrl,omitempty"`
 	// QueuePosition is computed on read (1-based) while the task waits for the desktop.
 	QueuePosition int `json:"queuePosition,omitempty"`
 }
@@ -48,6 +51,8 @@ type Usage struct {
 	CachedInputTokens     int64 `json:"cachedInputTokens"`
 	OutputTokens          int64 `json:"outputTokens"`
 	ReasoningOutputTokens int64 `json:"reasoningOutputTokens"`
+	// CostUSD is set by runners that report a price (Claude Code).
+	CostUSD float64 `json:"costUsd,omitempty"`
 }
 
 // Activity kinds and states rendered as timeline cards.
@@ -106,25 +111,28 @@ type Message struct {
 }
 
 type Session struct {
-	ID           string    `json:"id"`
-	Title        string    `json:"title"`
-	ThreadID     string    `json:"threadId,omitempty"`
-	ActiveTaskID string    `json:"activeTaskId,omitempty"`
-	Status       Status    `json:"status"`
-	Pinned       bool      `json:"pinned"`
-	Archived     bool      `json:"archived"`
-	CreatedAt    time.Time `json:"createdAt"`
-	UpdatedAt    time.Time `json:"updatedAt"`
-	Messages     []Message `json:"messages,omitempty"`
+	ID    string `json:"id"`
+	Title string `json:"title"`
+	// Runner is fixed when the conversation starts; resume handles only work with it.
+	Runner         string    `json:"runner,omitempty"`
+	ResumeID       string    `json:"resumeId,omitempty"`
+	LegacyThreadID string    `json:"threadId,omitempty"`
+	ActiveTaskID   string    `json:"activeTaskId,omitempty"`
+	Status         Status    `json:"status"`
+	Pinned         bool      `json:"pinned"`
+	Archived       bool      `json:"archived"`
+	CreatedAt      time.Time `json:"createdAt"`
+	UpdatedAt      time.Time `json:"updatedAt"`
+	Messages       []Message `json:"messages,omitempty"`
 }
 
 // Event is streamed over SSE and retained for late subscribers.
 type Event struct {
 	ID        int64     `json:"id"`
-	Type      string    `json:"type"` // status | log | progress | error | thread | message | activity | usage
+	Type      string    `json:"type"` // status | log | progress | error | resume | message | activity | usage
 	Message   string    `json:"message,omitempty"`
 	MessageID string    `json:"messageId,omitempty"`
-	ThreadID  string    `json:"threadId,omitempty"`
+	ResumeID  string    `json:"resumeId,omitempty"`
 	Status    Status    `json:"status,omitempty"`
 	Activity  *Activity `json:"activity,omitempty"`
 	Usage     *Usage    `json:"usage,omitempty"`
@@ -135,6 +143,7 @@ type Event struct {
 type CreateRequest struct {
 	Prompt      string   `json:"prompt"`
 	SessionID   string   `json:"sessionId,omitempty"`
+	Runner      string   `json:"runner,omitempty"`
 	Model       string   `json:"model,omitempty"`
 	Effort      string   `json:"effort,omitempty"`
 	Attachments []string `json:"attachments,omitempty"`
@@ -142,6 +151,8 @@ type CreateRequest struct {
 
 // TurnOptions are per-turn runner settings validated by the API.
 type TurnOptions struct {
+	// Runner picks the agent for a new conversation; continuing turns must match.
+	Runner      string
 	Model       string
 	Effort      string
 	Attachments []string

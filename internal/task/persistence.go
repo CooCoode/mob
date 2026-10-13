@@ -39,6 +39,7 @@ func OpenStore(path string) (*Store, error) {
 		}
 	}
 	seen := make(map[string]bool)
+	migrated := false
 	for _, id := range s.data.Order {
 		t := s.data.Tasks[id]
 		if t == nil || t.ID != id || s.data.Sessions[t.SessionID] == nil || seen[id] || t.EventID < 1 {
@@ -47,6 +48,16 @@ func OpenStore(path string) (*Store, error) {
 		if t.Status != StatusQueued && t.Status != StatusRunning && !t.Status.Terminal() {
 			return nil, errors.New("invalid task status in conversation state")
 		}
+		if t.Runner == "" || t.LegacyThreadID != "" {
+			migrated = true
+		}
+		if t.Runner == "" {
+			t.Runner = LegacyRunner
+		}
+		if t.ResumeID == "" {
+			t.ResumeID = t.LegacyThreadID
+		}
+		t.LegacyThreadID = ""
 		seen[id] = true
 	}
 	if len(seen) != len(s.data.Tasks) {
@@ -56,6 +67,17 @@ func OpenStore(path string) (*Store, error) {
 		if session == nil || session.ID != id {
 			return nil, errors.New("invalid session in conversation state")
 		}
+		// State from before runners were recorded: Codex thread IDs become resume IDs.
+		if session.Runner == "" || session.LegacyThreadID != "" {
+			migrated = true
+		}
+		if session.Runner == "" {
+			session.Runner = LegacyRunner
+		}
+		if session.ResumeID == "" {
+			session.ResumeID = session.LegacyThreadID
+		}
+		session.LegacyThreadID = ""
 		for _, message := range session.Messages {
 			if t := s.data.Tasks[message.TaskID]; t == nil || t.SessionID != id {
 				return nil, errors.New("invalid message in conversation state")
@@ -79,7 +101,7 @@ func OpenStore(path string) (*Store, error) {
 		}
 		s.publish(id, Event{ID: t.EventID, Type: "status", Status: t.Status, Message: message, Timestamp: t.UpdatedAt})
 	}
-	if recovered {
+	if recovered || migrated {
 		if err := s.save(s.data); err != nil {
 			return nil, err
 		}

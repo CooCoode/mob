@@ -21,7 +21,8 @@ type Config struct {
 	CORSOrigins   []string
 	MaxRunning    int
 	DataDir       string
-	Models        []string
+	CodexModels   []string
+	DefaultRunner string
 	VNCAddr       string
 }
 
@@ -38,7 +39,8 @@ type Config struct {
 //	MOBD_CORS_ORIGINS    Comma-separated browser origins (Tauri dev defaults)
 //	MOBD_MAX_RUNNING     Tasks allowed to run at once across sessions (default 1: one desktop)
 //	MOBD_DATA_DIR        Root for artifacts/ (default: directory of MOBD_STATE_PATH)
-//	MOBD_MODELS          Comma-separated model IDs offered to clients (default: Codex default only)
+//	MOBD_CODEX_MODELS    Comma-separated Codex model IDs offered to clients (MOBD_MODELS also accepted)
+//	MOBD_DEFAULT_RUNNER  Runner for new conversations (default codex)
 //	MOBD_VNC_ADDR        VNC server relayed by GET /vnc and checked by /health (default 127.0.0.1:5900, Screen Sharing)
 func Load() Config {
 	cwd, _ := os.Getwd()
@@ -57,7 +59,8 @@ func Load() Config {
 		StatePath:     envOr("MOBD_STATE_PATH", filepath.Join(stateDir, "mob", "state.json")),
 		CORSOrigins:   corsOrigins(os.Getenv("MOBD_CORS_ORIGINS")),
 		MaxRunning:    1,
-		Models:        splitList(os.Getenv("MOBD_MODELS")),
+		CodexModels:   splitList(envOr("MOBD_CODEX_MODELS", os.Getenv("MOBD_MODELS"))),
+		DefaultRunner: envOr("MOBD_DEFAULT_RUNNER", "codex"),
 		VNCAddr:       envOr("MOBD_VNC_ADDR", "127.0.0.1:5900"),
 	}
 	cfg.DataDir = envOr("MOBD_DATA_DIR", filepath.Dir(cfg.StatePath))

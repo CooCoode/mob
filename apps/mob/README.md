@@ -61,7 +61,7 @@ Checks: `npm test` (conversation lifecycle, reconnect recovery, timeline groupin
 
 - **Sidebar:** conversations of the selected machine, live via mobd's `/events` (running spinner, queue position, failed dot). Right-click or `⋯` to rename (or double-click), pin, archive, delete. Archived conversations are in the collapsible group.
 - **Timeline:** your prompts, the agent's replies (markdown), and its steps — screenshots, clicks, typing, shell commands, plans — as expandable cards; three or more consecutive steps fold into a group. Each turn ends with duration, tokens and model; failed turns offer **Retry**. Queued turns show their place in the desktop queue.
-- **Composer:** ↵ send, ⇧↵ newline. Attach images (button, paste or drag-and-drop), pick model and reasoning effort (remembered per machine; models come from `MOBD_MODELS` on the office Mac). The send button becomes **Stop** while the agent works.
+- **Composer:** ↵ send, ⇧↵ newline. Attach images (button, paste or drag-and-drop), pick model and reasoning effort (remembered per machine; offered per runner, e.g. `MOBD_CODEX_MODELS` on the office Mac). The send button becomes **Stop** while the agent works.
 - **Live view (right):** svnc connection (⏻) or, when not connected, a refreshing `/screen` snapshot. Clicks by the agent flash at their position. Double-click or ⤢ for full screen, `Esc` to return. Below: the desktop queue and the current turn's steps.
 - **Title bar:** machine status chip opens the readiness checks (Codex, actuation, Accessibility, Screen Recording, VNC).
 - **Shortcuts:** ⌘K command palette · ⌘N new chat · ⌘B sidebar · ⌘⇧B live view · ⌘, settings · ⌘1–9 switch conversation.

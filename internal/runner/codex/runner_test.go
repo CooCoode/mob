@@ -36,7 +36,7 @@ func TestStartMissingBinary(t *testing.T) {
 		t.Fatalf("err %v", err)
 	}
 	joined := strings.Join(logs, "\n")
-	if !strings.Contains(joined, "stub mode") {
+	if !strings.Contains(joined, "MOBD_CODEX_BIN") {
 		t.Fatalf("logs %q", joined)
 	}
 }
@@ -54,7 +54,7 @@ func TestBuildArgsIncludesMCP(t *testing.T) {
 	if args[len(args)-1] != "-" || !strings.Contains(joined, "--json") {
 		t.Fatalf("stdin prompt and JSON required: %v", args)
 	}
-	resumed := strings.Join(r.buildArgs(&task.Task{ThreadID: "thread-123"}, nil), " ")
+	resumed := strings.Join(r.buildArgs(&task.Task{ResumeID: "thread-123"}, nil), " ")
 	if !strings.Contains(resumed, "resume -- thread-123 -") || strings.Contains(resumed, "--last") {
 		t.Fatalf("must resume explicit thread: %s", resumed)
 	}
@@ -109,9 +109,11 @@ sleep 30
 `)
 	started := make(chan struct{})
 	done := make(chan error, 1)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 	go func() {
-		done <- r.Start(context.Background(), &task.Task{ID: "t", Prompt: "hi"}, runner.Options{}, func(ev task.Event) error {
-			if ev.Type == "thread" {
+		done <- r.Start(ctx, &task.Task{ID: "t", Prompt: "hi"}, runner.Options{}, func(ev task.Event) error {
+			if ev.Type == "resume" {
 				close(started)
 			}
 			return nil
@@ -122,9 +124,7 @@ sleep 30
 	case <-time.After(3 * time.Second):
 		t.Fatal("runner did not start")
 	}
-	if err := r.Cancel("t"); err != nil {
-		t.Fatal(err)
-	}
+	cancel()
 	select {
 	case err := <-done:
 		if !errors.Is(err, context.Canceled) {
@@ -269,7 +269,7 @@ func TestBuildArgsTurnOptions(t *testing.T) {
 	if !strings.Contains(fresh, `-c model_reasoning_effort="high"`) || !strings.HasSuffix(fresh, "--model=gpt-5.5 --image=/a.png -- -") {
 		t.Fatalf("fresh args: %s", fresh)
 	}
-	resumed := strings.Join(r.buildArgs(&task.Task{ThreadID: "th", Model: "m"}, []string{"/b.png"}), " ")
+	resumed := strings.Join(r.buildArgs(&task.Task{ResumeID: "th", Model: "m"}, []string{"/b.png"}), " ")
 	if !strings.HasSuffix(resumed, "resume --model=m --image=/b.png -- th -") {
 		t.Fatalf("resume args: %s", resumed)
 	}

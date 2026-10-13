@@ -22,9 +22,9 @@ import (
 )
 
 type Server struct {
-	cfg    config.Config
-	store  *task.Store
-	runner runner.Runner
+	cfg     config.Config
+	store   *task.Store
+	runners *runner.Registry
 
 	hub       *hub
 	artifacts *artifact.Store
@@ -39,9 +39,23 @@ type Server struct {
 	done    chan struct{}
 }
 
-func New(cfg config.Config, store *task.Store, r runner.Runner) *Server {
+// New serves the given runners; cfg.DefaultRunner (or the first runner) starts
+// new conversations. Callers validate DefaultRunner before calling New.
+func New(cfg config.Config, store *task.Store, runners ...runner.Runner) *Server {
+	def := cfg.DefaultRunner
+	known := false
+	for _, r := range runners {
+		known = known || r.Info().Name == def
+	}
+	if !known && len(runners) > 0 {
+		def = runners[0].Info().Name
+	}
+	reg, err := runner.NewRegistry(def, runners...)
+	if err != nil {
+		panic(err)
+	}
 	s := &Server{
-		cfg: cfg, store: store, runner: r, hub: newHub(),
+		cfg: cfg, store: store, runners: reg, hub: newHub(),
 		artifacts: artifact.New(filepath.Join(dataDir(cfg), "artifacts")),
 		cancels:   make(map[string]context.CancelFunc), done: make(chan struct{}),
 	}
@@ -128,9 +142,9 @@ func (s *Server) handleCreateTask(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, http.StatusBadRequest, "invalid JSON body (maximum 1 MiB)")
 		return
 	}
-	opts, problem := s.turnOptions(req)
+	opts, problem, code := s.turnOptions(req)
 	if problem != "" {
-		writeErr(w, http.StatusBadRequest, problem)
+		writeErr(w, code, problem)
 		return
 	}
 	s.mu.Lock()
@@ -148,7 +162,7 @@ func (s *Server) handleCreateTask(w http.ResponseWriter, r *http.Request) {
 			code = http.StatusBadRequest
 		case errors.Is(err, task.ErrNotFound):
 			code = http.StatusNotFound
-		case errors.Is(err, task.ErrSessionBusy):
+		case errors.Is(err, task.ErrSessionBusy), errors.Is(err, task.ErrRunnerMismatch):
 			code = http.StatusConflict
 		}
 		writeErr(w, code, err.Error())
@@ -422,7 +436,12 @@ func (s *Server) runTask(ctx context.Context, id string) {
 	}()
 	t, err := s.store.UpdateStatus(id, task.StatusRunning, "")
 	if err == nil {
-		err = s.runner.Start(ctx, t, s.runOptions(t), func(ev task.Event) error { return s.store.AppendEvent(id, ev) })
+		rn, ok := s.runners.Get(t.Runner)
+		if !ok {
+			err = fmt.Errorf("runner %q is not enabled on this mobd", t.Runner)
+		} else {
+			err = rn.Start(ctx, t, s.runOptions(t), func(ev task.Event) error { return s.store.AppendEvent(id, ev) })
+		}
 	}
 	status, message := task.StatusSucceeded, ""
 	if ctx.Err() != nil {

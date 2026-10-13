@@ -16,7 +16,7 @@ func TestCreateGetList(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if a.Status != StatusQueued || a.Runner != RunnerCodex {
+	if a.Status != StatusQueued || a.Runner != LegacyRunner {
 		t.Fatalf("unexpected task: %+v", a)
 	}
 	if a.VNCViewURL != "https://vnc.example/" {
@@ -87,7 +87,7 @@ func TestSessionContinuationAndIsolation(t *testing.T) {
 	if _, err := s.CreateTurn(first.SessionID, "too soon", ""); !errors.Is(err, ErrSessionBusy) {
 		t.Fatalf("must serialize turns: %v", err)
 	}
-	if err := s.AppendEvent(first.ID, Event{Type: "thread", ThreadID: "thread-one"}); err != nil {
+	if err := s.AppendEvent(first.ID, Event{Type: "resume", ResumeID: "thread-one"}); err != nil {
 		t.Fatal(err)
 	}
 	for _, text := range []string{"initial", "remembered 蓝鲸"} {
@@ -97,11 +97,11 @@ func TestSessionContinuationAndIsolation(t *testing.T) {
 	}
 	_, _ = s.UpdateStatus(first.ID, StatusSucceeded, "")
 	second, err := s.CreateTurn(first.SessionID, "What did I say?", "")
-	if err != nil || second.ThreadID != "thread-one" || second.SessionID != first.SessionID {
+	if err != nil || second.ResumeID != "thread-one" || second.SessionID != first.SessionID {
 		t.Fatalf("continuation: %+v %v", second, err)
 	}
 	other, _ := s.Create("separate conversation", "")
-	if other.SessionID == first.SessionID || other.ThreadID != "" {
+	if other.SessionID == first.SessionID || other.ResumeID != "" {
 		t.Fatalf("thread leaked into another session: %+v", other)
 	}
 	session, turns, _, err := s.Session(first.SessionID)
@@ -113,7 +113,7 @@ func TestSessionContinuationAndIsolation(t *testing.T) {
 	if fresh.Messages[0].Content != "Remember 蓝鲸" {
 		t.Fatal("returned history must be a copy")
 	}
-	if err := s.AppendEvent(second.ID, Event{Type: "thread", ThreadID: "wrong-thread"}); err == nil {
+	if err := s.AppendEvent(second.ID, Event{Type: "resume", ResumeID: "wrong-thread"}); err == nil {
 		t.Fatal("must reject provider thread replacement")
 	}
 }
@@ -152,7 +152,7 @@ func TestRestartRestoresTranscriptAndInterruptsActiveTurn(t *testing.T) {
 		t.Fatal(err)
 	}
 	first, _ := s.Create("first", "")
-	_ = s.AppendEvent(first.ID, Event{Type: "thread", ThreadID: "thread-one"})
+	_ = s.AppendEvent(first.ID, Event{Type: "resume", ResumeID: "thread-one"})
 	_ = s.AppendEvent(first.ID, Event{Type: "message", MessageID: "item-1", Message: "answer"})
 	_, _ = s.UpdateStatus(first.ID, StatusSucceeded, "")
 	second, _ := s.CreateTurn(first.SessionID, "follow up", "")
@@ -162,14 +162,14 @@ func TestRestartRestoresTranscriptAndInterruptsActiveTurn(t *testing.T) {
 		t.Fatal(err)
 	}
 	session, turns, _, _ := restored.Session(first.SessionID)
-	if session.ThreadID != "thread-one" || session.ActiveTaskID != "" || len(session.Messages) != 3 || session.Messages[1].Content != "answer" {
+	if session.ResumeID != "thread-one" || session.ActiveTaskID != "" || len(session.Messages) != 3 || session.Messages[1].Content != "answer" {
 		t.Fatalf("lost history: %+v", session)
 	}
 	if turns[1].Status != StatusFailed || turns[1].Error == nil {
 		t.Fatalf("interrupted turn: %+v", turns[1])
 	}
 	next, err := restored.CreateTurn(session.ID, "continue after restart", "")
-	if err != nil || next.ThreadID != "thread-one" {
+	if err != nil || next.ResumeID != "thread-one" {
 		t.Fatalf("restart continuation: %+v %v", next, err)
 	}
 	info, _ := os.Stat(path)
@@ -280,5 +280,49 @@ func TestDebugLogsAreCapped(t *testing.T) {
 	}
 	if logs != logLimit || events[0].Type != "status" || events[len(events)-1].Message != "reply" {
 		t.Fatalf("logs=%d first=%+v", logs, events[0])
+	}
+}
+
+func TestMigratesThreadIDsAndRunner(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "state.json")
+	legacy := `{"tasks":{"t1":{"id":"t1","sessionId":"s1","threadId":"th-1","eventId":2,"prompt":"p","status":"succeeded","runner":"","createdAt":"2026-10-13T00:00:00Z","updatedAt":"2026-10-13T00:00:00Z","error":null}},
+"sessions":{"s1":{"id":"s1","title":"p","threadId":"th-1","status":"succeeded","pinned":false,"archived":false,"createdAt":"2026-10-13T00:00:00Z","updatedAt":"2026-10-13T00:00:00Z"}},
+"order":["t1"]}`
+	if err := os.WriteFile(path, []byte(legacy), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	s, err := OpenStore(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	session, tasks, _, _ := s.Session("s1")
+	if session.Runner != LegacyRunner || session.ResumeID != "th-1" || tasks[0].ResumeID != "th-1" || tasks[0].Runner != LegacyRunner {
+		t.Fatalf("not migrated: %+v %+v", session, tasks[0])
+	}
+	next, err := s.CreateTurn("s1", "continue", "")
+	if err != nil || next.ResumeID != "th-1" || next.Runner != LegacyRunner {
+		t.Fatalf("continuation %+v err %v", next, err)
+	}
+	if _, err := s.CreateTurnWith("s1", "x", "", TurnOptions{Runner: "claude"}); err != ErrSessionBusy {
+		t.Fatalf("busy session: %v", err)
+	}
+	saved, _ := os.ReadFile(path)
+	if strings.Contains(string(saved), "threadId") {
+		t.Fatalf("legacy field rewritten: %s", saved)
+	}
+}
+
+func TestSessionsArePinnedToTheirRunner(t *testing.T) {
+	s := NewStore()
+	first, err := s.CreateTurnWith("", "hi", "", TurnOptions{Runner: "claude"})
+	if err != nil || first.Runner != "claude" {
+		t.Fatalf("%+v %v", first, err)
+	}
+	_, _ = s.UpdateStatus(first.ID, StatusSucceeded, "")
+	if _, err := s.CreateTurnWith(first.SessionID, "again", "", TurnOptions{Runner: "codex"}); err != ErrRunnerMismatch {
+		t.Fatalf("switched runner: %v", err)
+	}
+	if r, _ := s.SessionRunner(first.SessionID); r != "claude" {
+		t.Fatalf("runner %q", r)
 	}
 }

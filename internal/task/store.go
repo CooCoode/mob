@@ -21,6 +21,7 @@ var (
 	ErrSessionBusy       = errors.New("session already has an active turn")
 	ErrInvalidTransition = errors.New("task has already finished")
 	ErrInvalidTitle      = errors.New("title must be 1-200 characters")
+	ErrRunnerMismatch    = errors.New("this conversation belongs to another runner; start a new chat to switch")
 )
 
 // SessionPatch updates user-controlled session fields; nil leaves a field unchanged.
@@ -141,7 +142,11 @@ func (s *Store) CreateTurnWith(sessionID, prompt, vncViewURL string, opts TurnOp
 		if len(title) > 80 {
 			title = append(title[:80], '…')
 		}
-		session = &Session{ID: newID(), Title: string(title), CreatedAt: now}
+		runner := opts.Runner
+		if runner == "" {
+			runner = LegacyRunner
+		}
+		session = &Session{ID: newID(), Title: string(title), Runner: runner, CreatedAt: now}
 	} else {
 		stored, ok := s.data.Sessions[sessionID]
 		if !ok {
@@ -150,11 +155,14 @@ func (s *Store) CreateTurnWith(sessionID, prompt, vncViewURL string, opts TurnOp
 		if stored.ActiveTaskID != "" {
 			return nil, ErrSessionBusy
 		}
+		if opts.Runner != "" && opts.Runner != stored.Runner {
+			return nil, ErrRunnerMismatch
+		}
 		session = cloneSession(stored)
 	}
 	t := &Task{
-		ID: newID(), SessionID: session.ID, ThreadID: session.ThreadID,
-		Prompt: prompt, Status: StatusQueued, Runner: RunnerCodex,
+		ID: newID(), SessionID: session.ID, ResumeID: session.ResumeID,
+		Prompt: prompt, Status: StatusQueued, Runner: session.Runner,
 		Model: opts.Model, Effort: opts.Effort, Attachments: append([]string(nil), opts.Attachments...),
 		CreatedAt: now, UpdatedAt: now, VNCViewURL: vncViewURL, EventID: 1,
 	}
@@ -168,6 +176,17 @@ func (s *Store) CreateTurnWith(sessionID, prompt, vncViewURL string, opts TurnOp
 	s.publish(t.ID, Event{ID: 1, Type: "status", Status: t.Status, Message: "queued", Timestamp: now})
 	s.notifyLocked(session, t)
 	return s.view(t, s.queuePositions()), nil
+}
+
+// SessionRunner returns the runner a conversation is pinned to.
+func (s *Store) SessionRunner(id string) (string, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	session, ok := s.data.Sessions[id]
+	if !ok {
+		return "", ErrNotFound
+	}
+	return session.Runner, nil
 }
 
 func (s *Store) Get(id string) (*Task, error) {
@@ -462,14 +481,14 @@ func (s *Store) AppendEvent(id string, ev Event) error {
 		s.publish(id, ev)
 		return nil
 	}
-	if ev.Type == "thread" || ev.Type == "message" {
+	if ev.Type == "resume" || ev.Type == "message" {
 		session := cloneSession(s.data.Sessions[t.SessionID])
 		session.UpdatedAt = ev.Timestamp
-		if ev.Type == "thread" {
-			if ev.ThreadID == "" || (session.ThreadID != "" && session.ThreadID != ev.ThreadID) {
-				return errors.New("runner returned an unexpected thread ID")
+		if ev.Type == "resume" {
+			if ev.ResumeID == "" || (session.ResumeID != "" && session.ResumeID != ev.ResumeID) {
+				return errors.New("runner returned an unexpected resume ID")
 			}
-			session.ThreadID, t.ThreadID = ev.ThreadID, ev.ThreadID
+			session.ResumeID, t.ResumeID = ev.ResumeID, ev.ResumeID
 		} else {
 			if ev.MessageID == "" {
 				return errors.New("assistant message ID is required")

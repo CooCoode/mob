@@ -7,7 +7,9 @@ import (
 	"net/http"
 	"os"
 	"regexp"
+	"slices"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/xrdavies/mob/internal/actuate"
@@ -17,9 +19,6 @@ import (
 )
 
 const maxUpload = 20 << 20
-
-// Efforts are the Codex reasoning efforts clients may request.
-var Efforts = []string{"minimal", "low", "medium", "high", "xhigh"}
 
 var validModel = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$`)
 
@@ -118,30 +117,49 @@ func (s *Server) handleArtifact(w http.ResponseWriter, r *http.Request) {
 	http.ServeContent(w, r, "", info.ModTime(), f)
 }
 
-// turnOptions validates per-turn settings from POST /tasks.
-func (s *Server) turnOptions(req task.CreateRequest) (task.TurnOptions, string) {
-	opts := task.TurnOptions{Model: req.Model, Effort: req.Effort, Attachments: req.Attachments}
-	if opts.Model != "" && !validModel.MatchString(opts.Model) {
-		return opts, "invalid model"
+// turnOptions resolves the turn's runner and validates its settings against
+// what that runner supports. It returns a problem and HTTP status on failure.
+func (s *Server) turnOptions(req task.CreateRequest) (task.TurnOptions, string, int) {
+	opts := task.TurnOptions{Runner: req.Runner, Model: req.Model, Effort: req.Effort, Attachments: req.Attachments}
+	if req.SessionID != "" {
+		pinned, err := s.store.SessionRunner(req.SessionID)
+		if err != nil {
+			return opts, "session not found", http.StatusNotFound
+		}
+		if opts.Runner != "" && opts.Runner != pinned {
+			return opts, task.ErrRunnerMismatch.Error(), http.StatusConflict
+		}
+		opts.Runner = pinned
 	}
-	if opts.Effort != "" {
-		ok := false
-		for _, e := range Efforts {
-			ok = ok || e == opts.Effort
+	if opts.Runner == "" {
+		opts.Runner = s.runners.Default()
+	}
+	rn, ok := s.runners.Get(opts.Runner)
+	if !ok {
+		return opts, "runner " + strconv.Quote(opts.Runner) + " is not enabled on this mobd", http.StatusBadRequest
+	}
+	info := rn.Info()
+	if opts.Model != "" && !validModel.MatchString(opts.Model) {
+		return opts, "invalid model", http.StatusBadRequest
+	}
+	if opts.Effort != "" && !slices.Contains(info.Efforts, opts.Effort) {
+		if len(info.Efforts) == 0 {
+			return opts, info.Label + " has no reasoning effort setting", http.StatusBadRequest
 		}
-		if !ok {
-			return opts, "effort must be one of minimal, low, medium, high, xhigh"
-		}
+		return opts, "effort must be one of " + strings.Join(info.Efforts, ", "), http.StatusBadRequest
+	}
+	if len(opts.Attachments) > 0 && !info.Images {
+		return opts, info.Label + " does not accept image attachments", http.StatusBadRequest
 	}
 	if len(opts.Attachments) > 10 {
-		return opts, "at most 10 attachments"
+		return opts, "at most 10 attachments", http.StatusBadRequest
 	}
 	for _, id := range opts.Attachments {
 		if _, _, err := s.artifacts.Path(id); err != nil {
-			return opts, "unknown attachment " + strconv.Quote(id)
+			return opts, "unknown attachment " + strconv.Quote(id), http.StatusBadRequest
 		}
 	}
-	return opts, ""
+	return opts, "", 0
 }
 
 // runOptions resolves attachments to files and lets the runner save screenshots.
