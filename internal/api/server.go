@@ -22,14 +22,36 @@ type Server struct {
 	store  *task.Store
 	runner runner.Runner
 
+	hub *hub
+
 	mu      sync.Mutex
 	cancels map[string]context.CancelFunc
 	closing bool
 	runs    sync.WaitGroup
+	done    chan struct{}
 }
 
 func New(cfg config.Config, store *task.Store, r runner.Runner) *Server {
-	return &Server{cfg: cfg, store: store, runner: r, cancels: make(map[string]context.CancelFunc)}
+	s := &Server{
+		cfg: cfg, store: store, runner: r, hub: newHub(),
+		cancels: make(map[string]context.CancelFunc), done: make(chan struct{}),
+	}
+	store.SetNotifier(s.onChange)
+	return s
+}
+
+// onChange runs under the store lock; the hub never calls back into the store.
+func (s *Server) onChange(c task.Change) {
+	if c.DeletedSession != "" {
+		s.hub.publish("session.deleted", map[string]string{"id": c.DeletedSession})
+	}
+	if c.Session != nil {
+		s.hub.publish("session", c.Session)
+	}
+	if c.Task != nil {
+		s.hub.publish("task", c.Task)
+		s.hub.publish("queue", map[string]any{"running": c.Running, "queued": c.Queued})
+	}
 }
 
 func (s *Server) Handler() http.Handler {
@@ -46,6 +68,7 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("GET /tasks/{id}/events", s.handleTaskEvents)
 	mux.HandleFunc("POST /tasks/{id}/cancel", s.withAuth(s.handleCancelTask))
 	mux.HandleFunc("GET /queue", s.handleQueue)
+	mux.HandleFunc("GET /events", s.handleEvents)
 	return s.withCORS(mux)
 }
 
@@ -293,6 +316,69 @@ func (s *Server) handleTaskEvents(w http.ResponseWriter, r *http.Request) {
 		select {
 		case <-r.Context().Done():
 			return
+		case <-s.done:
+			return
+		case <-changed:
+		case <-ticker.C:
+			if _, err := fmt.Fprint(w, ": ping\n\n"); err != nil {
+				return
+			}
+			flusher.Flush()
+		}
+	}
+}
+
+// handleEvents streams global summaries. Without a cursor it starts live, so
+// clients should subscribe before fetching snapshots.
+func (s *Server) handleEvents(w http.ResponseWriter, r *http.Request) {
+	after := s.hub.cursor()
+	cursor := r.Header.Get("Last-Event-ID")
+	if cursor == "" {
+		cursor = r.URL.Query().Get("after")
+	}
+	if cursor != "" {
+		var err error
+		after, err = strconv.ParseInt(cursor, 10, 64)
+		if err != nil || after < 0 {
+			writeErr(w, http.StatusBadRequest, "invalid event cursor")
+			return
+		}
+	}
+	flusher, ok := w.(http.Flusher)
+	if !ok {
+		writeErr(w, http.StatusInternalServerError, "streaming unsupported")
+		return
+	}
+	w.Header().Set("Content-Type", "text/event-stream")
+	w.Header().Set("Cache-Control", "no-cache")
+	w.Header().Set("X-Accel-Buffering", "no")
+	w.WriteHeader(http.StatusOK)
+	flusher.Flush()
+	ticker := time.NewTicker(15 * time.Second)
+	defer ticker.Stop()
+	for {
+		events, reset, next, changed := s.hub.since(after)
+		if reset {
+			if _, err := fmt.Fprintf(w, "id: %d\nevent: reset\ndata: {}\n\n", next); err != nil {
+				return
+			}
+			flusher.Flush()
+		}
+		after = next
+		for _, ev := range events {
+			if _, err := fmt.Fprintf(w, "id: %d\nevent: %s\ndata: %s\n\n", ev.ID, ev.Type, ev.Data); err != nil {
+				return
+			}
+			after = ev.ID
+		}
+		if len(events) > 0 {
+			flusher.Flush()
+		}
+		select {
+		case <-r.Context().Done():
+			return
+		case <-s.done:
+			return
 		case <-changed:
 		case <-ticker.C:
 			if _, err := fmt.Fprint(w, ": ping\n\n"); err != nil {
@@ -330,9 +416,13 @@ func (s *Server) runTask(ctx context.Context, id string) {
 	}
 }
 
-// Close cancels active turns and waits for their final state to be saved.
+// Close cancels active turns, waits for their final state to be saved, and
+// ends open event streams.
 func (s *Server) Close() {
 	s.mu.Lock()
+	if !s.closing {
+		close(s.done)
+	}
 	s.closing = true
 	for _, cancel := range s.cancels {
 		cancel()

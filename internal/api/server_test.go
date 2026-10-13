@@ -1,7 +1,9 @@
 package api
 
 import (
+	"bufio"
 	"bytes"
+	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -613,5 +615,106 @@ func TestListTasksFilters(t *testing.T) {
 	}
 	if rr := doJSON(t, s, http.MethodGet, "/tasks?limit=0", ""); rr.Code != http.StatusBadRequest {
 		t.Fatalf("bad limit: %d", rr.Code)
+	}
+}
+
+type sseEvent struct{ id, typ, data string }
+
+// readSSE collects events until stop returns true or the deadline passes.
+func readSSE(t *testing.T, url, lastID string, stop func([]sseEvent) bool) []sseEvent {
+	t.Helper()
+	req, _ := http.NewRequest(http.MethodGet, url, nil)
+	if lastID != "" {
+		req.Header.Set("Last-Event-ID", lastID)
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	resp, err := http.DefaultClient.Do(req.WithContext(ctx))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
+	var events []sseEvent
+	var cur sseEvent
+	sc := bufio.NewScanner(resp.Body)
+	for sc.Scan() {
+		line := sc.Text()
+		switch {
+		case strings.HasPrefix(line, "id: "):
+			cur.id = line[4:]
+		case strings.HasPrefix(line, "event: "):
+			cur.typ = line[7:]
+		case strings.HasPrefix(line, "data: "):
+			cur.data = line[6:]
+		case line == "" && cur.typ != "":
+			events = append(events, cur)
+			cur = sseEvent{}
+			if stop(events) {
+				return events
+			}
+		}
+	}
+	t.Fatalf("stream ended early: %+v", events)
+	return nil
+}
+
+func TestGlobalEventsStreamAndResume(t *testing.T) {
+	s := testServer(t, "")
+	srv := httptest.NewServer(s.Handler())
+	t.Cleanup(srv.Close)
+
+	got := make(chan []sseEvent, 1)
+	go func() {
+		got <- readSSE(t, srv.URL+"/events", "", func(evs []sseEvent) bool {
+			for _, ev := range evs {
+				if ev.typ == "task" && strings.Contains(ev.data, `"status":"failed"`) {
+					return true
+				}
+			}
+			return false
+		})
+	}()
+	time.Sleep(100 * time.Millisecond) // subscribe before the change
+	created := postTask(t, s, `{"prompt":"live"}`)
+	events := <-got
+	types := map[string]bool{}
+	for _, ev := range events {
+		types[ev.typ] = true
+	}
+	if !types["session"] || !types["task"] || !types["queue"] || !strings.Contains(events[0].data, created.SessionID) {
+		t.Fatalf("events: %+v", events)
+	}
+
+	// Resume after the first event replays the rest without duplicates.
+	resumed := readSSE(t, srv.URL+"/events", events[0].id, func(evs []sseEvent) bool { return len(evs) == len(events)-1 })
+	if resumed[0].id == events[0].id {
+		t.Fatalf("duplicate on resume: %+v", resumed[0])
+	}
+	// A cursor from another process asks the client to refetch.
+	reset := readSSE(t, srv.URL+"/events", "999999", func(evs []sseEvent) bool { return len(evs) == 1 })
+	if reset[0].typ != "reset" {
+		t.Fatalf("want reset, got %+v", reset)
+	}
+
+	doJSON(t, s, http.MethodDelete, "/sessions/"+created.SessionID, "")
+	deleted := readSSE(t, srv.URL+"/events", events[len(events)-1].id, func(evs []sseEvent) bool {
+		return evs[len(evs)-1].typ == "session.deleted"
+	})
+	if !strings.Contains(deleted[len(deleted)-1].data, created.SessionID) {
+		t.Fatalf("delete event: %+v", deleted)
+	}
+}
+
+func TestHubResetsEvictedCursor(t *testing.T) {
+	h := newHub()
+	for i := 0; i < hubSize+10; i++ {
+		h.publish("task", i)
+	}
+	if _, reset, _, _ := h.since(5); !reset {
+		t.Fatal("evicted cursor resumed")
+	}
+	events, reset, _, _ := h.since(h.cursor() - 2)
+	if reset || len(events) != 2 {
+		t.Fatalf("recent cursor: reset=%v n=%d", reset, len(events))
 	}
 }

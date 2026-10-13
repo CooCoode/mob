@@ -29,6 +29,16 @@ type SessionPatch struct {
 	Archived *bool   `json:"archived"`
 }
 
+// Change summarizes a committed mutation for live clients. Task changes carry
+// a queue snapshot taken in the same critical section.
+type Change struct {
+	Session        *Session
+	DeletedSession string
+	Task           *Task
+	Running        []*Task
+	Queued         []*Task
+}
+
 // TaskFilter narrows GET /tasks; zero values match everything.
 type TaskFilter struct {
 	SessionID string
@@ -58,6 +68,42 @@ type Store struct {
 	events  map[string][]Event
 	logs    map[string]int
 	changed map[string]chan struct{}
+	notify  func(Change)
+}
+
+// SetNotifier registers a callback invoked under the store lock after each
+// committed change; it must not call back into the store.
+func (s *Store) SetNotifier(fn func(Change)) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.notify = fn
+}
+
+// notifyLocked reports a session summary and, for status changes, the task and queue.
+func (s *Store) notifyLocked(session *Session, t *Task) {
+	if s.notify == nil {
+		return
+	}
+	c := Change{}
+	if session != nil {
+		summary := *session
+		summary.Messages = nil
+		c.Session = &summary
+	}
+	if t != nil {
+		positions := s.queuePositions()
+		c.Task = s.view(t, positions)
+		c.Running, c.Queued = make([]*Task, 0), make([]*Task, 0)
+		for _, id := range s.data.Order {
+			switch q := s.data.Tasks[id]; q.Status {
+			case StatusRunning:
+				c.Running = append(c.Running, s.view(q, positions))
+			case StatusQueued:
+				c.Queued = append(c.Queued, s.view(q, positions))
+			}
+		}
+	}
+	s.notify(c)
 }
 
 func NewStore() *Store {
@@ -113,6 +159,7 @@ func (s *Store) CreateTurn(sessionID, prompt, vncViewURL string) (*Task, error) 
 		return nil, err
 	}
 	s.publish(t.ID, Event{ID: 1, Type: "status", Status: t.Status, Message: "queued", Timestamp: now})
+	s.notifyLocked(session, t)
 	return s.view(t, s.queuePositions()), nil
 }
 
@@ -228,6 +275,7 @@ func (s *Store) UpdateSession(id string, patch SessionPatch) (*Session, error) {
 	if err := s.swap(next); err != nil {
 		return nil, err
 	}
+	s.notifyLocked(session, nil)
 	summary := *session
 	summary.Messages = nil
 	return &summary, nil
@@ -275,6 +323,9 @@ func (s *Store) DeleteSession(id string) ([]string, error) {
 		delete(s.changed, taskID)
 		delete(s.events, taskID)
 		delete(s.logs, taskID)
+	}
+	if s.notify != nil {
+		s.notify(Change{DeletedSession: id})
 	}
 	return artifacts, nil
 }
@@ -344,6 +395,7 @@ func (s *Store) UpdateStatus(id string, status Status, errMsg string) (*Task, er
 		ev.Message = errMsg
 	}
 	s.publish(id, ev)
+	s.notifyLocked(session, t)
 	return s.view(t, s.queuePositions()), nil
 }
 
@@ -433,6 +485,7 @@ func (s *Store) AppendEvent(id string, ev Event) error {
 		if err := s.commit(t, session, false, nil); err != nil {
 			return err
 		}
+		s.notifyLocked(session, nil)
 	} else {
 		// shortcut: debug logs are memory-only; persist a log journal if restart-time diagnostics are needed.
 		s.data.Tasks[id] = t
