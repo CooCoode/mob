@@ -108,3 +108,57 @@ Before announcing auto-update support, install signed version A from a DMG, publ
 higher version B, and verify check → download → signature verification → installation
 → restart on a separate Mac, including a failed/offline check and manual retry.
 Apple signing checks alone do not test Tauri's updater signature or this flow.
+
+## mobd download and installation
+
+The same workflow builds **darwin/arm64 with CGO enabled** on macOS, using the Go
+version in `go.mod` and the system Apple frameworks. It tests the code, injects
+the tag version into `mobd --version`, signs the Mach-O with Developer ID and
+Hardened Runtime, submits a ZIP to Apple's notary service, requires `Accepted`,
+and packages the unchanged signed executable into
+`mobd_<version>_darwin_arm64.tar.gz` with LICENSE and CLI documentation.
+The same Apple secrets are used for both products. A bare command-line executable
+cannot have a notarization ticket stapled to it; Gatekeeper may need network access
+to retrieve its ticket. No quarantine-removal workaround is part of installation.
+
+Users download the archive and `SHA256SUMS` from the same release. For example,
+from the directory containing both downloaded files (substitute your version):
+
+```bash
+# Verify this exact asset against its release checksum.
+awk '$2 == "./mobd_0.4.0_darwin_arm64.tar.gz" {print}' SHA256SUMS > mobd.sha256
+test -s mobd.sha256 && shasum -a 256 -c mobd.sha256
+# Continue only when the checksum check succeeds.
+mkdir -p mobd-download
+tar -xzf mobd_0.4.0_darwin_arm64.tar.gz -C mobd-download
+codesign --verify --strict --verbose=2 mobd-download/mobd
+mkdir -p ~/.local/bin
+# On upgrades first stop the old service: ~/.local/bin/mobd stop
+install -m 755 mobd-download/mobd ~/.local/bin/mobd
+~/.local/bin/mobd --version
+~/.local/bin/mobd init       # first install only; existing configs are preserved
+~/.local/bin/mobd start
+```
+
+Add `~/.local/bin` to your shell's PATH if desired. Edit `~/.mobd/config.json` for
+LAN listening, workdir and Codex path before starting. Go/Rust/Node are not needed
+on the end user's Mac. Codex CLI, its login, Accessibility/Screen Recording grants
+and macOS Screen Sharing remain runtime prerequisites. Configure those under the
+same user that runs the LaunchAgent; do not install it as a root service.
+
+An upgrade replaces only the executable after stopping the service. Keep
+`~/.mobd/config.json` and the existing conversation snapshot/artifacts. Start again
+with `--login` if desired. No self-updater or shell installer is included for mobd;
+all runtime operations live in the CLI, as requested.
+
+## First release checklist
+
+- [ ] Create the `release` GitHub environment and six Apple secrets above.
+- [ ] Add the two Tauri signing secrets and `TAURI_UPDATER_PUBLIC_KEY` variable.
+- [ ] Confirm releases/assets are public and Actions may upload release assets.
+- [ ] Push a new stable `vMAJOR.MINOR.PATCH` tag (for example `v0.4.0`).
+- [ ] Confirm both macOS jobs pass signing/notarization checks.
+- [ ] Inspect the draft: DMG, App updater archive, `.sig`, `latest.json`, mobd tarball, `SHA256SUMS`.
+- [ ] Install both on a separate Apple Silicon Mac; verify CLI startup, permissions, Settings connection and live view.
+- [ ] Publish the draft as the latest stable release.
+- [ ] On the next version, verify an actual App update from the previous signed release.

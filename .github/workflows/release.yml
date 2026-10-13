@@ -119,8 +119,80 @@ jobs:
         env:
           SIGNING_KEYCHAIN: ${{ steps.signing.outputs.keychain }}
         run: security delete-keychain "$SIGNING_KEYCHAIN"
+  mobd:
+    needs: prepare
+    runs-on: macos-15
+    environment: release
+    env:
+      MACOSX_DEPLOYMENT_TARGET: '13.0'
+      CGO_ENABLED: '1'
+      GOOS: darwin
+      GOARCH: arm64
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.prepare.outputs.commit }}
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+      - name: Test and build
+        env:
+          RELEASE_VERSION: ${{ needs.prepare.outputs.version }}
+        run: |
+          set -euo pipefail
+          go vet ./...
+          go test ./...
+          mkdir -p dist/mobd release-assets
+          go build -trimpath -ldflags "-s -w -X main.version=$RELEASE_VERSION" -o dist/mobd/mobd ./cmd/mobd
+          test "$(dist/mobd/mobd --version)" = "mobd $RELEASE_VERSION"
+          test "$(lipo -archs dist/mobd/mobd)" = arm64
+          dist/mobd/mobd --help
+      - name: Import Apple certificate
+        id: signing
+        uses: ./.github/actions/apple-signing
+        with:
+          certificate: ${{ secrets.APPLE_CERTIFICATE }}
+          password: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+      - name: Sign, notarize and package mobd
+        env:
+          RELEASE_VERSION: ${{ needs.prepare.outputs.version }}
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          set -euo pipefail
+          test -n "$APPLE_SIGNING_IDENTITY"
+          test -n "$APPLE_ID"
+          test -n "$APPLE_PASSWORD"
+          test -n "$APPLE_TEAM_ID"
+          codesign --force --timestamp --options runtime --identifier com.xrdavies.mobd \
+            --sign "$APPLE_SIGNING_IDENTITY" dist/mobd/mobd
+          codesign --verify --strict --verbose=2 dist/mobd/mobd
+          ditto -c -k dist/mobd/mobd "$RUNNER_TEMP/mobd-notarize.zip"
+          xcrun notarytool submit "$RUNNER_TEMP/mobd-notarize.zip" \
+            --apple-id "$APPLE_ID" --password "$APPLE_PASSWORD" --team-id "$APPLE_TEAM_ID" \
+            --wait --timeout 30m --output-format json > "$RUNNER_TEMP/mobd-notary.json"
+          jq -e '.status == "Accepted"' "$RUNNER_TEMP/mobd-notary.json"
+          # A bare CLI cannot carry a stapled ticket; the signed binary is registered with Apple.
+          codesign --verify --strict --verbose=2 dist/mobd/mobd
+          test "$(dist/mobd/mobd --version)" = "mobd $RELEASE_VERSION"
+          cp LICENSE dist/mobd/LICENSE
+          cp cmd/mobd/README.md dist/mobd/README.md
+          COPYFILE_DISABLE=1 tar -czf "release-assets/mobd_${RELEASE_VERSION}_darwin_arm64.tar.gz" -C dist/mobd mobd LICENSE README.md
+      - uses: actions/upload-artifact@v4
+        with:
+          name: mobd-release
+          path: release-assets/*
+          if-no-files-found: error
+      - name: Remove signing keychain
+        if: always() && steps.signing.outputs.keychain != ''
+        env:
+          SIGNING_KEYCHAIN: ${{ steps.signing.outputs.keychain }}
+        run: security delete-keychain "$SIGNING_KEYCHAIN"
   release:
-    needs: [prepare, app]
+    needs: [prepare, app, mobd]
     runs-on: ubuntu-latest
     environment: release
     permissions:
