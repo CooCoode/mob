@@ -12,7 +12,7 @@ MOB is a private alternative shape to cloud desktop agents (e.g. Manus, Grok Bot
 
 Screen viewing uses the VNC protocol. The human-facing viewer is the sibling project **[svnc](https://github.com/xrdavies/svnc)** (Simple VNC, MIT, npm package `@xrdavies/svnc`). Human sessions connect in **viewOnly** mode.
 
-For current client testing, human input is temporarily enabled in [`apps/mob`](apps/mob/README.md).
+Human input is an explicit **Control** mode in the full-size live view of [`apps/mob`](apps/mob/README.md); the thumbnail and the default full-size view stay view-only.
 
 MOB owns task dispatch, the office runner, and the client shell that embeds svnc. Actuation prefers an in-repo local computer-use MCP (**`mob-mcp`**, [ADR 0007](docs/adr/0007-actuation-mob-mcp.md); built into the `mobd` binary as `mobd mcp` per [ADR 0008](docs/adr/0008-actuation-in-mobd.md)) and stays separate from the human viewOnly VNC session.
 

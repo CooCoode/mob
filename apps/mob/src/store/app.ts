@@ -11,7 +11,7 @@ export interface Machine {
 }
 
 export type Theme = "system" | "light" | "dark";
-export type SettingsTab = "machines" | "appearance" | "log" | "advanced" | "about";
+export type SettingsTab = "machines" | "appearance" | "log" | "about";
 
 export interface TurnPrefs {
   model?: string;
@@ -26,8 +26,6 @@ interface Persisted {
   sidebarOpen: boolean;
   previewOpen: boolean;
   theme: Theme;
-  // shortcut: human VNC input stays on while testing; default to viewOnly when testing ends.
-  allowInput: boolean;
   turnPrefs: Record<string, TurnPrefs>;
 }
 
@@ -103,7 +101,6 @@ function initial(): Persisted {
     sidebarOpen: true,
     previewOpen: true,
     theme: "system",
-    allowInput: true,
     turnPrefs: {},
   };
 }
@@ -154,7 +151,7 @@ export const useApp = create<AppState>()(
       partialize: (s): Persisted => ({
         machines: s.machines, activeMachineId: s.activeMachineId, savedSessions: s.savedSessions,
         collapsed: s.collapsed, sidebarOpen: s.sidebarOpen, previewOpen: s.previewOpen, theme: s.theme,
-        allowInput: s.allowInput, turnPrefs: s.turnPrefs,
+        turnPrefs: s.turnPrefs,
       }),
     },
   ),

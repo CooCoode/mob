@@ -18,7 +18,7 @@
 ## Hard rules (unchanged from v1)
 
 - Three-column shell: sessions · timeline · preview. Connection settings live only in Settings.
-- Human VNC input is a toggle in Settings → Advanced. It defaults to **on while testing** (carried over from the v1 shortcut); flip the default in `store/app.ts` to `false` (viewOnly) when testing ends.
+- Human VNC input is opt-in per use: the thumbnail is always **view only**; only the full-size view has a **View | Control** switch, which starts on View and resets to View when full screen closes. The svnc session connects input-capable with `inputMode: "script"` (human events ignored) and switches to `"human"` for control, so no reconnect is needed.
 - No auth UI until mobd has auth.
 - Machines are first-class; each has its own `mobd` URL, VNC WebSocket URL and optional VNC password.
 
@@ -124,7 +124,6 @@ Empty session: centered greeting + 4 example prompt cards ("Open Safari and …"
 | Machines | List + form (name, mobd URL, VNC WS URL, VNC password), **Test connection** runs `/health` and shows the checks list |
 | Appearance | Theme (system / light / dark), density (comfortable / compact), font size |
 | Log | Raw SSE/debug viewer (filter, pause, clear, copy). Monospace |
-| Advanced | Dev toggle: allow human VNC input (default off, red warning) |
 | About | App version, mobd `apiVersion`, links |
 
 ### First run / setup

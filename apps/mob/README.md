@@ -65,7 +65,7 @@ Checks: `npm test` (conversation lifecycle, reconnect recovery, timeline groupin
 - **Live view (right):** svnc connection (⏻) or, when not connected, a refreshing `/screen` snapshot. Clicks by the agent flash at their position. Double-click or ⤢ for full screen, `Esc` to return. Below: the desktop queue and the current turn's steps.
 - **Title bar:** machine status chip opens the readiness checks (Codex, actuation, Accessibility, Screen Recording, VNC).
 - **Shortcuts:** ⌘K command palette · ⌘N new chat · ⌘B sidebar · ⌘⇧B live view · ⌘, settings · ⌘1–9 switch conversation.
-- **Human input:** Settings → Advanced → *Allow human input on the live view* (on while testing; turn off for normal use — the agent already drives the desktop). Applies on the next connect.
+- **View / Control:** the thumbnail is always view-only. To drive the office Mac yourself, click **Control** (opens full screen) or use the **View | Control** switch in full screen; your mouse, keyboard and scroll then go to the Mac, and `Esc` goes to the Mac too — switch back to **View** to use `Esc` for leaving. Leaving full screen always returns to View. Control needs a live VNC connection (not the snapshot fallback); switching does not reconnect.
 - **Auth:** deferred (intranet/VPN only).
 
 Older office daemons (API v2) still work for chat; activities, queue, uploads, model/effort and session management appear once mobd reports API v3 on `/health`.

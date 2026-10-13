@@ -1,4 +1,4 @@
-import { Expand, Minimize2, Power, RefreshCw } from "lucide-react";
+import { Eye, Expand, Minimize2, MousePointer2, Power, RefreshCw } from "lucide-react";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { screenUrl, supports } from "@/api/client";
 import type { Health, Queue } from "@/api/types";
@@ -86,6 +86,27 @@ function Snapshot({ base, active, onRatio }: { base: string; active: boolean; on
   );
 }
 
+/** View/Control switch for the full-size live view. */
+function ModeSwitch({ control, canControl, onChange }: { control: boolean; canControl: boolean; onChange: (control: boolean) => void }) {
+  const item = "flex h-6 items-center gap-1 rounded px-2 text-[11.5px] font-medium transition-colors disabled:opacity-40";
+  return (
+    <div role="radiogroup" aria-label="Live view mode" className="flex rounded-md bg-white/10 p-0.5">
+      <button type="button" role="radio" aria-checked={!control} onClick={() => onChange(false)}
+        className={cn(item, !control ? "bg-white/90 text-black" : "text-white/70 hover:text-white")}>
+        <Eye className="size-3.5" /> View
+      </button>
+      <Tooltip content={canControl ? "Send your mouse and keyboard to the office Mac" : "Connect the live view (VNC) to take control"}>
+        <span>
+          <button type="button" role="radio" aria-checked={control} disabled={!canControl} onClick={() => onChange(true)}
+            className={cn(item, control ? "bg-warning text-black" : "text-white/70 hover:text-white")}>
+            <MousePointer2 className="size-3.5" /> Control
+          </button>
+        </span>
+      </Tooltip>
+    </div>
+  );
+}
+
 function Steps() {
   const chatState = useChat();
   const task = chatState.currentTask;
@@ -146,7 +167,7 @@ export function PreviewPanel({ machine, health, queue, hidden }: { machine: Mach
   const host = useRef<HTMLDivElement>(null);
   const stage = useRef<HTMLDivElement>(null);
   const state = useVnc();
-  const { fullscreen, allowInput, set } = useApp();
+  const { fullscreen, set } = useApp();
   const chatState = useChat();
   const [ratio, setRatio] = useState(0);
   const [, relayout] = useState(0);
@@ -156,6 +177,10 @@ export function PreviewPanel({ machine, health, queue, hidden }: { machine: Mach
   const latest = running ? chatState.activities.filter((a) => a.taskId === chatState.currentTask?.id && a.kind !== "notice").at(-1) : undefined;
 
   useEffect(() => () => vnc.disconnect(), [machine.id]);
+  // Only the full-size view can control; the thumbnail always just watches.
+  useEffect(() => {
+    if (!fullscreen) vnc.setControl(false);
+  }, [fullscreen]);
   useEffect(() => {
     if (state.width && state.height) setRatio(state.width / state.height);
   }, [state.width, state.height]);
@@ -167,7 +192,8 @@ export function PreviewPanel({ machine, health, queue, hidden }: { machine: Mach
     return () => ro.disconnect();
   }, []);
 
-  const connect = () => host.current && void vnc.connect(host.current, machine.vncWsUrl.trim(), machine.vncPassword, !allowInput);
+  const connect = () => host.current && void vnc.connect(host.current, machine.vncWsUrl.trim(), machine.vncPassword);
+  const control = connected && state.control;
   const dot = { idle: "bg-muted-foreground/40", connecting: "bg-warning", connected: "bg-success", error: "bg-danger" }[state.status];
 
   return (
@@ -178,21 +204,36 @@ export function PreviewPanel({ machine, health, queue, hidden }: { machine: Mach
       <div
         className={cn("flex flex-col", fullscreen ? "fixed inset-0 z-40 bg-black" : "px-3 pt-3")}
         onDoubleClick={(e) => {
-          if ((e.target as HTMLElement).closest("button")) return;
+          // While controlling, double-clicks belong to the office Mac.
+          if (control || (e.target as HTMLElement).closest("button")) return;
           if (connected || canSnapshot) set({ fullscreen: !fullscreen });
         }}
       >
         <div className={cn("flex h-8 items-center gap-2", fullscreen ? "px-4 text-white/85" : "mb-2")}>
           <span className={cn("size-2 rounded-full", dot)} />
           <span className="text-[13px] font-medium">{fullscreen ? `Live · ${machine.name}` : "Live"}</span>
-          <span className={cn("rounded px-1.5 py-px text-[10.5px] font-medium", allowInput ? "bg-warning/15 text-warning" : fullscreen ? "bg-white/10 text-white/70" : "bg-muted text-muted-foreground")}>
-            {allowInput ? "Input on" : "View only"}
-          </span>
+          {!fullscreen && <span className="rounded bg-muted px-1.5 py-px text-[10.5px] font-medium text-muted-foreground">View only</span>}
+          {fullscreen && <ModeSwitch control={control} canControl={connected} onChange={(on) => vnc.setControl(on)} />}
           {connected && state.width > 0 && (
             <span className={cn("text-[11px]", fullscreen ? "text-white/50" : "text-muted-foreground")}>{state.width}×{state.height}</span>
           )}
           <div className="flex-1" />
-          {fullscreen && <span className="mr-2 flex items-center gap-1 text-[11px] text-white/50"><Kbd>Esc</Kbd> to exit</span>}
+          {fullscreen && (
+            <span className="mr-2 flex items-center gap-1 text-[11px] text-white/50">
+              {control ? <>Keys go to the Mac · switch to View, then <Kbd>Esc</Kbd></> : <><Kbd>Esc</Kbd> to exit</>}
+            </span>
+          )}
+          {!fullscreen && (
+            <Tooltip content={connected ? "Take control (opens full screen)" : "Connect the live view to take control"}>
+              <Button variant="ghost" size="sm" className="h-7 gap-1 px-2" aria-label="Take control" disabled={!connected}
+                onClick={() => {
+                  set({ fullscreen: true });
+                  vnc.setControl(true);
+                }}>
+                <MousePointer2 className="size-3.5" /> Control
+              </Button>
+            </Tooltip>
+          )}
           <Tooltip content={fullscreen ? "Exit full screen" : "Full screen (double-click)"}>
             <Button variant="ghost" size="icon-sm" aria-label="Toggle full screen" disabled={!connected && !canSnapshot}
               className={fullscreen ? "text-white/80 hover:bg-white/10 hover:text-white" : undefined}
@@ -213,6 +254,7 @@ export function PreviewPanel({ machine, health, queue, hidden }: { machine: Mach
           className={cn(
             "relative overflow-hidden bg-[#0d0e12]",
             fullscreen ? "min-h-0 flex-1" : "aspect-[16/10] rounded-[10px] border",
+            control && "ring-2 ring-inset ring-warning",
           )}
         >
           <div ref={host} className={cn("vnc-host absolute inset-0 flex items-center justify-center", !connected && "invisible")} tabIndex={-1} />
@@ -226,6 +268,11 @@ export function PreviewPanel({ machine, health, queue, hidden }: { machine: Mach
             </div>
           )}
           <ClickMarker stage={stage.current} ratio={ratio} />
+          {control && running && (
+            <div className="pointer-events-none absolute left-1/2 top-3 -translate-x-1/2 rounded-md bg-warning px-2.5 py-1 text-[11.5px] font-medium text-black shadow-panel">
+              The agent is working on this desktop too — your input can interfere
+            </div>
+          )}
           {latest && (
             <div className="pointer-events-none absolute bottom-2 left-2 flex max-w-[85%] items-center gap-1.5 rounded-md bg-black/65 px-2 py-1 text-[11px] text-white backdrop-blur">
               <Spinner className="size-3 border-white border-t-transparent" />

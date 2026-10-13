@@ -57,7 +57,7 @@ function NoMachine() {
 
 export default function App() {
   const machine = useActiveMachine();
-  const { sidebarOpen, previewOpen, fullscreen, allowInput, savedSessions, rememberSession, set } = useApp();
+  const { sidebarOpen, previewOpen, fullscreen, savedSessions, rememberSession, set } = useApp();
   const chatState = useChat();
   const base = baseUrl(machine);
   const health = useHealth(base);
@@ -83,7 +83,7 @@ export default function App() {
 
   const connectVnc = () => {
     const host = document.querySelector<HTMLElement>(".vnc-host");
-    if (machine && host) void vnc.connect(host, machine.vncWsUrl.trim(), machine.vncPassword, !allowInput);
+    if (machine && host) void vnc.connect(host, machine.vncWsUrl.trim(), machine.vncPassword);
   };
 
   useEffect(() => {

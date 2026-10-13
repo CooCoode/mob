@@ -1,4 +1,4 @@
-import { CheckCircle2, CircleHelp, Info, Monitor, Moon, Palette, Plus, ScrollText, Sun, SunMoon, Trash2, Wrench, XCircle } from "lucide-react";
+import { CheckCircle2, CircleHelp, Info, Monitor, Moon, Palette, Plus, ScrollText, Sun, SunMoon, Trash2, XCircle } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { fetchHealth } from "@/api/client";
 import type { Check, Health } from "@/api/types";
@@ -6,7 +6,6 @@ import { Spinner } from "@/components/StatusIcon";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { Input, Label } from "@/components/ui/input";
-import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 import { defaultMobdUrl, defaultVncUrl, useApp, type Theme } from "@/store/app";
@@ -171,31 +170,12 @@ function LogTab() {
   );
 }
 
-function AdvancedTab() {
-  const { allowInput, set } = useApp();
-  return (
-    <div className="grid gap-4">
-      <div className="flex items-start justify-between gap-6 rounded-lg border p-3">
-        <div>
-          <p className="text-[13px] font-medium">Allow human input on the live view</p>
-          <p className="mt-0.5 text-xs text-muted-foreground">
-            Sends your mouse and keyboard to the office Mac over VNC. Keep this off in normal use — the agent already drives the desktop.
-            Applies on the next connect.
-          </p>
-        </div>
-        <Switch checked={allowInput} onCheckedChange={(v) => set({ allowInput: v })} aria-label="Allow human input" />
-      </div>
-    </div>
-  );
-}
-
 export function SettingsDialog() {
   const { settingsOpen, settingsTab, set } = useApp();
   const tabs = [
     { value: "machines", label: "Machines", icon: Monitor },
     { value: "appearance", label: "Appearance", icon: Palette },
     { value: "log", label: "Log", icon: ScrollText },
-    { value: "advanced", label: "Advanced", icon: Wrench },
     { value: "about", label: "About", icon: Info },
   ] as const;
   return (
@@ -204,7 +184,7 @@ export function SettingsDialog() {
         <Tabs value={settingsTab} onValueChange={(v) => set({ settingsTab: v as typeof settingsTab })} orientation="vertical" className="flex w-full">
           <div className="w-44 shrink-0 border-r bg-panel p-2">
             <DialogTitle className="px-2.5 pb-2 pt-1.5">Settings</DialogTitle>
-            <DialogDescription className="sr-only">Machines, appearance, logs and advanced options</DialogDescription>
+            <DialogDescription className="sr-only">Machines, appearance and logs</DialogDescription>
             <TabsList>
               {tabs.map((t) => <TabsTrigger key={t.value} value={t.value}><t.icon /> {t.label}</TabsTrigger>)}
             </TabsList>
@@ -213,7 +193,6 @@ export function SettingsDialog() {
             <TabsContent value="machines"><MachinesTab /></TabsContent>
             <TabsContent value="appearance"><AppearanceTab /></TabsContent>
             <TabsContent value="log" className="h-full"><LogTab /></TabsContent>
-            <TabsContent value="advanced"><AdvancedTab /></TabsContent>
             <TabsContent value="about">
               <div className="grid gap-1 text-[13px]">
                 <p className="font-semibold">mob</p>
