@@ -131,7 +131,25 @@ def _quartz():
     return Quartz
 
 
+def _require_post_event_access() -> None:
+    """Fail before posting events when macOS would silently discard them."""
+    try:
+        Q = _quartz()
+    except ImportError:
+        # Keep the existing cliclick / AppleScript fallbacks available when
+        # PyObjC is not installed.
+        return
+    check = getattr(Q, "CGPreflightPostEventAccess", None)
+    if check is not None and not check():
+        raise PermissionError(
+            "macOS Accessibility permission is not enabled for the process "
+            "running mob-mcp; enable it in System Settings > Privacy & "
+            "Security > Accessibility"
+        )
+
+
 def _click_quartz(x: float, y: float, button: ButtonName, count: int) -> None:
+    _require_post_event_access()
     Q = _quartz()
     point = Q.CGPointMake(float(x), float(y))
     if button == "left":
@@ -241,6 +259,7 @@ def _modifier_flags(modifiers: list[str]) -> int:
 
 
 def _key_quartz(key_name: str, modifiers: list[str]) -> None:
+    _require_post_event_access()
     Q = _quartz()
     if key_name not in _KEYCODES:
         raise KeyError(key_name)

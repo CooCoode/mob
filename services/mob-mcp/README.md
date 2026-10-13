@@ -28,6 +28,9 @@ MIT licensed. **Do not** depend on [nix18/ControlMCP](https://github.com/nix18/C
   - **Accessibility** — terminal / Codex / whatever launches `mob-mcp`
   - **Screen Recording** — same host (for `screenshot`)
 
+Input tools check Accessibility before posting Quartz events and fail with a
+clear error when macOS would silently discard them.
+
 Optional: [cliclick](https://github.com/BlueM/cliclick) on `PATH` as a click fallback if Quartz is unavailable.
 
 ## Install (office Mac)
