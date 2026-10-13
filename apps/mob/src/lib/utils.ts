@@ -35,6 +35,12 @@ export function compactNumber(n: number): string {
   return new Intl.NumberFormat("en", { notation: "compact", maximumFractionDigits: 1 }).format(n);
 }
 
+/** mobd's built-in VNC relay for a mobd base URL: http→ws, https→wss, + /vnc. */
+export function relayUrl(mobdUrl: string): string {
+  const base = mobdUrl.trim().replace(/\/+$/, "");
+  return base ? `${base.replace(/^http/i, "ws")}/vnc` : "";
+}
+
 export function uid(): string {
   return crypto.randomUUID?.() ?? `m-${Date.now()}-${Math.random().toString(16).slice(2)}`;
 }

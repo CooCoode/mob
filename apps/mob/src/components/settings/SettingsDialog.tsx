@@ -8,7 +8,7 @@ import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/compone
 import { Input, Label } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
-import { defaultMobdUrl, defaultVncUrl, useApp, type Theme } from "@/store/app";
+import { defaultMobdUrl, defaultVncUrl, useApp, vncUrl, type Theme } from "@/store/app";
 import { useLog } from "@/store/log";
 
 const CHECK_LABELS: Record<string, string> = {
@@ -57,7 +57,7 @@ function MachinesTab() {
     setSaved(false);
   }, [editMachineId]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const valid = form.name.trim() && form.mobdUrl.trim() && form.vncWsUrl.trim();
+  const valid = form.name.trim() && form.mobdUrl.trim();
   const runTest = async () => {
     setTest({ state: "testing" });
     try {
@@ -96,7 +96,14 @@ function MachinesTab() {
         <h3 className="text-[13px] font-semibold">{editing ? "Edit machine" : "New machine"}</h3>
         <Label>Display name<Input value={form.name} placeholder="Office Mac" onChange={(e) => setForm({ ...form, name: e.target.value })} required /></Label>
         <Label>mobd URL<Input value={form.mobdUrl} placeholder="http://192.168.x.x:8080" onChange={(e) => setForm({ ...form, mobdUrl: e.target.value })} required /></Label>
-        <Label>VNC WebSocket URL<Input value={form.vncWsUrl} placeholder="ws://192.168.x.x:6080/" onChange={(e) => setForm({ ...form, vncWsUrl: e.target.value })} required /></Label>
+        <Label>
+          <span>VNC WebSocket URL <span className="font-normal text-muted-foreground/70">(optional)</span></span>
+          <Input value={form.vncWsUrl} placeholder={`Automatic: ${vncUrl({ mobdUrl: form.mobdUrl, vncWsUrl: "" }) || "<mobd URL>/vnc"}`}
+            onChange={(e) => setForm({ ...form, vncWsUrl: e.target.value })} />
+        </Label>
+        <p className="-mt-1.5 text-[11px] text-muted-foreground">
+          Leave empty to stream the desktop through mobd. Set it only to use your own websockify.
+        </p>
         <div className="grid grid-cols-2 gap-3">
           <Label>macOS user name<Input autoComplete="off" value={form.vncUsername} placeholder="Office Mac account" onChange={(e) => setForm({ ...form, vncUsername: e.target.value })} /></Label>
           <Label>Password<Input type="password" autoComplete="off" value={form.vncPassword} placeholder="Account or VNC password" onChange={(e) => setForm({ ...form, vncPassword: e.target.value })} /></Label>

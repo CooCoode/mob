@@ -14,7 +14,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { chat, useChat } from "@/hooks/useChat";
 import { useHealth, useMachineEvents, useQueue } from "@/hooks/useMachine";
 import { vnc } from "@/lib/vnc";
-import { baseUrl, useActiveMachine, useApp } from "@/store/app";
+import { baseUrl, useActiveMachine, useApp, vncUrl } from "@/store/app";
 import { useComposer } from "@/store/composer";
 import { log } from "@/store/log";
 
@@ -44,7 +44,7 @@ function NoMachine() {
         </div>
         <h2 className="mt-3 text-base font-semibold">Connect your office Mac</h2>
         <p className="mt-1 text-[13px] text-muted-foreground">
-          Add the mobd URL and VNC WebSocket of the office machine. You can test the connection before saving.
+          Paste the mobd URL of the office Mac. The live view goes through mobd too. You can test the connection before saving.
         </p>
         <Button className="mt-4" onClick={() => useApp.setState({ settingsOpen: true, settingsTab: "machines", editMachineId: "" })}>
           Add machine
@@ -83,7 +83,7 @@ export default function App() {
 
   const connectVnc = () => {
     const host = document.querySelector<HTMLElement>(".vnc-host");
-    if (machine && host) void vnc.connect(host, machine.vncWsUrl.trim(), machine.vncPassword, machine.vncUsername);
+    if (machine && host) void vnc.connect(host, vncUrl(machine), machine.vncPassword, machine.vncUsername);
   };
 
   useEffect(() => {

@@ -1,11 +1,12 @@
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
-import { uid } from "@/lib/utils";
+import { relayUrl, uid } from "@/lib/utils";
 
 export interface Machine {
   id: string;
   name: string;
   mobdUrl: string;
+  /** Optional override; empty means mobd's built-in relay at <mobdUrl>/vnc. */
   vncWsUrl: string;
   /** macOS user for Screen Sharing sign-in (ARD); empty uses VNC password auth. */
   vncUsername?: string;
@@ -60,7 +61,7 @@ export function envDefault(...keys: (keyof ImportMetaEnv)[]): string {
 }
 
 export const defaultMobdUrl = () => envDefault("MOBD_URL", "VITE_MOBD_URL") || "http://127.0.0.1:8080";
-export const defaultVncUrl = () => envDefault("VNC_WS_URL", "VITE_VNC_WS_URL") || "ws://127.0.0.1:6080/";
+export const defaultVncUrl = () => envDefault("VNC_WS_URL", "VITE_VNC_WS_URL");
 
 function read<T>(key: string): T | null {
   try {
@@ -165,4 +166,11 @@ export function useActiveMachine(): Machine | null {
 
 export function baseUrl(m: Machine | null | undefined): string {
   return (m?.mobdUrl ?? "").trim().replace(/\/$/, "");
+}
+
+/** VNC WebSocket for the live view: the override, else mobd's relay (http→ws, https→wss). */
+export function vncUrl(m: Pick<Machine, "mobdUrl" | "vncWsUrl"> | null | undefined): string {
+  const override = (m?.vncWsUrl ?? "").trim();
+  if (override) return override;
+  return relayUrl(m?.mobdUrl ?? "");
 }

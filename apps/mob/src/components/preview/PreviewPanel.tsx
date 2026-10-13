@@ -11,7 +11,7 @@ import { chat, useChat } from "@/hooks/useChat";
 import { latestClick, screenGeometry } from "@/lib/timeline";
 import { cn } from "@/lib/utils";
 import { useVnc, vnc } from "@/lib/vnc";
-import { useApp, type Machine } from "@/store/app";
+import { useApp, vncUrl, type Machine } from "@/store/app";
 
 /** Content box of an object-fit: contain child inside a container. */
 function fitRect(box: DOMRect, ratio: number) {
@@ -192,7 +192,7 @@ export function PreviewPanel({ machine, health, queue, hidden }: { machine: Mach
     return () => ro.disconnect();
   }, []);
 
-  const connect = () => host.current && void vnc.connect(host.current, machine.vncWsUrl.trim(), machine.vncPassword, machine.vncUsername);
+  const connect = () => host.current && void vnc.connect(host.current, vncUrl(machine), machine.vncPassword, machine.vncUsername);
   const control = connected && state.control;
   const dot = { idle: "bg-muted-foreground/40", connecting: "bg-warning", connected: "bg-success", error: "bg-danger" }[state.status];
 

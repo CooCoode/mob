@@ -28,22 +28,22 @@ src/
 1. [Xcode Command Line Tools](https://developer.apple.com/xcode/) / full Xcode
 2. [Rust](https://rustup.rs/) stable (`rustup default stable`)
 3. Node.js 24+ (npm) — tests run TypeScript directly through Node's type stripping
-4. Office side reachable on LAN/VPN: `mobd` (API v3) + VNC WebSocket (websockify). See [docs/vnc-svnc-setup.md](../../docs/vnc-svnc-setup.md)
+4. Office side reachable on LAN/VPN: `mobd` (API v3) with Screen Sharing turned on. mobd relays the live view, so no websockify is needed ([ADR 0010](../../docs/adr/0010-vnc-relay-in-mobd.md))
 
 ## Configure
 
 ```bash
 cd apps/mob
 cp .env.example .env
-# edit MOBD_URL and VNC_WS_URL
+# edit MOBD_URL
 ```
 
-Env values prefill the first **machine**. Manage machines (name, mobd URL, VNC WebSocket URL, macOS user name and password) in **Settings → Machines**, where **Test connection** shows the office readiness checks. Settings from the v1 client are migrated on first start.
+Env values prefill the first **machine**. A machine only needs its **mobd URL**: the live view uses mobd's relay at `<mobd URL>/vnc`. Manage machines (name, mobd URL, macOS user name and password, optional custom VNC WebSocket URL) in **Settings → Machines**, where **Test connection** shows the office readiness checks. Settings from the v1 client are migrated on first start.
 
 | Variable | Meaning |
 | --- | --- |
 | `MOBD_URL` | Office `mobd` base URL, e.g. `http://192.168.50.86:8080` |
-| `VNC_WS_URL` | WebSocket for svnc, e.g. `ws://192.168.50.86:6080/` |
+| `VNC_WS_URL` | Optional custom VNC WebSocket. Empty = mobd's relay at `<MOBD_URL>/vnc` |
 
 ## Install & run
 
@@ -90,4 +90,4 @@ If `@xrdavies/svnc` fails to load or the WebSocket is unreachable, the live view
 
 ## Out of scope
 
-iPhone, auth, shipping websockify inside the App.
+iPhone, auth.
