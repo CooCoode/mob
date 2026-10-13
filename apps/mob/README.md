@@ -1,21 +1,34 @@
 # apps/mob
 
-Home Mac **mob** client: Grok-like shell (sessions · chat · thumbnail preview) — task dispatch to office **`mobd`** + embedded **[svnc](https://github.com/xrdavies/svnc)**. Human input is temporarily enabled for testing (`viewOnly: false`); restore viewOnly when testing ends.
+Home Mac **mob** client: dispatch tasks to the office agent, follow what it does step by step, and watch the office desktop — task API from office **`mobd`** (v3) + embedded **[svnc](https://github.com/xrdavies/svnc)**.
 
-Plan: [docs/client-phase2-lite.md](../../docs/client-phase2-lite.md) · UI: [docs/apps-mob-ui.md](../../docs/apps-mob-ui.md)
+Design: [docs/apps-mob-ui.md](../../docs/apps-mob-ui.md) · Stack decision: [ADR 0009](../../docs/adr/0009-app-frontend-react.md) · API: [docs/mobd-v3.md](../../docs/mobd-v3.md)
 
 ## Stack
 
-- **Tauri 2** shell (`src-tauri/`)
-- **Vite + TypeScript** UI (`src/`)
-- **[@xrdavies/svnc](https://www.npmjs.com/package/@xrdavies/svnc)** `^0.1.0` (npm; ships with `dist/`)
+- **Tauri 2** shell (`src-tauri/`): overlay title bar, sidebar vibrancy
+- **React 19 + TypeScript 7 + Vite 8**, **Tailwind CSS v4**, shadcn/ui-style components on **Radix** (`src/components/ui`), **lucide** icons
+- **TanStack Query** (health, queue, archived sessions) and **Zustand** (machines, layout, preferences — persisted in localStorage)
+- `react-markdown` + GFM, **shiki** (core + JS regex engine, curated languages) for code blocks
+- **[@xrdavies/svnc](https://www.npmjs.com/package/@xrdavies/svnc)** for the live view
+
+```text
+src/
+  api/          mobd v3 types and fetch helpers
+  lib/chat.ts   conversation lifecycle (framework-free, tested)
+  lib/timeline.ts  messages + activities → timeline items (tested)
+  lib/vnc.ts    single svnc connection controller
+  hooks/        React bindings: chat, health/queue, global /events stream
+  store/        app (persisted), composer, log
+  components/   sidebar, timeline, composer, preview, settings, ui primitives
+```
 
 ## Prerequisites (macOS)
 
 1. [Xcode Command Line Tools](https://developer.apple.com/xcode/) / full Xcode
 2. [Rust](https://rustup.rs/) stable (`rustup default stable`)
-3. Node.js 18+ (npm)
-4. Office side reachable on LAN/VPN: `mobd` + VNC WebSocket (websockify). See [docs/vnc-svnc-setup.md](../../docs/vnc-svnc-setup.md)
+3. Node.js 24+ (npm) — tests run TypeScript directly through Node's type stripping
+4. Office side reachable on LAN/VPN: `mobd` (API v3) + VNC WebSocket (websockify). See [docs/vnc-svnc-setup.md](../../docs/vnc-svnc-setup.md)
 
 ## Configure
 
@@ -25,7 +38,7 @@ cp .env.example .env
 # edit MOBD_URL and VNC_WS_URL
 ```
 
-Env values prefill a default **machine**. Manage machines (name, `MOBD_URL`, `VNC_WS_URL`, optional password) in **Settings**; persisted in localStorage.
+Env values prefill the first **machine**. Manage machines (name, mobd URL, VNC WebSocket URL, optional VNC password) in **Settings → Machines**, where **Test connection** shows the office readiness checks. Settings from the v1 client are migrated on first start.
 
 | Variable | Meaning |
 | --- | --- |
@@ -37,39 +50,25 @@ Env values prefill a default **machine**. Manage machines (name, `MOBD_URL`, `VN
 ```bash
 cd apps/mob
 npm install
+npm run dev          # browser prototype at http://localhost:1420
+npm run tauri dev    # desktop App (recommended on Mac)
+npm run tauri build  # production bundle
 ```
 
-**Browser prototype** (no Rust / Tauri window):
+Checks: `npm test` (conversation lifecycle, reconnect recovery, timeline grouping), `npm run typecheck`, `npm run build`.
 
-```bash
-npm run dev
-# open http://localhost:1420
-```
+## Using the App
 
-**Desktop App** (recommended on Mac):
+- **Sidebar:** conversations of the selected machine, live via mobd's `/events` (running spinner, queue position, failed dot). Right-click or `⋯` to rename (or double-click), pin, archive, delete. Archived conversations are in the collapsible group.
+- **Timeline:** your prompts, the agent's replies (markdown), and its steps — screenshots, clicks, typing, shell commands, plans — as expandable cards; three or more consecutive steps fold into a group. Each turn ends with duration, tokens and model; failed turns offer **Retry**. Queued turns show their place in the desktop queue.
+- **Composer:** ↵ send, ⇧↵ newline. Attach images (button, paste or drag-and-drop), pick model and reasoning effort (remembered per machine; models come from `MOBD_MODELS` on the office Mac). The send button becomes **Stop** while the agent works.
+- **Live view (right):** svnc connection (⏻) or, when not connected, a refreshing `/screen` snapshot. Clicks by the agent flash at their position. Double-click or ⤢ for full screen, `Esc` to return. Below: the desktop queue and the current turn's steps.
+- **Title bar:** machine status chip opens the readiness checks (Codex, actuation, Accessibility, Screen Recording, VNC).
+- **Shortcuts:** ⌘K command palette · ⌘N new chat · ⌘B sidebar · ⌘⇧B live view · ⌘, settings · ⌘1–9 switch conversation.
+- **Human input:** Settings → Advanced → *Allow human input on the live view* (on while testing; turn off for normal use — the agent already drives the desktop). Applies on the next connect.
+- **Auth:** deferred (intranet/VPN only).
 
-```bash
-npm run tauri dev
-```
-
-Production build:
-
-```bash
-npm run tauri build
-```
-
-## MVP behavior
-
-- **Left:** real conversations from each office mobd, grouped by machine; New chat starts a conversation on the first send. The last selection per machine is remembered locally.
-- **Center:** complete user/assistant history from `GET /sessions/:id`; sends reuse `sessionId`, replies arrive as structured SSE messages, and Cancel stops the current turn. Send stays disabled while the turn runs.
-- **Right:** interactive thumbnail; Expand → App-fullscreen preview; Exit preview returns to the thumbnail
-- **Settings:** add/edit machines (`MOBD_URL`, `VNC_WS_URL`, …)
-- **Live view:** `SVNCClient.connect(..., { viewOnly: false })` temporarily enables mouse and keyboard input for testing. Click the desktop to type; while it is focused, Escape is sent to the remote machine.
-- **Auth:** deferred (intranet/VPN only)
-
-Requires the matching office mobd (`/health` API version 2). Update/restart the daemon before testing this client; older versions show an upgrade message. History lives in `MOBD_STATE_PATH` on the office host, not in browser storage. Switching conversations, reopening the client and reconnecting restore that history. See [mobd's session API and persistence](../../cmd/mobd/README.md#conversations-and-runner-lifecycle).
-
-Checks: `npm test` covers conversation lifecycle, stale requests, duplicate sends and reconnect recovery; `npm run build` checks TypeScript and the production bundle.
+Older office daemons (API v2) still work for chat; activities, queue, uploads, model/effort and session management appear once mobd reports API v3 on `/health`.
 
 ### CORS note
 
@@ -85,10 +84,10 @@ curl -i -H 'Origin: http://localhost:1420' http://127.0.0.1:8080/health
 
 The response should include `Access-Control-Allow-Origin: http://localhost:1420`. Then retry Health in the home app; no client rebuild is needed for this server fix.
 
-### svnc stub
+### Live view troubleshooting
 
-If `@xrdavies/svnc` fails to load, the view pane shows a stub message; task dispatch still works. Re-run `npm install` (registry package includes `dist/`).
+If `@xrdavies/svnc` fails to load or the WebSocket is unreachable, the live view shows the error and falls back to `/screen` snapshots; task dispatch still works. Re-run `npm install` if the package is missing.
 
-## Out of scope (MVP)
+## Out of scope
 
-iPhone, auth, permanent human remote input, shipping websockify inside the App.
+iPhone, auth, shipping websockify inside the App.

@@ -3,7 +3,7 @@
 **Product:** the home Mac **mob** App: dispatch tasks to the office agent, watch what it does, and monitor the office desktop.
 **Stack:** Tauri 2 + React 19 + Tailwind v4 + shadcn/ui ([ADR 0009](adr/0009-app-frontend-react.md)), embedding [svnc](https://github.com/xrdavies/svnc).
 **Backend:** [mobd v3](mobd-v3.md). Each v2 feature below names the API it depends on.
-**Status:** target design. The v1 scaffold (vanilla TS three-column shell) is what ships today. Migration steps are at the end.
+**Status:** implemented in `apps/mob` 0.2.0 (2026-10-13). Remaining gaps are listed under "Migration plan".
 
 ---
 
@@ -18,7 +18,7 @@
 ## Hard rules (unchanged from v1)
 
 - Three-column shell: sessions · timeline · preview. Connection settings live only in Settings.
-- Human VNC input is **off** by default (`viewOnly: true`). It is temporarily on for testing (`main.ts` shortcut), and v2 keeps that behind an explicit dev toggle in Settings → Advanced, off by default.
+- Human VNC input is a toggle in Settings → Advanced. It defaults to **on while testing** (carried over from the v1 shortcut); flip the default in `store/app.ts` to `false` (viewOnly) when testing ends.
 - No auth UI until mobd has auth.
 - Machines are first-class; each has its own `mobd` URL, VNC WebSocket URL and optional VNC password.
 
@@ -178,13 +178,17 @@ apps/mob/src/
 
 ## Migration plan
 
-1. **Port (no visual change):** React + Tailwind + shadcn set up; current three-column UI rebuilt as components; `chat.ts` tests still pass; svnc in `LiveView`.
-2. **Restyle:** tokens, typography, native title bar, vibrancy, light/dark, sidebar rows and states, composer.
-3. **Timeline v2:** markdown, activity cards and groups, turn footer (needs mobd activities + usage).
-4. **Live data:** global `/events`, queue panel, session menus (rename/pin/archive/delete).
-5. **Composer v2:** attachments, model/effort pickers.
-6. **Preview v2:** snapshot fallback, click marker, steps list, fullscreen overlay.
-7. **Polish:** ⌘K, first-run setup, health popover, empty states, keyboard shortcuts.
+Steps 1 and 2 were merged: porting the old CSS to React only to replace it immediately was wasted work, so the React rebuild shipped the v2 design directly.
+
+1. ✅ **Port + restyle:** React + Tailwind + shadcn primitives; tokens, typography, light/dark, sidebar rows and states; `chat.ts` tests kept (now under Node type stripping).
+2. ✅ **Native chrome:** Tauri overlay title bar, inset traffic lights, sidebar vibrancy.
+3. ✅ **Timeline v2:** markdown, activity cards and groups, turn footer.
+4. ✅ **Live data:** global `/events`, queue panel, session menus (rename/pin/archive/delete).
+5. ✅ **Composer v2:** attachments, model/effort pickers.
+6. ✅ **Preview v2:** snapshot fallback, click marker, steps list, fullscreen overlay.
+7. ✅ **Polish:** ⌘K, first-run card, health popover, empty states, keyboard shortcuts.
+
+Not yet done: resizable columns, responsive drawer/floating-thumbnail layouts below 1100 px, density and font-size settings, the click marker over the live VNC canvas has only been verified against snapshots (unit-tested geometry), and the iPhone layout.
 
 Update this doc when the IA changes.
 
