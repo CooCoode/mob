@@ -8,6 +8,7 @@ import (
 	"image/png"
 	"math"
 	"os/exec"
+	"slices"
 	"strings"
 )
 
@@ -146,10 +147,5 @@ func looksLikeBundleID(v string) bool {
 	if len(parts) < 2 {
 		return false
 	}
-	for _, p := range parts {
-		if p == "" {
-			return false
-		}
-	}
-	return true
+	return !slices.Contains(parts, "")
 }

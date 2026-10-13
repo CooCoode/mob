@@ -65,7 +65,7 @@ func TestReplyArrivingDuringReplayIsNotLost(t *testing.T) {
 			return
 		}
 		// More events than the old subscriber buffer, while replay is flushing.
-		for i := 0; i < 100; i++ {
+		for range 100 {
 			if err := s.store.AppendEvent(tk.ID, task.Event{Type: "log", Message: "progress"}); err != nil {
 				t.Fatal(err)
 			}
@@ -715,7 +715,7 @@ func TestGlobalEventsStreamAndResume(t *testing.T) {
 
 func TestHubResetsEvictedCursor(t *testing.T) {
 	h := newHub()
-	for i := 0; i < hubSize+10; i++ {
+	for i := range hubSize + 10 {
 		h.publish("task", i)
 	}
 	if _, reset, _, _ := h.since(5); !reset {

@@ -31,7 +31,7 @@ var modifierAliases = map[string]string{
 // ParseHotkey splits "cmd+c" / "ctrl+shift+tab" into a key and modifiers.
 func ParseHotkey(spec string) (string, []string, error) {
 	var parts []string
-	for _, p := range strings.Split(strings.ReplaceAll(spec, "-", "+"), "+") {
+	for p := range strings.SplitSeq(strings.ReplaceAll(spec, "-", "+"), "+") {
 		if p = strings.ToLower(strings.TrimSpace(p)); p != "" {
 			parts = append(parts, p)
 		}

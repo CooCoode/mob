@@ -124,13 +124,11 @@ func TestOnlyOneConcurrentTurnPerSession(t *testing.T) {
 	_, _ = s.UpdateStatus(first.ID, StatusSucceeded, "")
 	var wg sync.WaitGroup
 	results := make(chan error, 20)
-	for i := 0; i < 20; i++ {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+	for range 20 {
+		wg.Go(func() {
 			_, err := s.CreateTurn(first.SessionID, "next", "")
 			results <- err
-		}()
+		})
 	}
 	wg.Wait()
 	close(results)
@@ -266,7 +264,7 @@ func TestActivitiesUpsertAndSurviveRestart(t *testing.T) {
 func TestDebugLogsAreCapped(t *testing.T) {
 	s := NewStore()
 	tk, _ := s.Create("chatty", "")
-	for i := 0; i < logLimit+50; i++ {
+	for range logLimit + 50 {
 		_ = s.AppendEvent(tk.ID, Event{Type: "log", Message: "line"})
 	}
 	_ = s.AppendEvent(tk.ID, Event{Type: "message", MessageID: "m", Message: "reply"})

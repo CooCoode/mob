@@ -11,7 +11,7 @@ import (
 
 func TestEncodeScalesAndConverts(t *testing.T) {
 	src := image.NewRGBA(image.Rect(0, 0, 400, 200))
-	for x := 0; x < 400; x++ {
+	for x := range 400 {
 		src.Set(x, 10, color.RGBA{255, 0, 0, 255})
 	}
 	var capture bytes.Buffer

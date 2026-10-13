@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"maps"
+	"slices"
 	"sort"
 	"strings"
 	"sync"
@@ -189,8 +190,8 @@ func (s *Store) ListTasks(f TaskFilter) []*Task {
 	defer s.mu.RUnlock()
 	out := make([]*Task, 0)
 	positions := s.queuePositions()
-	for i := len(s.data.Order) - 1; i >= 0; i-- {
-		t := s.data.Tasks[s.data.Order[i]]
+	for _, id := range slices.Backward(s.data.Order) {
+		t := s.data.Tasks[id]
 		if (f.SessionID != "" && t.SessionID != f.SessionID) || (f.Status != "" && t.Status != f.Status) {
 			continue
 		}
