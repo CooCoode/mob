@@ -37,7 +37,7 @@ function useDarkMode(): boolean {
 function NoMachine() {
   const openSettings = useApp((s) => s.openSettings);
   return (
-    <div className="flex flex-1 items-center justify-center">
+    <div className="flex flex-1 items-center justify-center bg-background">
       <div className="w-[380px] rounded-2xl border bg-background p-6 text-center shadow-panel">
         <div className="mx-auto flex size-10 items-center justify-center rounded-xl bg-accent-soft text-accent">
           <Monitor className="size-5" />
