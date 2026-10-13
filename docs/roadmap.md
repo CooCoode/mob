@@ -19,6 +19,8 @@ Phased delivery. Do not skip the separation of **view** (human) and **actuation*
 
 Order of work (2026-10-13): design docs ([mobd-v3](mobd-v3.md), [apps-mob-ui v2](apps-mob-ui.md), ADR [0008](adr/0008-actuation-in-mobd.md) / [0009](adr/0009-app-frontend-react.md)) → **mobd v3** APIs and features → **merge mob-mcp into mobd** → **App v2** (React port, then redesign). Security hardening is deferred while in development. Status: all four delivered on 2026-10-13 (mobd API v3, `mobd mcp`, `apps/mob` 0.2.0).
 
+Agent runners (2026-10-13, [runners.md](runners.md)): pluggable runner contract and shared tests; `ask_user` / `request_approval` with question cards; Claude Code runner (with an optional hard approval gate); Codex app-server mode with hard approvals, interrupt, steering and streaming. Next candidates: pause the agent while the user takes control, more runners (Gemini, opencode, pi; possibly via ACP).
+
 
 - Integrate the svnc viewer into MOB clients (home Mac first via **`apps/mob`**, then iPhone) — see **[client-phase2-lite.md](client-phase2-lite.md)** (recommended stack: **Tauri 2 + Vite/TS**)
 - Unified UX: chat / task list + embedded live desktop (`viewOnly`)

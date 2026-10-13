@@ -659,6 +659,31 @@ func (s *Store) commitQuestions(stored *Task, questions []Question, changed Ques
 	return nil
 }
 
+// AddUserMessage records a message the user added to a running turn.
+func (s *Store) AddUserMessage(taskID, text string) (Message, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	stored, ok := s.data.Tasks[taskID]
+	if !ok {
+		return Message{}, ErrNotFound
+	}
+	if stored.Status.Terminal() {
+		return Message{}, ErrInvalidTransition
+	}
+	now := time.Now().UTC()
+	t := clone(stored)
+	t.UpdatedAt, t.EventID = now, t.EventID+1
+	session := cloneSession(s.data.Sessions[t.SessionID])
+	m := Message{ID: fmt.Sprintf("%s:steer:%d", t.ID, t.EventID), TaskID: t.ID, Role: "user", Content: text, CreatedAt: now}
+	session.Messages, session.UpdatedAt = append(session.Messages, m), now
+	if err := s.commit(t, session, false, nil); err != nil {
+		return Message{}, err
+	}
+	s.publish(t.ID, Event{ID: t.EventID, Type: "message", Role: "user", MessageID: m.ID, Message: text, Timestamp: now})
+	s.notifyLocked(session, nil)
+	return m, nil
+}
+
 // Questions returns the questions asked in a conversation, oldest first.
 func (s *Store) Questions(sessionID string) []Question {
 	s.mu.RLock()

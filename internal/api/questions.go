@@ -1,6 +1,7 @@
 package api
 
 import (
+	"context"
 	"crypto/rand"
 	"crypto/subtle"
 	"encoding/hex"
@@ -11,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/xrdavies/mob/internal/runner"
 	"github.com/xrdavies/mob/internal/task"
 )
 
@@ -85,8 +87,24 @@ func (s *Server) handleAsk(w http.ResponseWriter, r *http.Request) {
 	if req.Kind == task.QuestionAsk && len(req.Options) == 0 {
 		req.AllowText = true
 	}
+	q, err := s.ask(r.Context(), id, req)
+	if errors.Is(err, errNotRunning) {
+		writeErr(w, http.StatusConflict, "turn is not running")
+		return
+	}
+	if r.Context().Err() != nil {
+		return
+	}
+	writeJSON(w, http.StatusOK, q)
+}
+
+var errNotRunning = errors.New("turn is not running")
+
+// ask records a question on a running turn and blocks until the user answers,
+// it times out, ctx ends (the agent gave up) or mobd shuts down.
+func (s *Server) ask(ctx context.Context, taskID string, req askRequest) (task.Question, error) {
 	s.qmu.Lock()
-	q, err := s.store.AddQuestion(id, task.Question{
+	q, err := s.store.AddQuestion(taskID, task.Question{
 		Kind: req.Kind, Text: req.Text, Details: strings.TrimSpace(req.Details), Options: req.Options, AllowText: req.AllowText,
 	})
 	var answered chan struct{}
@@ -96,22 +114,54 @@ func (s *Server) handleAsk(w http.ResponseWriter, r *http.Request) {
 	}
 	s.qmu.Unlock()
 	if err != nil {
-		writeErr(w, http.StatusConflict, "turn is not running")
-		return
+		return task.Question{}, errNotRunning
 	}
 	timer := time.NewTimer(s.questionTimeout())
 	defer timer.Stop()
 	select {
 	case <-answered:
 	case <-timer.C:
-		_, _ = s.resolveQuestion(id, q.ID, task.QuestionExpired, "", nil)
-	case <-r.Context().Done():
-		_, _ = s.resolveQuestion(id, q.ID, task.QuestionCancelled, "", nil)
-		return
+		_, _ = s.resolveQuestion(taskID, q.ID, task.QuestionExpired, "", nil)
+	case <-ctx.Done():
+		_, _ = s.resolveQuestion(taskID, q.ID, task.QuestionCancelled, "", nil)
 	case <-s.done:
-		_, _ = s.resolveQuestion(id, q.ID, task.QuestionCancelled, "", nil)
+		_, _ = s.resolveQuestion(taskID, q.ID, task.QuestionCancelled, "", nil)
 	}
-	writeJSON(w, http.StatusOK, s.findQuestion(id, q.ID))
+	return s.findQuestion(taskID, q.ID), nil
+}
+
+// handleSteer adds the user's message to a running turn (runners that support it).
+func (s *Server) handleSteer(w http.ResponseWriter, r *http.Request) {
+	id := r.PathValue("id")
+	var req struct {
+		Prompt string `json:"prompt"`
+	}
+	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 1024*1024)).Decode(&req); err != nil || strings.TrimSpace(req.Prompt) == "" {
+		writeErr(w, http.StatusBadRequest, "prompt is required")
+		return
+	}
+	t, err := s.store.Get(id)
+	if err != nil {
+		writeErr(w, http.StatusNotFound, "task not found")
+		return
+	}
+	rn, _ := s.runners.Get(t.Runner)
+	steerer, ok := rn.(runner.Steerer)
+	if !ok || t.Status != task.StatusRunning {
+		writeErr(w, http.StatusConflict, runner.ErrNotSteerable.Error())
+		return
+	}
+	prompt := strings.TrimSpace(req.Prompt)
+	if err := steerer.Steer(id, prompt); err != nil {
+		writeErr(w, http.StatusConflict, err.Error())
+		return
+	}
+	msg, err := s.store.AddUserMessage(id, prompt)
+	if err != nil {
+		writeErr(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	writeJSON(w, http.StatusAccepted, msg)
 }
 
 // resolveQuestion settles a pending question and wakes its waiting agent.

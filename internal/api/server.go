@@ -116,6 +116,7 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("GET /vnc", s.handleVNC)
 	mux.HandleFunc("POST /tasks/{id}/questions/{qid}/answer", s.withAuth(s.handleAnswer))
 	mux.HandleFunc("POST /internal/tasks/{id}/ask", s.handleAsk)
+	mux.HandleFunc("POST /tasks/{id}/steer", s.withAuth(s.handleSteer))
 	return s.withCORS(mux)
 }
 

@@ -160,10 +160,12 @@ type Session struct {
 
 // Event is streamed over SSE and retained for late subscribers.
 type Event struct {
-	ID        int64     `json:"id"`
-	Type      string    `json:"type"` // status | log | progress | error | resume | message | activity | usage | question
-	Message   string    `json:"message,omitempty"`
-	MessageID string    `json:"messageId,omitempty"`
+	ID        int64  `json:"id"`
+	Type      string `json:"type"` // status | log | progress | error | resume | message | activity | usage | question
+	Message   string `json:"message,omitempty"`
+	MessageID string `json:"messageId,omitempty"`
+	// Role is "user" for messages the user added during a turn (steering).
+	Role      string    `json:"role,omitempty"`
 	ResumeID  string    `json:"resumeId,omitempty"`
 	Status    Status    `json:"status,omitempty"`
 	Activity  *Activity `json:"activity,omitempty"`

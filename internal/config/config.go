@@ -23,6 +23,10 @@ type Config struct {
 	MaxRunning    int
 	DataDir       string
 	CodexModels   []string
+	// CodexMode is "app-server" (default: approvals, steering, streaming) or "exec".
+	CodexMode string
+	// CodexPermissions is "bypass" (default) or "approve" (commands and edits wait for the user).
+	CodexPermissions string
 	// Runners lists the enabled runners (MOBD_RUNNERS, default codex,claude).
 	Runners []string
 	// Claude Code runner.
@@ -56,6 +60,8 @@ type Config struct {
 //	MOBD_DATA_DIR        Root for artifacts/ (default: directory of MOBD_STATE_PATH)
 //	MOBD_CODEX_MODELS    Comma-separated Codex model IDs offered to clients (MOBD_MODELS also accepted)
 //	MOBD_DEFAULT_RUNNER  Runner for new conversations (default codex)
+//	MOBD_CODEX_MODE      app-server (default) or exec
+//	MOBD_CODEX_PERMISSIONS bypass (default) or approve
 //	MOBD_RUNNERS         Enabled runners, comma-separated (default codex,claude)
 //	MOBD_CLAUDE_BIN      Claude Code executable (default claude)
 //	MOBD_CLAUDE_WORKDIR  Working directory for Claude (default MOBD_CODEX_WORKDIR)
@@ -84,6 +90,8 @@ func Load() Config {
 		CodexModels:          splitList(envOr("MOBD_CODEX_MODELS", os.Getenv("MOBD_MODELS"))),
 		DefaultRunner:        envOr("MOBD_DEFAULT_RUNNER", "codex"),
 		Runners:              splitList(envOr("MOBD_RUNNERS", "codex,claude")),
+		CodexMode:            envOr("MOBD_CODEX_MODE", "app-server"),
+		CodexPermissions:     envOr("MOBD_CODEX_PERMISSIONS", "bypass"),
 		ClaudeBin:            envOr("MOBD_CLAUDE_BIN", "claude"),
 		ClaudeModels:         splitList(envOr("MOBD_CLAUDE_MODELS", "opus,sonnet,haiku")),
 		ClaudePermissions:    envOr("MOBD_CLAUDE_PERMISSIONS", "bypass"),

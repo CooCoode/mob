@@ -173,6 +173,9 @@ func (s *Server) runOptions(t *task.Task) runner.Options {
 		// The agent's MCP call must outlive the user's answer time.
 		ToolTimeout: s.questionTimeout() + time.Minute,
 		MCPEnv:      map[string]string{"MOB_API": s.selfURL(), "MOB_TASK_ID": t.ID, "MOB_TASK_TOKEN": token},
+		Ask: func(ctx context.Context, kind, text, details string) (task.Question, error) {
+			return s.ask(ctx, t.ID, askRequest{Kind: kind, Text: text, Details: details})
+		},
 	}
 	for _, id := range t.Attachments {
 		if path, _, err := s.artifacts.Path(id); err == nil {

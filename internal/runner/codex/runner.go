@@ -9,6 +9,7 @@ import (
 	"os/exec"
 	"slices"
 	"strings"
+	"sync"
 
 	"github.com/xrdavies/mob/internal/config"
 	"github.com/xrdavies/mob/internal/runner"
@@ -26,12 +27,17 @@ var Efforts = []string{"minimal", "low", "medium", "high", "xhigh"}
 // If the Codex binary is missing, it fails the task safely (no panic).
 type Runner struct {
 	cfg config.Config
+
+	mu     sync.Mutex
+	active map[string]*appTurn
 }
 
 // New creates a Codex runner.
 func New(cfg config.Config) *Runner {
-	return &Runner{cfg: cfg}
+	return &Runner{cfg: cfg, active: map[string]*appTurn{}}
 }
+
+func (r *Runner) appServer() bool { return r.cfg.CodexMode == "app-server" }
 
 var _ runner.Runner = (*Runner)(nil)
 
@@ -40,7 +46,7 @@ func (r *Runner) Info() runner.Info {
 	if models == nil {
 		models = []string{}
 	}
-	return runner.Info{Name: Name, Label: "Codex", Models: models, Efforts: Efforts, Images: true, Resume: true}
+	return runner.Info{Name: Name, Label: "Codex", Models: models, Efforts: Efforts, Images: true, Resume: true, Steer: r.appServer()}
 }
 
 func (r *Runner) Check(ctx context.Context) runner.Status {
@@ -51,6 +57,9 @@ func (r *Runner) Check(ctx context.Context) runner.Status {
 func (r *Runner) Start(ctx context.Context, t *task.Task, opts runner.Options, emit runner.EmitFunc) error {
 	if emit == nil {
 		emit = func(task.Event) error { return nil }
+	}
+	if r.appServer() {
+		return r.startAppServer(ctx, t, opts, emit)
 	}
 	path, err := exec.LookPath(r.cfg.CodexBin)
 	if err != nil {
@@ -70,22 +79,8 @@ func (r *Runner) buildArgs(t *task.Task, opts runner.Options) []string {
 		"--sandbox", "danger-full-access",
 		"--json",
 		"--skip-git-repo-check",
-		"-c", fmt.Sprintf("mcp_servers.mob-mcp.command=%q", r.cfg.MobMCPCommand),
 	}
-	if len(r.cfg.MobMCPArgs) > 0 {
-		args = append(args, "-c", fmt.Sprintf("mcp_servers.mob-mcp.args=%s", tomlStringArray(r.cfg.MobMCPArgs)))
-	} else {
-		args = append(args, "-c", "mcp_servers.mob-mcp.args=[]")
-	}
-	// mob-mcp's tools never wait for Codex's own approval (we gate risky actions
-	// with request_approval), and ask_user may block until the user answers.
-	args = append(args, "-c", `mcp_servers.mob-mcp.default_tools_approval_mode="approve"`)
-	if opts.ToolTimeout > 0 {
-		args = append(args, "-c", fmt.Sprintf("mcp_servers.mob-mcp.tool_timeout_sec=%d", int(opts.ToolTimeout.Seconds())))
-	}
-	if len(opts.MCPEnv) > 0 {
-		args = append(args, "-c", "mcp_servers.mob-mcp.env="+tomlInlineTable(opts.MCPEnv))
-	}
+	args = append(args, r.mcpConfig(opts)...)
 	if opts.Instructions != "" {
 		args = append(args, "-c", fmt.Sprintf("developer_instructions=%s", tomlString(opts.Instructions)))
 	}
@@ -107,6 +102,26 @@ func (r *Runner) buildArgs(t *task.Task, opts runner.Options) []string {
 	} else {
 		args = append(args, turn...)
 		args = append(args, "--", "-")
+	}
+	return args
+}
+
+// mcpConfig wires mob-mcp into Codex (shared by exec and app-server).
+func (r *Runner) mcpConfig(opts runner.Options) []string {
+	args := []string{"-c", fmt.Sprintf("mcp_servers.mob-mcp.command=%q", r.cfg.MobMCPCommand)}
+	if len(r.cfg.MobMCPArgs) > 0 {
+		args = append(args, "-c", fmt.Sprintf("mcp_servers.mob-mcp.args=%s", tomlStringArray(r.cfg.MobMCPArgs)))
+	} else {
+		args = append(args, "-c", "mcp_servers.mob-mcp.args=[]")
+	}
+	// mob-mcp's tools never wait for Codex's own approval (we gate risky actions
+	// with request_approval), and ask_user may block until the user answers.
+	args = append(args, "-c", `mcp_servers.mob-mcp.default_tools_approval_mode="approve"`)
+	if opts.ToolTimeout > 0 {
+		args = append(args, "-c", fmt.Sprintf("mcp_servers.mob-mcp.tool_timeout_sec=%d", int(opts.ToolTimeout.Seconds())))
+	}
+	if len(opts.MCPEnv) > 0 {
+		args = append(args, "-c", "mcp_servers.mob-mcp.env="+tomlInlineTable(opts.MCPEnv))
 	}
 	return args
 }

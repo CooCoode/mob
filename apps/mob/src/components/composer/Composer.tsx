@@ -78,6 +78,8 @@ export function Composer({ machineId, machineName, health }: { machineId: string
   const uploading = attachments.some((a) => !a.id && !a.error);
   const ready = attachments.filter((a) => a.id);
   const busy = chat.busy;
+  // While a turn runs, a runner that supports it takes extra messages.
+  const canSteer = chat.currentTask?.status === "running" && !!runner?.steer && supports(health, "steer") && !chat.cancelling;
 
   useEffect(() => {
     input.current?.focus();
@@ -104,6 +106,10 @@ export function Composer({ machineId, machineName, health }: { machineId: string
 
   async function send() {
     const prompt = text.trim();
+    if (canSteer && prompt) {
+      if (await chat.steer(prompt) && useComposer.getState().text.trim() === prompt) setText("");
+      return;
+    }
     if (!prompt || !chat.canSend || uploading) return;
     const ok = await chat.submit(prompt, {
       // Only send settings the turn's runner offers (prefs may come from another runner).
@@ -182,7 +188,7 @@ export function Composer({ machineId, machineName, health }: { machineId: string
               void send();
             }
           }}
-          placeholder={busy ? "The agent is working… you can draft the next message" : `Ask mob to do something on ${machineName}…`}
+          placeholder={canSteer ? "Add to what the agent is doing… (↵ sends to the running turn)" : busy ? "The agent is working… you can draft the next message" : `Ask mob to do something on ${machineName}…`}
           aria-label="Task prompt"
           className="block max-h-60 min-h-[44px] w-full resize-none bg-transparent px-3.5 pb-1 pt-3 text-[14px] leading-relaxed outline-none placeholder:text-muted-foreground/70"
         />
@@ -238,6 +244,13 @@ export function Composer({ machineId, machineName, health }: { machineId: string
             </>
           )}
           <div className="flex-1" />
+          {canSteer && (
+            <Tooltip content="Send to the running turn" side="top">
+              <Button size="icon" variant="secondary" className="mr-1 size-8 rounded-full" aria-label="Send to running turn" disabled={!text.trim()} onClick={() => void send()}>
+                <ArrowUp className="size-4" strokeWidth={2.5} />
+              </Button>
+            </Tooltip>
+          )}
           {busy ? (
             <Tooltip content="Stop" side="top">
               <Button size="icon" className="size-8 rounded-full" aria-label="Stop" disabled={chat.cancelling} onClick={() => void chat.cancel()}>

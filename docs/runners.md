@@ -62,9 +62,22 @@ Runners also receive `Options.Instructions` (when to ask, which actions need app
 | `codex` | `-c developer_instructions=…` | `mcp_servers.mob-mcp.tool_timeout_sec` | `mcp_servers.mob-mcp.default_tools_approval_mode="approve"` |
 | `claude` | `--append-system-prompt …` | `MCP_TOOL_TIMEOUT` (ms) | `--permission-mode bypassPermissions`, or `--allowedTools mcp__mob-mcp,…` in approve mode |
 
-For Codex in `exec` mode, approval is a soft gate: the instructions tell it to call `request_approval`, but `codex exec` cannot force it.
+For Codex in `exec` mode, approval is a soft gate: the instructions tell it to call `request_approval`, but `codex exec` cannot force it. In app-server mode with `MOBD_CODEX_PERMISSIONS=approve` it is a hard gate (below).
 
 **Claude Code hard gate** (`MOBD_CLAUDE_PERMISSIONS=approve`): Claude runs in `manual` permission mode with `--permission-prompt-tool mcp__mob-mcp__approve_tool`. Any tool call Claude would normally ask about (shell commands, edits outside its working directory, …) becomes an approval card "Allow the agent to use Bash?" with the tool input; deny or no answer blocks it. Desktop tools, ask tools, reading and searching are pre-allowed. Claude's own rules still apply: simple writes inside its working directory are allowed without asking.
+
+## Codex app-server mode (default)
+
+`MOBD_CODEX_MODE=app-server` (default; `exec` is the fallback) runs `codex app-server`, Codex's JSON-RPC server over stdio (one message per line, no `jsonrpc` field), one process per turn: `initialize` → `initialized` → `thread/start` or `thread/resume` (cwd, `sandbox: danger-full-access`, approval policy, `developerInstructions`, model) → `turn/start` (text and `localImage` inputs, model, effort). Notifications map like the exec JSONL: `item/started`/`item/completed` → steps and replies, `thread/tokenUsage/updated` → turn usage (thread total minus what preceded the turn), `turn/completed` ends the turn and closes stdin so the server exits. mob-mcp is configured with the same `-c mcp_servers.mob-mcp.*` overrides as exec. Resume IDs are Codex thread IDs in both modes.
+
+What app-server adds:
+
+- **Hard approvals.** `MOBD_CODEX_PERMISSIONS=approve` sets `approvalPolicy: "untrusted"`. Codex's `item/commandExecution/requestApproval` and `item/fileChange/requestApproval` requests become approval cards ("Allow the agent to run …?") through `Options.Ask`, answered `accept`/`decline`; no answer means decline. Default `bypass` uses `never`.
+- **Interrupt.** Cancelling sends `turn/interrupt` and gives Codex 3 s to stop before the process group is killed.
+- **Steering.** `POST /tasks/{id}/steer {prompt}` sends `turn/steer` to the running turn (runners with `steer: true` in `/health`); the message is saved as a user message in the conversation.
+- **Streaming.** `item/agentMessage/delta` updates the reply in the timeline while Codex writes it (throttled to ~400 ms).
+
+The protocol is marked experimental by Codex; `codex app-server generate-ts --out <dir>` prints the types for the installed version.
 
 ## Adding a runner
 
@@ -77,7 +90,7 @@ For Codex in `exec` mode, approval is a soft gate: the instructions tell it to c
 
 | Name | Command | Resume | Efforts | Images | Cost |
 | --- | --- | --- | --- | --- | --- |
-| `codex` | `codex exec --json … [resume <id>] -` (prompt on stdin) | ✓ | minimal, low, medium, high, xhigh | ✓ | — |
+| `codex` | `codex app-server` (default) or `codex exec --json … [resume <id>] -` | ✓ | minimal, low, medium, high, xhigh | ✓ | — |
 | `claude` | `claude -p --input-format stream-json --output-format stream-json --verbose --strict-mcp-config --mcp-config … [--resume <id>]` (prompt and images as a stream-json user message) | ✓ | low, medium, high, xhigh, max | ✓ | ✓ |
 
 Enabled runners come from `MOBD_RUNNERS` (default `codex,claude`); missing CLIs show as unavailable on `/health` and in the App.

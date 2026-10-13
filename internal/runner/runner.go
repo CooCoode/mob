@@ -5,6 +5,7 @@ package runner
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"sort"
 	"time"
@@ -30,7 +31,22 @@ type Options struct {
 	Instructions string
 	// ToolTimeout is the minimum time a mob-mcp tool call may block (ask_user).
 	ToolTimeout time.Duration
+	// Ask shows an approval or question to the user and blocks until it is
+	// settled, for runners whose agent asks in-process (Codex app-server).
+	Ask AskFunc
 }
+
+// AskFunc asks the user; kind is task.QuestionAsk or task.QuestionApproval.
+type AskFunc func(ctx context.Context, kind, text, details string) (task.Question, error)
+
+// Steerer is implemented by runners that accept more input during a turn.
+type Steerer interface {
+	// Steer adds the user's message to the task's running turn.
+	Steer(taskID, text string) error
+}
+
+// ErrNotSteerable reports a turn that cannot take more input right now.
+var ErrNotSteerable = errors.New("this turn cannot take new messages")
 
 // Info describes what a runner supports. It is static: no processes are started.
 type Info struct {
@@ -44,6 +60,8 @@ type Info struct {
 	Resume bool `json:"resume"`
 	// Cost reports whether usage includes a dollar cost.
 	Cost bool `json:"cost"`
+	// Steer reports whether messages can be added to a running turn.
+	Steer bool `json:"steer"`
 }
 
 // Status is the readiness of a runner on this machine.

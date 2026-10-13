@@ -114,7 +114,7 @@ func TestEventCursorResumesWithoutDuplicates(t *testing.T) {
 
 func waitTask(t *testing.T, s *Server, id string) *task.Task {
 	t.Helper()
-	deadline := time.Now().Add(5 * time.Second)
+	deadline := time.Now().Add(20 * time.Second) // generous: -race with all packages in parallel is slow
 	for time.Now().Before(deadline) {
 		got, err := s.store.Get(id)
 		if err != nil {

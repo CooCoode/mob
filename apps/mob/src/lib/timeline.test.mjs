@@ -71,3 +71,13 @@ test("questions appear in order, replace their tool step, and mark the turn wait
   const answered = buildTimeline([task("t1", "running")], [], [], [{ ...q, status: "answered", answer: "ANA" }]);
   assert.equal(answered.at(-1).waiting, false);
 });
+
+test("messages the user adds during a turn appear as user bubbles in order", () => {
+  const items = buildTimeline(
+    [task("t1", "running")],
+    [msg("t1", "user", 0), msg("t1", "assistant", 2, "a1"), { id: "t1:steer:5", taskId: "t1", role: "user", content: "also banana", createdAt: at(4) }],
+    [],
+  );
+  assert.deepEqual(items.map((i) => i.type), ["user", "assistant", "user", "working"]);
+  assert.equal(items[2].message.content, "also banana");
+});

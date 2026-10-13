@@ -119,6 +119,7 @@ Existing v2 endpoints keep their shape. New fields are additive.
 | POST | `/uploads` | `multipart/form-data` field `file`; PNG/JPEG/GIF/WebP up to 20 MiB → `{id, name, mime, size, url}` |
 | GET | `/artifacts/{id}` | Stored image (screenshots from tool results, uploads). Immutable, `Cache-Control: max-age=31536000` |
 | POST | `/tasks/{id}/questions/{qid}/answer` | Answer a pending question: `{answer}` (questions) or `{approved, answer?}` (approvals) → question; 409 if already settled ([runners.md](runners.md#asking-the-user-ask_user-request_approval)) |
+| POST | `/tasks/{id}/steer` | `{prompt}`: add a message to the running turn (runners with `steer`; Codex app-server). 409 when the turn cannot take input |
 | POST | `/internal/tasks/{id}/ask` | Used by `mobd mcp` only (per-turn token); blocks until the question is settled |
 | GET | `/vnc` | WebSocket ↔ TCP relay to `MOBD_VNC_ADDR` (Screen Sharing); replaces websockify ([ADR 0010](adr/0010-vnc-relay-in-mobd.md)). 403 for unknown origins, 502 if the VNC server is down |
 

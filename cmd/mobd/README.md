@@ -128,6 +128,8 @@ curl -s -X POST localhost:8080/tasks \
 | `MOBD_DATA_DIR` | directory of `MOBD_STATE_PATH` | Root of `artifacts/` (tool screenshots, uploads) |
 | `MOBD_QUESTION_TIMEOUT` | `30m` | How long a turn waits for your answer to the agent's question or approval request |
 | `MOBD_RUNNERS` | `codex,claude` | Enabled runners |
+| `MOBD_CODEX_MODE` | `app-server` | `app-server` (approvals, steering, streaming) or `exec` |
+| `MOBD_CODEX_PERMISSIONS` | `bypass` | `approve` makes Codex ask you before commands and file edits |
 | `MOBD_CLAUDE_BIN` / `MOBD_CLAUDE_WORKDIR` / `MOBD_CLAUDE_MODELS` | `claude` / Codex's work dir / `opus,sonnet,haiku` | Claude Code runner |
 | `MOBD_CLAUDE_PERMISSIONS` | `bypass` | `approve` makes Claude ask you before shell commands and other prompted actions |
 | `MOBD_CLAUDE_SETTING_SOURCES` | `project` | Claude settings loaded; `all` includes your personal `~/.claude` |

@@ -206,6 +206,21 @@ export class Chat {
     }
   }
 
+  /** Adds a message to the running turn (runners that support steering). */
+  async steer(text: string): Promise<boolean> {
+    const t = this.currentTask;
+    if (!t || t.status !== "running" || !text.trim()) return false;
+    try {
+      await this.request(`${this.url}/tasks/${t.id}/steer`, {
+        method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ prompt: text }),
+      });
+      return true;
+    } catch (err) {
+      this.fail(err);
+      return false;
+    }
+  }
+
   /** Questions still waiting for the user, oldest first. */
   get pendingQuestions(): Question[] {
     return this.questions.filter((q) => q.status === "pending");
@@ -360,11 +375,13 @@ export class Chat {
             this.changed();
           }
           if (type === "message" && data.messageId && typeof data.message === "string" && this.session) {
-            const id = `${t.id}:${data.messageId}`;
+            const user = data.role === "user";
+            // User messages added mid-turn already carry their full ID.
+            const id = user ? data.messageId : `${t.id}:${data.messageId}`;
             const messages = this.session.messages ??= [];
             const existing = messages.find((m) => m.id === id);
             if (existing) existing.content = data.message;
-            else messages.push({ id, taskId: t.id, role: "assistant", content: data.message, createdAt: data.timestamp });
+            else messages.push({ id, taskId: t.id, role: user ? "user" : "assistant", content: data.message, createdAt: data.timestamp });
             this.changed();
           }
           if (data.status && this.session) {

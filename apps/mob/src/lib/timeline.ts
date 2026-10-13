@@ -48,7 +48,8 @@ export function buildTimeline(tasks: Task[], messages: ChatMessage[], activities
     const seenNotices = new Set<string>();
     const entries: Entry[] = [];
     let order = 0;
-    for (const m of b.messages) if (m.role === "assistant") entries.push({ at: time(m.createdAt), order: order++, message: m });
+    // Replies, plus messages the user added while the turn ran.
+    for (const m of b.messages) if (m.id !== user?.id) entries.push({ at: time(m.createdAt), order: order++, message: m });
     for (const a of b.activities) {
       if (a.kind === "notice") {
         if (seenNotices.has(a.text ?? a.title)) continue;
@@ -72,7 +73,8 @@ export function buildTimeline(tasks: Task[], messages: ChatMessage[], activities
         items.push({ type: "question", id: `q:${e.question.id}`, question: e.question });
       } else {
         flush();
-        items.push({ type: "assistant", id: e.message!.id, message: e.message! });
+        const m = e.message!;
+        items.push(m.role === "user" ? { type: "user", id: m.id, message: m } : { type: "assistant", id: m.id, message: m });
       }
     }
     flush();

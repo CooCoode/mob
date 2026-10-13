@@ -110,6 +110,7 @@ export interface TaskEvent {
   type: string;
   message?: string;
   messageId?: string;
+  role?: "user" | "assistant";
   resumeId?: string;
   status?: TaskStatus;
   activity?: Activity;
@@ -132,6 +133,7 @@ export interface RunnerInfo {
   images: boolean;
   resume: boolean;
   cost: boolean;
+  steer?: boolean;
   available: boolean;
   detail?: string;
   default: boolean;
