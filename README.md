@@ -14,7 +14,7 @@ Screen viewing uses the VNC protocol. The human-facing viewer is the sibling pro
 
 For current client testing, human input is temporarily enabled in [`apps/mob`](apps/mob/README.md).
 
-MOB owns task dispatch, the office runner, and the client shell that embeds svnc. Actuation prefers an in-repo local computer-use MCP (**`mob-mcp`**, [ADR 0007](docs/adr/0007-actuation-mob-mcp.md)) and stays separate from the human viewOnly VNC session.
+MOB owns task dispatch, the office runner, and the client shell that embeds svnc. Actuation prefers an in-repo local computer-use MCP (**`mob-mcp`**, [ADR 0007](docs/adr/0007-actuation-mob-mcp.md); moving into the `mobd` binary per [ADR 0008](docs/adr/0008-actuation-in-mobd.md)) and stays separate from the human viewOnly VNC session.
 
 ## High-level architecture
 
@@ -61,7 +61,8 @@ flowchart LR
 - [Office service scripts](scripts/README.md)
 - [Roadmap](docs/roadmap.md)
 - [Phase 2 lite home App `apps/mob` (embed svnc)](docs/client-phase2-lite.md)
-- [apps/mob UI plan](docs/apps-mob-ui.md)
+- [apps/mob UI design (v2)](docs/apps-mob-ui.md)
+- [mobd v3 features and API design](docs/mobd-v3.md)
 - [Security notes](docs/security.md)
 - ADRs:
   - [0001 — Screen view: VNC + svnc](docs/adr/0001-screen-view-vnc-svnc.md)
@@ -70,7 +71,9 @@ flowchart LR
   - [0004 — Runner: Codex first](docs/adr/0004-runner-codex-first.md)
   - [0005 — Backend: Go](docs/adr/0005-backend-go.md)
   - [0006 — Actuation: ControlMCP first](docs/adr/0006-actuation-controlmcp-first.md) (**superseded**)
-  - [0007 — Actuation: in-repo mob-mcp](docs/adr/0007-actuation-mob-mcp.md)
+  - [0007 — Actuation: in-repo mob-mcp](docs/adr/0007-actuation-mob-mcp.md) (language **superseded** by 0008)
+  - [0008 — Actuation: merge mob-mcp into mobd (Go)](docs/adr/0008-actuation-in-mobd.md)
+  - [0009 — Home App frontend: React + Tailwind + shadcn/ui](docs/adr/0009-app-frontend-react.md)
 
 ## License
 

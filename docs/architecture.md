@@ -25,6 +25,8 @@ Thin HTTP/API layer owned by MOB, implemented in **Go** as `mobd` (see [ADR 0005
 
 MOB learns UX concepts from tools like Paseo / Orca (remote start of coding agents, task state) but does **not** fork those projects. See [ADR 0002](adr/0002-orchestration-thin-custom.md).
 
+`mobd` v3 ([design](mobd-v3.md)) adds typed agent activities, a global desktop queue (one driver at a time), session admin, a global event stream, desktop snapshots and uploads.
+
 `mobd` stores conversations, messages, turn states and native Codex thread IDs in an atomic private JSON snapshot (`MOBD_STATE_PATH`). Each conversation allows one active turn. The CLI runner uses JSONL `agent_message` events and explicitly resumes that conversation's thread; SSE debug logs are separate from chat messages. See [the session API](../cmd/mobd/README.md#conversations-and-runner-lifecycle).
 
 ### Office runner (Codex first)
@@ -41,7 +43,8 @@ The runner host is part of the same **Go** binary boundary as the control plane 
 
 How the agent opens apps and operates the GUI on the office Mac.
 
-- **Phase 1 preferred:** in-repo [`services/mob-mcp`](../services/mob-mcp/) on the office machine, with macOS Accessibility + Screen Recording. See [ADR 0007](adr/0007-actuation-mob-mcp.md) and [research-computer-use.md](research-computer-use.md).
+- **Default:** the in-repo `mob-mcp` tool set on the office machine, with macOS Accessibility + Screen Recording. See [ADR 0007](adr/0007-actuation-mob-mcp.md) and [research-computer-use.md](research-computer-use.md).
+- **Moving into mobd:** [ADR 0008](adr/0008-actuation-in-mobd.md) ports it to Go (`internal/actuate`) and serves it as `mobd mcp` over stdio, so one binary holds the permissions and mobd can reuse actuation for `/screen` and readiness checks.
 - **Later optional:** other local MCP servers via configuration **after license review** (GhostDesk FSL Competing Use is a poor fit to ship as MOB’s core; see research).
 - **Fallback:** svnc Automation (click / type over VNC), on a path separate from the human viewOnly session.
 

@@ -17,6 +17,9 @@ Phased delivery. Do not skip the separation of **view** (human) and **actuation*
 
 ## Phase 2 — Productize the client
 
+Order of work (2026-10-13): design docs ([mobd-v3](mobd-v3.md), [apps-mob-ui v2](apps-mob-ui.md), ADR [0008](adr/0008-actuation-in-mobd.md) / [0009](adr/0009-app-frontend-react.md)) → **mobd v3** APIs and features → **merge mob-mcp into mobd** → **App v2** (React port, then redesign). Security hardening is deferred while in development.
+
+
 - Integrate the svnc viewer into MOB clients (home Mac first via **`apps/mob`**, then iPhone) — see **[client-phase2-lite.md](client-phase2-lite.md)** (recommended stack: **Tauri 2 + Vite/TS**)
 - Unified UX: chat / task list + embedded live desktop (`viewOnly`)
 - **Intranet auth and basic audit log land with the App** (not as a Phase 1 gate). Wire tokens/session to `mobd` when the home client exists.

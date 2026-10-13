@@ -2,7 +2,7 @@
 
 ## Status
 
-Accepted
+Accepted; **implementation language superseded** by [ADR 0008](0008-actuation-in-mobd.md) (Go, inside the `mobd` binary as `mobd mcp`). The in-repo, MIT, local-MCP-by-default decision stands.
 
 ## Context
 
