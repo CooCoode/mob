@@ -54,3 +54,57 @@ releases cannot be overwritten by this workflow. Use a new version tag for fixes
 The App is distributed as `mob_<version>_darwin_arm64.dmg`. Users drag `mob.app`
 into Applications. Signing/notarization needs an Apple Developer membership and
 working Apple credentials; local unsigned compilation does not validate that chain.
+
+## Tauri updater setup
+
+Apple code signing and updater signing are independent. Generate one long-lived
+updater key pair locally, keep an offline backup, and reuse it for every release:
+
+```bash
+mkdir -p ~/.tauri
+npm --prefix apps/mob run tauri -- signer generate -w ~/.tauri/mob.key
+```
+
+Choose a strong password when prompted. Configure the **release** environment:
+
+| Kind | Name | Value |
+| --- | --- | --- |
+| Secret | `TAURI_SIGNING_PRIVATE_KEY` | Full contents of `~/.tauri/mob.key` (not its path) |
+| Secret | `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` | Password chosen when generating the key |
+| Variable | `TAURI_UPDATER_PUBLIC_KEY` | Full contents of `~/.tauri/mob.key.pub` (not its path) |
+
+The workflow merges the public key, version, HTTPS endpoint and
+`createUpdaterArtifacts: true` into a temporary Tauri config. Developer builds
+need no signing key and have no update feed configured. Do not replace the key
+pair between releases: installed clients trust the old public key. Store signing
+keys independently of the Apple certificate; rotating one does not rotate the other.
+
+For this repository the endpoint is:
+
+```
+https://github.com/xrdavies/mob/releases/latest/download/latest.json
+```
+
+No separate update server is needed. The release must be publicly downloadable;
+do not embed a GitHub token in the App. Forks automatically use their own
+`GITHUB_REPOSITORY` endpoint. Every latest release must include the App update
+assets, even when only mobd changed. Marking a mobd-only release as latest would
+break the feed. Drafts are not visible to the updater until published.
+
+CI generates `latest.json` with version, release date and the `darwin-aarch64`
+platform entry. The entry contains the **contents** of the generated `.sig` and
+the version-specific HTTPS URL to `mob_<version>_darwin_arm64.app.tar.gz`.
+The `.dmg` is the manual install download; the `.app.tar.gz` is the updater payload.
+Both the archive and its `.sig` are attached to the same release.
+
+The release App checks once on launch. Settings → About provides a manual retry,
+current version and error details. Available updates show a banner; installation
+requires confirmation and restarts the App. A running/submitting visible turn
+blocks installation. Copy unsent drafts/attachments before confirming. A failed
+download/signature check never restarts the App. If installation succeeds but
+restart fails, the user is told to quit and reopen. Browser development skips checks.
+
+Before announcing auto-update support, install signed version A from a DMG, publish
+higher version B, and verify check → download → signature verification → installation
+→ restart on a separate Mac, including a failed/offline check and manual retry.
+Apple signing checks alone do not test Tauri's updater signature or this flow.

@@ -1,3 +1,4 @@
+import { UpdateNotice } from "@/components/UpdateNotice";
 import { Monitor } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Toaster } from "sonner";
@@ -123,6 +124,7 @@ export default function App() {
   return (
     <TooltipProvider delayDuration={400}>
       <div className="flex h-full flex-col">
+        <UpdateNotice />
         <TitleBar machine={machine} health={health.data} healthError={health.isError} queue={queue}
           refetchHealth={() => void health.refetch()} dark={dark} />
         <div className="flex min-h-0 flex-1">

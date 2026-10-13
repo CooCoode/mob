@@ -1,3 +1,4 @@
+import { UpdateSettings } from "@/components/UpdateNotice";
 import { CheckCircle2, CircleHelp, Info, Monitor, Moon, Palette, Plus, ScrollText, Sun, SunMoon, Trash2, XCircle } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { fetchHealth } from "@/api/client";
@@ -229,8 +230,9 @@ export function SettingsDialog() {
             <TabsContent value="about">
               <div className="grid gap-1 text-[13px]">
                 <p className="font-semibold">mob</p>
-                <p className="text-muted-foreground">Home client for the MOB office agent · v0.2.0</p>
+                <p className="text-muted-foreground">Home client for the MOB office agent</p>
                 <p className="text-muted-foreground">Desktop view by svnc · MIT</p>
+                <UpdateSettings />
               </div>
             </TabsContent>
           </div>
