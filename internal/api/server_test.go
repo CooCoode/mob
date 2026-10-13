@@ -11,6 +11,7 @@ import (
 	"image/jpeg"
 	"image/png"
 	"mime/multipart"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -824,5 +825,39 @@ func TestScreen(t *testing.T) {
 	capture = func(context.Context) ([]byte, error) { return nil, actuate.ErrUnsupported }
 	if rr := doJSON(t, s, http.MethodGet, "/screen", ""); rr.Code != http.StatusNotImplemented {
 		t.Fatalf("unsupported: %d", rr.Code)
+	}
+}
+
+func TestHealthReadiness(t *testing.T) {
+	dir := t.TempDir()
+	bin := filepath.Join(dir, "codex")
+	_ = os.WriteFile(bin, []byte("#!/bin/sh\necho codex-cli 9.9.9\n"), 0700)
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ln.Close()
+	cfg := config.Config{CodexBin: bin, MobMCPCommand: "mob-mcp-missing", VNCAddr: ln.Addr().String(),
+		Models: []string{"gpt-5.5"}, DataDir: dir}
+	s := New(cfg, task.NewStore(), codex.New(cfg))
+	t.Cleanup(s.Close)
+	var body struct {
+		APIVersion int `json:"apiVersion"`
+		MaxRunning int `json:"maxRunning"`
+		Models     []string
+		Efforts    []string
+		Features   []string
+		Checks     map[string]check
+	}
+	if err := json.Unmarshal(doJSON(t, s, http.MethodGet, "/health", "").Body.Bytes(), &body); err != nil {
+		t.Fatal(err)
+	}
+	c := body.Checks
+	if body.APIVersion != 3 || body.MaxRunning != 1 || len(body.Models) != 1 || len(body.Efforts) != 5 || len(body.Features) == 0 {
+		t.Fatalf("health %+v", body)
+	}
+	if !c["codex"].OK || !strings.Contains(c["codex"].Detail, "codex-cli 9.9.9") || c["actuation"].OK ||
+		!c["vnc"].OK || !c["accessibility"].Unknown {
+		t.Fatalf("checks %+v", c)
 	}
 }

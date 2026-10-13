@@ -27,6 +27,7 @@ type Server struct {
 
 	hub       *hub
 	artifacts *artifact.Store
+	health    healthCache
 
 	mu      sync.Mutex
 	cancels map[string]context.CancelFunc
@@ -114,13 +115,6 @@ func (s *Server) withCORS(next http.Handler) http.Handler {
 			return
 		}
 		next.ServeHTTP(w, r)
-	})
-}
-
-func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
-	writeJSON(w, http.StatusOK, map[string]any{
-		"ok": true, "service": "mobd", "apiVersion": 2,
-		"vncViewUrl": s.cfg.VNCViewURL, "runner": task.RunnerCodex, "mobMcp": s.cfg.MobMCPCommand,
 	})
 }
 

@@ -46,8 +46,8 @@ curl -s -X POST localhost:8080/tasks \
 curl -s localhost:8080/sessions | jq .
 curl -s localhost:8080/sessions/SESSION_ID | jq .
 
-# list
-curl -s localhost:8080/tasks | jq .
+# list (filters: sessionId, status, limit 1-500)
+curl -s 'localhost:8080/tasks?status=running' | jq .
 
 # get one (replace ID)
 curl -s localhost:8080/tasks/TASK_ID | jq .
@@ -60,6 +60,34 @@ curl -N -H 'Last-Event-ID: 12' localhost:8080/tasks/TASK_ID/events
 
 # cancel
 curl -s -X POST localhost:8080/tasks/TASK_ID/cancel | jq .
+```
+
+v3 additions ([design](../../docs/mobd-v3.md)):
+
+```bash
+# per-turn model / reasoning effort / image attachments
+curl -s -X POST localhost:8080/uploads -F file=@shot.png | jq .      # → {id, url, …}
+curl -s -X POST localhost:8080/tasks -H 'Content-Type: application/json' \
+  -d '{"prompt":"What is in this image?","effort":"high","attachments":["UPLOAD_ID"]}' | jq .
+
+# desktop queue (one running task by default)
+curl -s localhost:8080/queue | jq .
+
+# session admin
+curl -s -X PATCH localhost:8080/sessions/SESSION_ID -d '{"title":"Weekly report","pinned":true}' | jq .
+curl -s -X PATCH localhost:8080/sessions/SESSION_ID -d '{"archived":true}' | jq .
+curl -s 'localhost:8080/sessions?archived=all' | jq .
+curl -s -X DELETE localhost:8080/sessions/SESSION_ID -o /dev/null -w '%{http_code}\n'   # 204, 409 while active
+
+# timeline: messages + activities (tool calls, commands, plans…) + task usage
+curl -s localhost:8080/sessions/SESSION_ID | jq '.activities'
+
+# global live stream (session / session.deleted / task / queue / reset)
+curl -N localhost:8080/events
+
+# desktop snapshot without VNC; tool screenshots and uploads
+curl -s 'localhost:8080/screen?maxWidth=720' -o screen.jpg
+curl -s localhost:8080/artifacts/ARTIFACT_ID -o artifact.png
 ```
 
 With shared secret:
@@ -83,18 +111,24 @@ curl -s -X POST localhost:8080/tasks \
 | `MOBD_SHARED_SECRET` | empty | Optional auth for POST create/cancel — **deferred** until Phase 2 App; leave unset |
 | `MOBD_VNC_VIEW_URL` | empty | Returned on tasks / health for svnc viewOnly |
 | `MOBD_STATE_PATH` | user config directory + `mob/state.json` | Private conversation snapshot; on macOS: `~/Library/Application Support/mob/state.json` |
+| `MOBD_MAX_RUNNING` | `1` | Tasks running at once across all sessions; others wait in the FIFO desktop queue |
+| `MOBD_DATA_DIR` | directory of `MOBD_STATE_PATH` | Root of `artifacts/` (tool screenshots, uploads) |
+| `MOBD_MODELS` | empty | Comma-separated model IDs advertised on `/health` for client pickers |
+| `MOBD_VNC_ADDR` | empty | `host:port` probed by the `/health` VNC check |
 
 ## Conversations and runner lifecycle
 
-Update the office **mobd** together with the client. `/health` advertises `apiVersion: 2`; older daemons do not provide conversation history. Old in-memory tasks cannot be recovered after upgrading/restarting.
+Update the office **mobd** together with the client. `/health` advertises `apiVersion: 3` with `features`, `models`, `efforts` and readiness `checks`; v2 clients keep working because v3 only adds fields and routes. Old in-memory tasks cannot be recovered after upgrading/restarting.
 
+- Every new turn starts `queued`. A FIFO dispatcher runs at most `MOBD_MAX_RUNNING` turns at once so agents never fight over the desktop; queued tasks report `queuePosition`, and cancelling one finishes it without starting Codex. Queued turns are marked failed on restart, like running ones.
+- Codex `mcp_tool_call`, `command_execution`, `reasoning`, `todo_list`, `file_change`, `web_search` and `error` items become persisted **activities** (upserted by item ID, text capped at 16 KiB); tool screenshots are saved as artifacts. `turn.completed` usage is stored on the task.
 - `POST /tasks` without `sessionId` creates a conversation and its first turn atomically. With `sessionId`, it continues that conversation; an active turn returns **409**, without adding a user message.
 - The first turn uses `codex exec --json`; following turns use `codex exec … resume <threadId> -`. Prompts travel through stdin. Completed `agent_message` items become assistant messages; stderr/tool output stays in debug logs. Replies appear when Codex completes a message item, rather than token by token.
 - Conversation IDs, Codex thread IDs, messages and task states are written atomically before acknowledgement/delivery. The file has mode **0600**. Keep it and Codex's own session directory on the office host. Run one mobd writer per state path; this snapshot store is intended for a single office daemon.
 - On restart, interrupted turns become **failed** and are never rerun automatically. Completed messages and thread IDs remain available for continuation.
 - Cancel returns **202** and keeps the conversation busy until the process stops and output readers finish. SIGINT/SIGTERM also cancels active turns before shutdown.
 - Use a service supervisor that cleans up child processes after a hard daemon crash/SIGKILL; otherwise stop any orphaned Codex process before resuming its conversation. Snapshot recovery marks the interrupted turn failed, but cannot stop a process left by a dead daemon.
-- SSE events have monotonic per-task `id` fields. `Last-Event-ID` / `?after=` resume in-process replay without duplicating messages. Raw logs are memory-only; after a daemon restart, `GET /sessions/:id` is the authoritative transcript and task snapshot.
+- SSE events have monotonic per-task `id` fields. `Last-Event-ID` / `?after=` resume in-process replay without duplicating messages. Raw logs are memory-only and capped at 2000 lines per task; after a daemon restart, `GET /sessions/:id` is the authoritative transcript and task snapshot.
 
 The runner follows the session/turn separation and structured message recovery used by [Paseo](https://github.com/getpaseo/paseo/blob/main/packages/server/src/server/agent/providers/codex-app-server-agent.ts) and [Orca](https://github.com/stablyai/orca/blob/main/src/main/codex/codex-app-server-session.ts). MOB keeps the existing CLI runner; app-server RPC is a later option for token deltas or interactive approvals. CLI event and resume behavior follows the [Codex non-interactive documentation](https://developers.openai.com/codex/noninteractive/).
 | `MOBD_CORS_ORIGINS` | `http://localhost:1420,http://127.0.0.1:1420,tauri://localhost,http://tauri.localhost` | Comma-separated exact origins; a nonempty value replaces the defaults |

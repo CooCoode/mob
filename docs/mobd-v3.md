@@ -1,6 +1,6 @@
 # mobd v3 — features and API design
 
-**Status:** design, implemented incrementally. `GET /health` reports `apiVersion: 3` once this lands.
+**Status:** implemented (steps 1–6 below); step 7 is [ADR 0008](adr/0008-actuation-in-mobd.md). `GET /health` reports `apiVersion: 3`.
 **Scope:** the office control plane (`cmd/mobd`, `internal/...`). Auth and hardening are out of scope while MOB is in development (see [roadmap](roadmap.md)).
 **Related:** [ADR 0008](adr/0008-actuation-in-mobd.md) (actuation merged into mobd), [ADR 0009](adr/0009-app-frontend-react.md) and [apps-mob-ui.md](apps-mob-ui.md) (the client that uses these APIs).
 
@@ -139,7 +139,7 @@ Existing v2 endpoints keep their shape. New fields are additive.
 }
 ```
 
-`ok` stays true when mobd is serving. `checks` explain readiness without blocking anything. Permission checks report `"unknown"` until actuation runs in-process ([ADR 0008](adr/0008-actuation-in-mobd.md)). `models` comes from `MOBD_MODELS` (comma-separated). An empty list means "Codex default only". The `vnc` check runs only when `MOBD_VNC_ADDR` is set.
+`ok` stays true when mobd is serving. `checks` explain readiness without blocking anything and are cached for 10 s. Each check is `{ok, unknown?, detail?}`; permission checks report `unknown: true` until actuation runs in-process ([ADR 0008](adr/0008-actuation-in-mobd.md)). `models` comes from `MOBD_MODELS` (comma-separated). An empty list means "Codex default only". The `vnc` check runs only when `MOBD_VNC_ADDR` is set.
 
 ### Global events (`GET /events`)
 
