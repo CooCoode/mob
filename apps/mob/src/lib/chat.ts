@@ -1,44 +1,10 @@
-export type TaskStatus = "queued" | "running" | "succeeded" | "failed" | "cancelled";
+import type {
+  Activity, ChatMessage, Queue, Session, SessionDetail, Task, TaskEvent, TaskStatus, TurnOptions,
+} from "../api/types.ts";
 
-export interface Task {
-  id: string;
-  sessionId: string;
-  eventId: number;
-  prompt: string;
-  status: TaskStatus;
-  runner: string;
-  error?: string | null;
-}
+export type { Activity, ChatMessage, Session, Task, TaskStatus };
 
-export interface ChatMessage {
-  id: string;
-  taskId: string;
-  role: "user" | "assistant";
-  content: string;
-  createdAt: string;
-}
-
-export interface Session {
-  id: string;
-  title: string;
-  activeTaskId?: string;
-  status: TaskStatus;
-  messages?: ChatMessage[];
-}
-
-interface SessionDetail {
-  session: Session;
-  tasks: Task[];
-}
-
-interface TaskEvent {
-  id: number;
-  type: string;
-  message?: string;
-  messageId?: string;
-  status?: TaskStatus;
-  timestamp: string;
-}
+const EVENT_TYPES = ["status", "message", "thread", "activity", "usage", "log", "progress", "error"];
 
 export function terminal(status: TaskStatus): boolean {
   return status === "succeeded" || status === "failed" || status === "cancelled";
@@ -51,6 +17,7 @@ export class Chat {
   sessionId: string | null = null;
   session: Session | null = null;
   tasks: Task[] = [];
+  activities: Activity[] = [];
   ready = false;
   loading = false;
   submitting = false;
@@ -62,11 +29,17 @@ export class Chat {
   private source: EventSource | null = null;
   private cursor = 0;
   private recovering: number | null = null;
+  private changed: () => void;
+  private log: (line: string) => void;
 
-  constructor(
-    private changed: () => void,
-    private log: (line: string) => void,
-  ) {}
+  constructor(changed: () => void, log: (line: string) => void) {
+    this.changed = changed;
+    this.log = log;
+  }
+
+  get baseUrl(): string {
+    return this.url;
+  }
 
   get currentTask(): Task | null {
     return this.tasks[this.tasks.length - 1] ?? null;
@@ -113,6 +86,7 @@ export class Chat {
     this.sessionId = null;
     this.session = null;
     this.tasks = [];
+    this.activities = [];
     this.error = "";
     this.loading = false;
     this.cancelling = false;
@@ -126,6 +100,7 @@ export class Chat {
     this.sessionId = id;
     this.session = null;
     this.tasks = [];
+    this.activities = [];
     this.error = "";
     this.loading = true;
     this.cancelling = false;
@@ -161,7 +136,7 @@ export class Chat {
     }
   }
 
-  async submit(prompt: string): Promise<boolean> {
+  async submit(prompt: string, options: TurnOptions = {}): Promise<boolean> {
     if (!this.canSend || !prompt.trim()) return false;
     const revision = ++this.revision;
     const url = this.url;
@@ -173,7 +148,10 @@ export class Chat {
       const t = await this.request<Task>(`${url}/tasks`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ prompt, sessionId: sessionId ?? undefined }),
+        body: JSON.stringify({
+          prompt, sessionId: sessionId ?? undefined, model: options.model || undefined,
+          effort: options.effort || undefined, attachments: options.attachments?.length ? options.attachments : undefined,
+        }),
       });
       if (!t.sessionId) throw new Error("Update office mobd to support chat sessions.");
       this.log(`created turn ${t.id} in session ${t.sessionId}`);
@@ -188,8 +166,9 @@ export class Chat {
         }],
       };
       this.tasks = [...this.tasks, t];
-      this.sessions = [{ id: t.sessionId, title: this.session.title, status: t.status, activeTaskId: t.id },
-        ...this.sessions.filter((s) => s.id !== t.sessionId)];
+      const previous = this.sessions.find((s) => s.id === t.sessionId);
+      this.sessions = [{ ...previous, id: t.sessionId, title: this.session.title, status: t.status, activeTaskId: t.id,
+        updatedAt: t.createdAt ?? new Date().toISOString() }, ...this.sessions.filter((s) => s.id !== t.sessionId)];
       this.cursor = t.eventId;
       this.changed();
       this.subscribe();
@@ -223,11 +202,63 @@ export class Chat {
     }
   }
 
+  /** Applies a session summary from the global event stream. */
+  applySession(summary: Session): void {
+    if (!this.ready) return;
+    const existing = this.sessions.find((s) => s.id === summary.id);
+    const merged = { ...existing, ...summary, messages: undefined };
+    this.sessions = [merged, ...this.sessions.filter((s) => s.id !== summary.id)];
+    if (this.session?.id === summary.id) {
+      this.session = { ...this.session, title: summary.title, pinned: summary.pinned, archived: summary.archived };
+    }
+    this.changed();
+  }
+
+  removeSession(id: string): void {
+    if (!this.sessions.some((s) => s.id === id) && this.sessionId !== id) return;
+    this.sessions = this.sessions.filter((s) => s.id !== id);
+    if (this.sessionId === id) this.newChat();
+    else this.changed();
+  }
+
+  /** Keeps the visible turn's queue position current. */
+  applyQueue(queue: Queue): void {
+    const t = this.currentTask;
+    if (!t || t.status !== "queued") return;
+    const position = queue.queued.find((q) => q.id === t.id)?.queuePosition;
+    if (position !== t.queuePosition) {
+      t.queuePosition = position;
+      this.changed();
+    }
+  }
+
+  async patchSession(id: string, patch: { title?: string; pinned?: boolean; archived?: boolean }): Promise<void> {
+    try {
+      const summary = await this.request<Session>(`${this.url}/sessions/${id}`, {
+        method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(patch),
+      });
+      if (summary.archived) this.removeSession(id);
+      else this.applySession(summary);
+    } catch (err) {
+      this.fail(err);
+    }
+  }
+
+  async deleteSession(id: string): Promise<void> {
+    try {
+      await this.request(`${this.url}/sessions/${id}`, { method: "DELETE" });
+      this.removeSession(id);
+    } catch (err) {
+      this.fail(err);
+    }
+  }
+
   private async request<T>(url: string, init?: RequestInit): Promise<T> {
     const res = await fetch(url, init);
     if (res.status === 404 && url.endsWith("/sessions")) {
       throw new Error("Update office mobd to support chat sessions.");
     }
+    if (res.status === 204) return undefined as T;
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
     return data as T;
@@ -253,6 +284,7 @@ export class Chat {
   private apply(detail: SessionDetail): void {
     this.session = detail.session;
     this.tasks = detail.tasks;
+    this.activities = detail.activities ?? [];
     this.cursor = this.currentTask?.eventId ?? 0;
     if (!this.busy) this.cancelling = false;
   }
@@ -265,7 +297,7 @@ export class Chat {
     const es = new EventSource(`${this.url}/tasks/${t.id}/events?after=${this.cursor}`);
     this.source = es;
     const current = () => this.source === es && this.revision === revision;
-    for (const type of ["status", "message", "thread", "log", "progress", "error"]) {
+    for (const type of EVENT_TYPES) {
       es.addEventListener(type, (raw) => {
         if (!current()) return;
         const ev = raw as MessageEvent<string>;
@@ -277,7 +309,17 @@ export class Chat {
           if (!task || task.id !== t.id) return;
           this.cursor = data.id;
           task.eventId = data.id;
-          this.log(`${type}: ${data.message ?? data.status ?? ""}`);
+          this.log(`${type}: ${data.message ?? data.status ?? data.activity?.title ?? ""}`);
+          if (type === "activity" && data.activity) {
+            const a = data.activity;
+            const i = this.activities.findIndex((x) => x.id === a.id);
+            this.activities = i >= 0 ? this.activities.map((x, j) => (j === i ? a : x)) : [...this.activities, a];
+            this.changed();
+          }
+          if (type === "usage" && data.usage) {
+            task.usage = data.usage;
+            this.changed();
+          }
           if (type === "message" && data.messageId && typeof data.message === "string" && this.session) {
             const id = `${t.id}:${data.messageId}`;
             const messages = this.session.messages ??= [];
@@ -289,6 +331,11 @@ export class Chat {
           if (data.status && this.session) {
             task.status = data.status;
             task.error = data.status === "failed" ? data.message : null;
+            if (data.status === "running") {
+              task.startedAt ??= data.timestamp;
+              task.queuePosition = undefined;
+            }
+            if (terminal(data.status)) task.finishedAt ??= data.timestamp;
             this.session.status = data.status;
             const summary = this.sessions.find((s) => s.id === this.sessionId);
             if (summary) summary.status = data.status;

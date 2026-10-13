@@ -1,13 +1,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
 import { setImmediate } from "node:timers/promises";
-import ts from "typescript";
-
-const js = ts.transpileModule(readFileSync(new URL("./chat.ts", import.meta.url), "utf8"), {
-  compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.ESNext },
-}).outputText;
-const { Chat } = await import(`data:text/javascript;base64,${Buffer.from(js).toString("base64")}`);
+// Node runs the erasable TypeScript module directly (type stripping).
+import { Chat } from "./chat.ts";
 
 function deferred() {
   let resolve;

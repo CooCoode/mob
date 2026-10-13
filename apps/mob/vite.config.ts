@@ -1,10 +1,16 @@
-import { defineConfig } from "vite";
-// @ts-expect-error process types without @types/node
+import { fileURLToPath, URL } from "node:url";
 import process from "node:process";
+import react from "@vitejs/plugin-react";
+import tailwindcss from "@tailwindcss/vite";
+import { defineConfig } from "vite";
 
 const host = process.env.TAURI_DEV_HOST;
 
 export default defineConfig(() => ({
+  plugins: [react(), tailwindcss()],
+  resolve: {
+    alias: { "@": fileURLToPath(new URL("./src", import.meta.url)) },
+  },
   clearScreen: false,
   envPrefix: ["VITE_", "MOBD_", "VNC_"],
   server: {
