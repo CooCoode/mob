@@ -19,6 +19,7 @@ type Config struct {
 	VNCViewURL    string
 	StatePath     string
 	CORSOrigins   []string
+	MaxRunning    int
 }
 
 // Load reads configuration from environment variables.
@@ -32,6 +33,7 @@ type Config struct {
 //	MOBD_VNC_VIEW_URL    Human svnc viewOnly URL (returned in health/info)
 //	MOBD_STATE_PATH      Conversation snapshot (default user config dir/mob/state.json)
 //	MOBD_CORS_ORIGINS    Comma-separated browser origins (Tauri dev defaults)
+//	MOBD_MAX_RUNNING     Tasks allowed to run at once across sessions (default 1: one desktop)
 func Load() Config {
 	cwd, _ := os.Getwd()
 	stateDir, err := os.UserConfigDir()
@@ -48,6 +50,10 @@ func Load() Config {
 		VNCViewURL:    os.Getenv("MOBD_VNC_VIEW_URL"),
 		StatePath:     envOr("MOBD_STATE_PATH", filepath.Join(stateDir, "mob", "state.json")),
 		CORSOrigins:   corsOrigins(os.Getenv("MOBD_CORS_ORIGINS")),
+		MaxRunning:    1,
+	}
+	if n, err := strconv.Atoi(strings.TrimSpace(os.Getenv("MOBD_MAX_RUNNING"))); err == nil && n > 0 {
+		cfg.MaxRunning = n
 	}
 	if raw := strings.TrimSpace(os.Getenv("MOBD_MOB_MCP_ARGS")); raw != "" {
 		var args []string

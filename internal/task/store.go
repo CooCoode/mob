@@ -98,7 +98,7 @@ func (s *Store) CreateTurn(sessionID, prompt, vncViewURL string) (*Task, error) 
 		return nil, err
 	}
 	s.publish(t.ID, Event{ID: 1, Type: "status", Status: t.Status, Message: "queued", Timestamp: now})
-	return clone(t), nil
+	return s.view(t, s.queuePositions()), nil
 }
 
 func (s *Store) Get(id string) (*Task, error) {
@@ -108,20 +108,50 @@ func (s *Store) Get(id string) (*Task, error) {
 	if !ok {
 		return nil, ErrNotFound
 	}
-	return clone(t), nil
+	return s.view(t, s.queuePositions()), nil
 }
 
 func (s *Store) List(limit int) []*Task {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	out := make([]*Task, 0)
+	positions := s.queuePositions()
 	for i := len(s.data.Order) - 1; i >= 0; i-- {
-		out = append(out, clone(s.data.Tasks[s.data.Order[i]]))
+		out = append(out, s.view(s.data.Tasks[s.data.Order[i]], positions))
 		if limit > 0 && len(out) >= limit {
 			break
 		}
 	}
 	return out
+}
+
+// Queue lists running tasks and queued tasks in dispatch (FIFO) order.
+func (s *Store) Queue() (running, queued []*Task) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	positions := s.queuePositions()
+	running, queued = make([]*Task, 0), make([]*Task, 0)
+	for _, id := range s.data.Order {
+		switch t := s.data.Tasks[id]; t.Status {
+		case StatusRunning:
+			running = append(running, s.view(t, positions))
+		case StatusQueued:
+			queued = append(queued, s.view(t, positions))
+		}
+	}
+	return running, queued
+}
+
+// NextQueued returns the oldest queued task the caller has not dispatched yet.
+func (s *Store) NextQueued(dispatched func(id string) bool) *Task {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	for _, id := range s.data.Order {
+		if t := s.data.Tasks[id]; t.Status == StatusQueued && !dispatched(id) {
+			return clone(t)
+		}
+	}
+	return nil
 }
 
 func (s *Store) ListSessions() []*Session {
@@ -147,9 +177,10 @@ func (s *Store) Session(id string) (*Session, []*Task, []Activity, error) {
 	}
 	tasks := make([]*Task, 0)
 	activities := make([]Activity, 0)
+	positions := s.queuePositions()
 	for _, taskID := range s.data.Order {
 		if t := s.data.Tasks[taskID]; t.SessionID == id {
-			tasks = append(tasks, clone(t))
+			tasks = append(tasks, s.view(t, positions))
 			activities = append(activities, s.data.Activities[taskID]...)
 		}
 	}
@@ -175,6 +206,15 @@ func (s *Store) UpdateStatus(id string, status Status, errMsg string) (*Task, er
 	}
 	t := clone(stored)
 	t.Status, t.UpdatedAt, t.EventID = status, time.Now().UTC(), t.EventID+1
+	t.QueuePosition = 0
+	if status == StatusRunning {
+		started := t.UpdatedAt
+		t.StartedAt = &started
+	}
+	if status.Terminal() {
+		finished := t.UpdatedAt
+		t.FinishedAt = &finished
+	}
 	t.Error = nil
 	if errMsg != "" {
 		t.Error = &errMsg
@@ -192,7 +232,7 @@ func (s *Store) UpdateStatus(id string, status Status, errMsg string) (*Task, er
 		ev.Message = errMsg
 	}
 	s.publish(id, ev)
-	return clone(t), nil
+	return s.view(t, s.queuePositions()), nil
 }
 
 // AppendEvent persists native thread handles and assistant messages before delivery.
@@ -384,6 +424,23 @@ func normalizeActivity(a Activity, taskID string, now time.Time) Activity {
 	}
 	a.Images = append([]string(nil), a.Images...)
 	return a
+}
+
+// queuePositions numbers queued tasks 1..n in FIFO order. Caller holds mu.
+func (s *Store) queuePositions() map[string]int {
+	positions := make(map[string]int)
+	for _, id := range s.data.Order {
+		if s.data.Tasks[id].Status == StatusQueued {
+			positions[id] = len(positions) + 1
+		}
+	}
+	return positions
+}
+
+func (s *Store) view(t *Task, positions map[string]int) *Task {
+	c := clone(t)
+	c.QueuePosition = positions[t.ID]
+	return c
 }
 
 func clone(t *Task) *Task {

@@ -43,6 +43,7 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("GET /tasks/{id}", s.handleGetTask)
 	mux.HandleFunc("GET /tasks/{id}/events", s.handleTaskEvents)
 	mux.HandleFunc("POST /tasks/{id}/cancel", s.withAuth(s.handleCancelTask))
+	mux.HandleFunc("GET /queue", s.handleQueue)
 	return s.withCORS(mux)
 }
 
@@ -109,12 +110,30 @@ func (s *Server) handleCreateTask(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, code, err.Error())
 		return
 	}
-	ctx, cancel := context.WithCancel(context.Background())
-	s.cancels[t.ID] = cancel
-	s.runs.Add(1)
+	s.scheduleLocked()
 	s.mu.Unlock()
-	go s.runTask(ctx, t.ID)
 	writeJSON(w, http.StatusCreated, t)
+}
+
+// scheduleLocked starts queued turns in FIFO order while desktop slots are free.
+// A dispatched task has a cancel func even before it reports running. Caller holds mu.
+func (s *Server) scheduleLocked() {
+	limit := max(s.cfg.MaxRunning, 1)
+	for !s.closing && len(s.cancels) < limit {
+		next := s.store.NextQueued(func(id string) bool { return s.cancels[id] != nil })
+		if next == nil {
+			return
+		}
+		ctx, cancel := context.WithCancel(context.Background())
+		s.cancels[next.ID] = cancel
+		s.runs.Add(1)
+		go s.runTask(ctx, next.ID)
+	}
+}
+
+func (s *Server) handleQueue(w http.ResponseWriter, r *http.Request) {
+	running, queued := s.store.Queue()
+	writeJSON(w, http.StatusOK, map[string]any{"running": running, "queued": queued})
 }
 
 func (s *Server) handleListSessions(w http.ResponseWriter, r *http.Request) {
@@ -150,6 +169,9 @@ func (s *Server) handleCancelTask(w http.ResponseWriter, r *http.Request) {
 	if err == nil {
 		if cancel := s.cancels[id]; cancel != nil {
 			cancel()
+		} else {
+			// Still waiting for the desktop: nothing to stop, finish it now.
+			t, err = s.store.UpdateStatus(id, task.StatusCancelled, "cancelled")
 		}
 	}
 	s.mu.Unlock()
@@ -229,6 +251,7 @@ func (s *Server) runTask(ctx context.Context, id string) {
 		s.mu.Lock()
 		s.cancels[id]()
 		delete(s.cancels, id)
+		s.scheduleLocked()
 		s.mu.Unlock()
 		s.runs.Done()
 	}()

@@ -452,3 +452,81 @@ func TestSSEReplay(t *testing.T) {
 		t.Fatal("SSE missing CORS headers")
 	}
 }
+
+func fakeCodexServer(t *testing.T, script string) (*Server, string) {
+	t.Helper()
+	dir := t.TempDir()
+	bin := filepath.Join(dir, "fake-codex")
+	if err := os.WriteFile(bin, []byte("#!/bin/sh\n"+script), 0700); err != nil {
+		t.Fatal(err)
+	}
+	cfg := config.Config{CodexBin: bin, CodexWorkDir: dir, MobMCPCommand: "mob-mcp", MaxRunning: 1}
+	s := New(cfg, task.NewStore(), codex.New(cfg))
+	t.Cleanup(s.Close)
+	return s, dir
+}
+
+const slowReply = `cat > /dev/null
+echo run >> runs
+sleep 0.4
+printf '%s\n' '{"type":"thread.started","thread_id":"th"}' '{"type":"item.completed","item":{"id":"m","type":"agent_message","text":"ok"}}' '{"type":"turn.completed"}'
+`
+
+func postTask(t *testing.T, s *Server, body string) task.Task {
+	t.Helper()
+	rr := httptest.NewRecorder()
+	s.Handler().ServeHTTP(rr, httptest.NewRequest(http.MethodPost, "/tasks", bytes.NewBufferString(body)))
+	if rr.Code != http.StatusCreated {
+		t.Fatalf("post %d: %s", rr.Code, rr.Body.String())
+	}
+	var created task.Task
+	if err := json.Unmarshal(rr.Body.Bytes(), &created); err != nil {
+		t.Fatal(err)
+	}
+	return created
+}
+
+func TestDesktopQueueRunsOneTaskAtATime(t *testing.T) {
+	s, _ := fakeCodexServer(t, slowReply)
+	first := postTask(t, s, `{"prompt":"first"}`)
+	second := postTask(t, s, `{"prompt":"second"}`)
+	if second.Status != task.StatusQueued || second.QueuePosition != 1 {
+		t.Fatalf("second should wait behind first: %+v", second)
+	}
+	rr := httptest.NewRecorder()
+	s.Handler().ServeHTTP(rr, httptest.NewRequest(http.MethodGet, "/queue", nil))
+	var q struct{ Running, Queued []task.Task }
+	_ = json.Unmarshal(rr.Body.Bytes(), &q)
+	if len(q.Queued) != 1 || q.Queued[0].ID != second.ID || q.Queued[0].QueuePosition != 1 {
+		t.Fatalf("queue: %s", rr.Body.String())
+	}
+	a, b := waitTask(t, s, first.ID), waitTask(t, s, second.ID)
+	if a.Status != task.StatusSucceeded || b.Status != task.StatusSucceeded {
+		t.Fatalf("statuses %s %s", a.Status, b.Status)
+	}
+	if b.StartedAt == nil || a.FinishedAt == nil || b.StartedAt.Before(*a.FinishedAt) {
+		t.Fatalf("turns overlapped: first finished %v, second started %v", a.FinishedAt, b.StartedAt)
+	}
+}
+
+func TestCancelQueuedTaskNeverStartsRunner(t *testing.T) {
+	s, dir := fakeCodexServer(t, slowReply)
+	first := postTask(t, s, `{"prompt":"first"}`)
+	queued := postTask(t, s, `{"prompt":"queued"}`)
+	rr := httptest.NewRecorder()
+	s.Handler().ServeHTTP(rr, httptest.NewRequest(http.MethodPost, "/tasks/"+queued.ID+"/cancel", nil))
+	if rr.Code != http.StatusAccepted {
+		t.Fatalf("cancel %d %s", rr.Code, rr.Body.String())
+	}
+	if got, _ := s.store.Get(queued.ID); got.Status != task.StatusCancelled {
+		t.Fatalf("queued task not cancelled immediately: %+v", got)
+	}
+	waitTask(t, s, first.ID)
+	time.Sleep(100 * time.Millisecond)
+	runs, _ := os.ReadFile(filepath.Join(dir, "runs"))
+	if strings.Count(string(runs), "run") != 1 {
+		t.Fatalf("cancelled queued task ran: %q", runs)
+	}
+	// The session is free again for a follow-up.
+	postTask(t, s, `{"sessionId":"`+queued.SessionID+`","prompt":"retry"}`)
+}
