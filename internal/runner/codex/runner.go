@@ -3,7 +3,6 @@ package codex
 import (
 	"bufio"
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -15,11 +14,9 @@ import (
 	"time"
 
 	"github.com/xrdavies/mob/internal/config"
+	"github.com/xrdavies/mob/internal/runner"
 	"github.com/xrdavies/mob/internal/task"
 )
-
-// EventFunc receives runner events for a task.
-type EventFunc func(ev task.Event) error
 
 // Runner starts Codex exec with mob-mcp MCP config injected.
 // If the Codex binary is missing, it fails the task safely (no panic).
@@ -38,10 +35,12 @@ func New(cfg config.Config) *Runner {
 	}
 }
 
+var _ runner.Runner = (*Runner)(nil)
+
 // Start runs Codex for the task asynchronously from the caller's perspective
 // until the process exits. The caller should invoke Start in a goroutine or
 // accept blocking until completion.
-func (r *Runner) Start(ctx context.Context, t *task.Task, emit EventFunc) error {
+func (r *Runner) Start(ctx context.Context, t *task.Task, opts runner.Options, emit runner.EmitFunc) error {
 	if emit == nil {
 		emit = func(task.Event) error { return nil }
 	}
@@ -69,7 +68,7 @@ func (r *Runner) Start(ctx context.Context, t *task.Task, emit EventFunc) error 
 		r.mu.Unlock()
 	}()
 
-	args := r.buildArgs(t.ThreadID)
+	args := r.buildArgs(t, opts.Images)
 	cmd := exec.CommandContext(runCtx, path, args...)
 	cmd.Dir = r.cfg.CodexWorkDir
 	cmd.Env = os.Environ()
@@ -105,7 +104,7 @@ func (r *Runner) Start(ctx context.Context, t *task.Task, emit EventFunc) error 
 	var stdoutErr, stderrErr error
 	go func() {
 		defer wg.Done()
-		stdoutErr = streamJSON(stdout, emit)
+		stdoutErr = streamJSON(stdout, emit, opts.SaveImage)
 		if stdoutErr != nil {
 			cancelRun(stdoutErr)
 		}
@@ -150,7 +149,7 @@ func (r *Runner) Cancel(taskID string) error {
 	return nil
 }
 
-func (r *Runner) buildArgs(threadID string) []string {
+func (r *Runner) buildArgs(t *task.Task, images []string) []string {
 	// Non-interactive: codex exec. Desktop actuation needs a permissive sandbox
 	// on the office Mac; tune via future config if needed.
 	args := []string{
@@ -165,9 +164,23 @@ func (r *Runner) buildArgs(threadID string) []string {
 	} else {
 		args = append(args, "-c", "mcp_servers.mob-mcp.args=[]")
 	}
-	if threadID != "" {
-		args = append(args, "resume", "--", threadID, "-")
+	if t.Effort != "" {
+		args = append(args, "-c", fmt.Sprintf("model_reasoning_effort=%q", t.Effort))
+	}
+	// Turn options go after "resume" so they apply to the resumed thread too.
+	var turn []string
+	if t.Model != "" {
+		turn = append(turn, "--model="+t.Model)
+	}
+	for _, image := range images {
+		turn = append(turn, "--image="+image)
+	}
+	if t.ThreadID != "" {
+		args = append(args, "resume")
+		args = append(args, turn...)
+		args = append(args, "--", t.ThreadID, "-")
 	} else {
+		args = append(args, turn...)
 		args = append(args, "--", "-")
 	}
 	return args
@@ -190,79 +203,4 @@ func streamLines(r io.Reader, consume func(string) error) error {
 		}
 	}
 	return sc.Err()
-}
-
-// CLI JSONL carries provider IDs and completed messages, not arbitrary stdout.
-func streamJSON(r io.Reader, emit EventFunc) error {
-	completed := false
-	failed := false
-	threadSeen, replySeen := false, false
-	var failure error
-	err := streamLines(r, func(line string) error {
-		if strings.TrimSpace(line) == "" {
-			return nil
-		}
-		var native struct {
-			Type     string `json:"type"`
-			ThreadID string `json:"thread_id"`
-			Message  string `json:"message"`
-			Error    struct {
-				Message string `json:"message"`
-			} `json:"error"`
-			Item struct {
-				ID   string `json:"id"`
-				Type string `json:"type"`
-				Text string `json:"text"`
-			} `json:"item"`
-		}
-		if err := json.Unmarshal([]byte(line), &native); err != nil || native.Type == "" {
-			return fmt.Errorf("invalid Codex JSON event: %s", line)
-		}
-		switch native.Type {
-		case "thread.started":
-			if native.ThreadID == "" {
-				return errors.New("Codex thread.started is missing thread_id")
-			}
-			threadSeen = true
-			return emit(task.Event{Type: "thread", ThreadID: native.ThreadID})
-		case "item.completed":
-			if native.Item.Type == "agent_message" {
-				if native.Item.ID == "" {
-					return errors.New("Codex agent_message is missing item ID")
-				}
-				if strings.TrimSpace(native.Item.Text) == "" {
-					break
-				}
-				replySeen = true
-				return emit(task.Event{Type: "message", MessageID: native.Item.ID, Message: native.Item.Text})
-			}
-		case "turn.completed":
-			completed = true
-		case "turn.failed":
-			failed = true
-			message := native.Error.Message
-			if message == "" {
-				message = "Codex turn failed"
-			}
-			failure = errors.New(message)
-		case "error":
-			if native.Message != "" {
-				failure = errors.New(native.Message)
-			}
-		}
-		return emit(task.Event{Type: "log", Message: "[codex] " + line})
-	})
-	if err != nil {
-		return err
-	}
-	if failed || !completed {
-		if failure != nil {
-			return failure
-		}
-		return errors.New("Codex ended without turn.completed")
-	}
-	if !threadSeen || !replySeen {
-		return errors.New("Codex completed without a thread ID or assistant message")
-	}
-	return nil
 }

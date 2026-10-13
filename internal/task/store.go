@@ -10,6 +10,7 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"unicode/utf8"
 )
 
 var (
@@ -24,7 +25,15 @@ type state struct {
 	Tasks    map[string]*Task    `json:"tasks"`
 	Sessions map[string]*Session `json:"sessions"`
 	Order    []string            `json:"order"`
+	// Activities are keyed by task ID, in arrival order.
+	Activities map[string][]Activity `json:"activities,omitempty"`
 }
+
+// logLimit bounds memory-only debug lines kept per task for SSE replay.
+const logLimit = 2000
+
+// activityTextLimit caps persisted tool/command output per activity.
+const activityTextLimit = 16 * 1024
 
 // Store keeps conversations durable and task event delivery ordered.
 type Store struct {
@@ -32,13 +41,17 @@ type Store struct {
 	data    state
 	path    string
 	events  map[string][]Event
+	logs    map[string]int
 	changed map[string]chan struct{}
 }
 
 func NewStore() *Store {
 	return &Store{
-		data:   state{Tasks: make(map[string]*Task), Sessions: make(map[string]*Session)},
-		events: make(map[string][]Event), changed: make(map[string]chan struct{}),
+		data: state{
+			Tasks: make(map[string]*Task), Sessions: make(map[string]*Session),
+			Activities: make(map[string][]Activity),
+		},
+		events: make(map[string][]Event), logs: make(map[string]int), changed: make(map[string]chan struct{}),
 	}
 }
 
@@ -81,7 +94,7 @@ func (s *Store) CreateTurn(sessionID, prompt, vncViewURL string) (*Task, error) 
 	session.Messages = append(session.Messages, Message{
 		ID: t.ID + ":user", TaskID: t.ID, Role: "user", Content: prompt, CreatedAt: now,
 	})
-	if err := s.commit(t, session, true); err != nil {
+	if err := s.commit(t, session, true, nil); err != nil {
 		return nil, err
 	}
 	s.publish(t.ID, Event{ID: 1, Type: "status", Status: t.Status, Message: "queued", Timestamp: now})
@@ -124,21 +137,30 @@ func (s *Store) ListSessions() []*Session {
 	return out
 }
 
-// Session returns history and turns from the same snapshot.
-func (s *Store) Session(id string) (*Session, []*Task, error) {
+// Session returns history, turns and activities from the same snapshot.
+func (s *Store) Session(id string) (*Session, []*Task, []Activity, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	session, ok := s.data.Sessions[id]
 	if !ok {
-		return nil, nil, ErrNotFound
+		return nil, nil, nil, ErrNotFound
 	}
 	tasks := make([]*Task, 0)
+	activities := make([]Activity, 0)
 	for _, taskID := range s.data.Order {
 		if t := s.data.Tasks[taskID]; t.SessionID == id {
 			tasks = append(tasks, clone(t))
+			activities = append(activities, s.data.Activities[taskID]...)
 		}
 	}
-	return cloneSession(session), tasks, nil
+	return cloneSession(session), tasks, activities, nil
+}
+
+// Activities returns the persisted steps of one task.
+func (s *Store) Activities(taskID string) []Activity {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return append([]Activity(nil), s.data.Activities[taskID]...)
 }
 
 func (s *Store) UpdateStatus(id string, status Status, errMsg string) (*Task, error) {
@@ -162,7 +184,7 @@ func (s *Store) UpdateStatus(id string, status Status, errMsg string) (*Task, er
 	if status.Terminal() {
 		session.ActiveTaskID = ""
 	}
-	if err := s.commit(t, session, false); err != nil {
+	if err := s.commit(t, session, false, nil); err != nil {
 		return nil, err
 	}
 	ev := Event{ID: t.EventID, Type: "status", Status: status, Message: string(status), Timestamp: t.UpdatedAt}
@@ -190,6 +212,45 @@ func (s *Store) AppendEvent(id string, ev Event) error {
 	t := clone(stored)
 	t.UpdatedAt, t.EventID = ev.Timestamp, t.EventID+1
 	ev.ID = t.EventID
+	switch ev.Type {
+	case "activity":
+		if ev.Activity == nil || ev.Activity.ID == "" {
+			return errors.New("activity ID is required")
+		}
+		a := normalizeActivity(*ev.Activity, t.ID, ev.Timestamp)
+		activities := append([]Activity(nil), s.data.Activities[t.ID]...)
+		found := false
+		for i := range activities {
+			if activities[i].ID == a.ID {
+				a.StartedAt = activities[i].StartedAt
+				if len(a.Images) == 0 {
+					a.Images = activities[i].Images
+				}
+				activities[i], found = a, true
+				break
+			}
+		}
+		if !found {
+			activities = append(activities, a)
+		}
+		if err := s.commit(t, cloneSession(s.data.Sessions[t.SessionID]), false, activities); err != nil {
+			return err
+		}
+		ev.Activity = &a
+		s.publish(id, ev)
+		return nil
+	case "usage":
+		if ev.Usage == nil {
+			return errors.New("usage is required")
+		}
+		u := *ev.Usage
+		t.Usage, ev.Usage = &u, &u
+		if err := s.commit(t, cloneSession(s.data.Sessions[t.SessionID]), false, nil); err != nil {
+			return err
+		}
+		s.publish(id, ev)
+		return nil
+	}
 	if ev.Type == "thread" || ev.Type == "message" {
 		session := cloneSession(s.data.Sessions[t.SessionID])
 		session.UpdatedAt = ev.Timestamp
@@ -217,7 +278,7 @@ func (s *Store) AppendEvent(id string, ev Event) error {
 				})
 			}
 		}
-		if err := s.commit(t, session, false); err != nil {
+		if err := s.commit(t, session, false, nil); err != nil {
 			return err
 		}
 	} else {
@@ -260,12 +321,20 @@ func (s *Store) CanCancel(id string) (*Task, error) {
 }
 
 // commit publishes a new snapshot only after its atomic disk write succeeds.
-// Caller holds mu and passes copies of the objects it changed.
-func (s *Store) commit(t *Task, session *Session, added bool) error {
-	next := state{Tasks: maps.Clone(s.data.Tasks), Sessions: maps.Clone(s.data.Sessions), Order: s.data.Order}
+// Caller holds mu and passes copies of the objects it changed; nil activities
+// leave the task's steps unchanged.
+func (s *Store) commit(t *Task, session *Session, added bool, activities []Activity) error {
+	next := state{
+		Tasks: maps.Clone(s.data.Tasks), Sessions: maps.Clone(s.data.Sessions),
+		Order: s.data.Order, Activities: s.data.Activities,
+	}
 	next.Tasks[t.ID], next.Sessions[session.ID] = t, session
 	if added {
 		next.Order = append(append([]string(nil), s.data.Order...), t.ID)
+	}
+	if activities != nil {
+		next.Activities = maps.Clone(s.data.Activities)
+		next.Activities[t.ID] = activities
 	}
 	if err := s.save(next); err != nil {
 		return fmt.Errorf("save conversation: %w", err)
@@ -275,11 +344,46 @@ func (s *Store) commit(t *Task, session *Session, added bool) error {
 }
 
 func (s *Store) publish(id string, ev Event) {
+	if ev.Type == "log" {
+		if s.logs[id] >= logLimit {
+			s.dropOldestLog(id)
+		} else {
+			s.logs[id]++
+		}
+	}
 	s.events[id] = append(s.events[id], ev)
 	if ch := s.changed[id]; ch != nil {
 		close(ch)
 	}
 	s.changed[id] = make(chan struct{})
+}
+
+// dropOldestLog keeps replay order; IDs stay monotonic so cursors still work.
+func (s *Store) dropOldestLog(id string) {
+	events := s.events[id]
+	for i, ev := range events {
+		if ev.Type == "log" {
+			s.events[id] = append(events[:i:i], events[i+1:]...)
+			return
+		}
+	}
+}
+
+func normalizeActivity(a Activity, taskID string, now time.Time) Activity {
+	a.TaskID = taskID
+	if a.StartedAt.IsZero() {
+		a.StartedAt = now
+	}
+	a.UpdatedAt = now
+	if len(a.Text) > activityTextLimit {
+		cut := activityTextLimit
+		for cut > 0 && !utf8.RuneStart(a.Text[cut]) {
+			cut--
+		}
+		a.Text, a.Truncated = a.Text[:cut], true
+	}
+	a.Images = append([]string(nil), a.Images...)
+	return a
 }
 
 func clone(t *Task) *Task {
@@ -288,6 +392,11 @@ func clone(t *Task) *Task {
 		e := *t.Error
 		c.Error = &e
 	}
+	if t.Usage != nil {
+		u := *t.Usage
+		c.Usage = &u
+	}
+	c.Attachments = append([]string(nil), t.Attachments...)
 	return &c
 }
 

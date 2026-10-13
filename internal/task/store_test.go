@@ -4,8 +4,10 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"testing"
+	"unicode/utf8"
 )
 
 func TestCreateGetList(t *testing.T) {
@@ -102,12 +104,12 @@ func TestSessionContinuationAndIsolation(t *testing.T) {
 	if other.SessionID == first.SessionID || other.ThreadID != "" {
 		t.Fatalf("thread leaked into another session: %+v", other)
 	}
-	session, turns, err := s.Session(first.SessionID)
+	session, turns, _, err := s.Session(first.SessionID)
 	if err != nil || len(turns) != 2 || len(session.Messages) != 3 || session.Messages[1].Content != "remembered 蓝鲸" {
 		t.Fatalf("history: %+v turns=%d err=%v", session, len(turns), err)
 	}
 	session.Messages[0].Content = "mutated"
-	fresh, _, _ := s.Session(first.SessionID)
+	fresh, _, _, _ := s.Session(first.SessionID)
 	if fresh.Messages[0].Content != "Remember 蓝鲸" {
 		t.Fatal("returned history must be a copy")
 	}
@@ -161,7 +163,7 @@ func TestRestartRestoresTranscriptAndInterruptsActiveTurn(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	session, turns, _ := restored.Session(first.SessionID)
+	session, turns, _, _ := restored.Session(first.SessionID)
 	if session.ThreadID != "thread-one" || session.ActiveTaskID != "" || len(session.Messages) != 3 || session.Messages[1].Content != "answer" {
 		t.Fatalf("lost history: %+v", session)
 	}
@@ -181,7 +183,7 @@ func TestRestartRestoresTranscriptAndInterruptsActiveTurn(t *testing.T) {
 func TestPersistenceFailureDoesNotAcknowledgeOrMutateHistory(t *testing.T) {
 	s := NewStore()
 	tk, _ := s.Create("first", "")
-	before, _, _ := s.Session(tk.SessionID)
+	before, _, _, _ := s.Session(tk.SessionID)
 	s.path = filepath.Join(t.TempDir(), "not-a-directory", "state.json")
 	if err := os.WriteFile(filepath.Dir(s.path), []byte("blocked"), 0600); err != nil {
 		t.Fatal(err)
@@ -189,7 +191,7 @@ func TestPersistenceFailureDoesNotAcknowledgeOrMutateHistory(t *testing.T) {
 	if err := s.AppendEvent(tk.ID, Event{Type: "message", MessageID: "item", Message: "unsaved"}); err == nil {
 		t.Fatal("must propagate disk write failure")
 	}
-	after, _, _ := s.Session(tk.SessionID)
+	after, _, _, _ := s.Session(tk.SessionID)
 	if len(after.Messages) != len(before.Messages) {
 		t.Fatal("failed commit changed history")
 	}
@@ -218,5 +220,67 @@ func TestRejectCorruptHistory(t *testing.T) {
 		if _, err := OpenStore(path); err == nil {
 			t.Fatalf("accepted corrupt history: %s", content)
 		}
+	}
+}
+
+func TestActivitiesUpsertAndSurviveRestart(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "state.json")
+	s, err := OpenStore(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	tk, _ := s.Create("click", "")
+	start := Activity{ID: "item_1", Kind: ActivityTool, Status: ActivityRunning, Title: "Screenshot", Images: nil}
+	if err := s.AppendEvent(tk.ID, Event{Type: "activity", Activity: &start}); err != nil {
+		t.Fatal(err)
+	}
+	done := Activity{ID: "item_1", Kind: ActivityTool, Status: ActivityCompleted, Title: "Screenshot",
+		Images: []string{"img"}, Text: strings.Repeat("é", activityTextLimit)}
+	if err := s.AppendEvent(tk.ID, Event{Type: "activity", Activity: &done}); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.AppendEvent(tk.ID, Event{Type: "usage", Usage: &Usage{InputTokens: 7}}); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.AppendEvent(tk.ID, Event{Type: "activity", Activity: &Activity{}}); err == nil {
+		t.Fatal("activity without ID accepted")
+	}
+	restored, err := OpenStore(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, tasks, acts, err := restored.Session(tk.SessionID)
+	if err != nil || len(acts) != 1 {
+		t.Fatalf("activities=%+v err=%v", acts, err)
+	}
+	a := acts[0]
+	if a.ID != "item_1" || a.TaskID != tk.ID || a.Status != ActivityCompleted || len(a.Images) != 1 || !a.Truncated ||
+		len(a.Text) > activityTextLimit || !utf8.ValidString(a.Text) || a.StartedAt.After(a.UpdatedAt) {
+		t.Fatalf("activity %+v", a)
+	}
+	if tasks[0].Usage == nil || tasks[0].Usage.InputTokens != 7 {
+		t.Fatalf("usage not persisted: %+v", tasks[0])
+	}
+}
+
+func TestDebugLogsAreCapped(t *testing.T) {
+	s := NewStore()
+	tk, _ := s.Create("chatty", "")
+	for i := 0; i < logLimit+50; i++ {
+		_ = s.AppendEvent(tk.ID, Event{Type: "log", Message: "line"})
+	}
+	_ = s.AppendEvent(tk.ID, Event{Type: "message", MessageID: "m", Message: "reply"})
+	events, _ := s.Events(tk.ID)
+	logs := 0
+	for i, ev := range events {
+		if ev.Type == "log" {
+			logs++
+		}
+		if i > 0 && ev.ID <= events[i-1].ID {
+			t.Fatal("event IDs not monotonic")
+		}
+	}
+	if logs != logLimit || events[0].Type != "status" || events[len(events)-1].Message != "reply" {
+		t.Fatalf("logs=%d first=%+v", logs, events[0])
 	}
 }

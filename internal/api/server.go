@@ -13,14 +13,14 @@ import (
 	"time"
 
 	"github.com/xrdavies/mob/internal/config"
-	"github.com/xrdavies/mob/internal/runner/codex"
+	"github.com/xrdavies/mob/internal/runner"
 	"github.com/xrdavies/mob/internal/task"
 )
 
 type Server struct {
 	cfg    config.Config
 	store  *task.Store
-	runner *codex.Runner
+	runner runner.Runner
 
 	mu      sync.Mutex
 	cancels map[string]context.CancelFunc
@@ -28,8 +28,8 @@ type Server struct {
 	runs    sync.WaitGroup
 }
 
-func New(cfg config.Config, store *task.Store, runner *codex.Runner) *Server {
-	return &Server{cfg: cfg, store: store, runner: runner, cancels: make(map[string]context.CancelFunc)}
+func New(cfg config.Config, store *task.Store, r runner.Runner) *Server {
+	return &Server{cfg: cfg, store: store, runner: r, cancels: make(map[string]context.CancelFunc)}
 }
 
 func (s *Server) Handler() http.Handler {
@@ -122,12 +122,12 @@ func (s *Server) handleListSessions(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleGetSession(w http.ResponseWriter, r *http.Request) {
-	session, tasks, err := s.store.Session(r.PathValue("id"))
+	session, tasks, activities, err := s.store.Session(r.PathValue("id"))
 	if err != nil {
 		writeErr(w, http.StatusNotFound, "session not found")
 		return
 	}
-	writeJSON(w, http.StatusOK, map[string]any{"session": session, "tasks": tasks})
+	writeJSON(w, http.StatusOK, map[string]any{"session": session, "tasks": tasks, "activities": activities})
 }
 
 func (s *Server) handleListTasks(w http.ResponseWriter, r *http.Request) {
@@ -234,7 +234,7 @@ func (s *Server) runTask(ctx context.Context, id string) {
 	}()
 	t, err := s.store.UpdateStatus(id, task.StatusRunning, "")
 	if err == nil {
-		err = s.runner.Start(ctx, t, func(ev task.Event) error { return s.store.AppendEvent(id, ev) })
+		err = s.runner.Start(ctx, t, runner.Options{}, func(ev task.Event) error { return s.store.AppendEvent(id, ev) })
 	}
 	status, message := task.StatusSucceeded, ""
 	if ctx.Err() != nil {

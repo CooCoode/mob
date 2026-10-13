@@ -30,6 +30,14 @@ func OpenStore(path string) (*Store, error) {
 	if s.data.Tasks == nil || s.data.Sessions == nil {
 		return nil, errors.New("invalid conversation state")
 	}
+	if s.data.Activities == nil {
+		s.data.Activities = make(map[string][]Activity)
+	}
+	for id := range s.data.Activities {
+		if s.data.Tasks[id] == nil {
+			return nil, errors.New("invalid activity in conversation state")
+		}
+	}
 	seen := make(map[string]bool)
 	for _, id := range s.data.Order {
 		t := s.data.Tasks[id]
