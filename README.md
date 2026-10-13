@@ -51,6 +51,17 @@ flowchart LR
 | Actuation | **`mob-mcp`** tools served by `mobd mcp` (local stdio MCP, Go, MIT); third-party MCPs optional after license review; svnc Automation as fallback |
 | View | VNC + svnc; later protocols behind a `DesktopView` abstraction |
 
+## Common tasks
+
+A `Makefile` wraps the usual commands; run `make` to list them.
+
+```bash
+make build        # bin/mobd
+make start        # run mobd on the office Mac (logs: make logs)
+make app-desktop  # home App as a desktop window (app-install once)
+make check        # Go vet + tests, App tests + typecheck
+```
+
 ## Docs
 
 - [Architecture](docs/architecture.md)
