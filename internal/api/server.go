@@ -38,6 +38,8 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("GET /healthz", s.handleHealth)
 	mux.HandleFunc("GET /sessions", s.handleListSessions)
 	mux.HandleFunc("GET /sessions/{id}", s.handleGetSession)
+	mux.HandleFunc("PATCH /sessions/{id}", s.withAuth(s.handlePatchSession))
+	mux.HandleFunc("DELETE /sessions/{id}", s.withAuth(s.handleDeleteSession))
 	mux.HandleFunc("POST /tasks", s.withAuth(s.handleCreateTask))
 	mux.HandleFunc("GET /tasks", s.handleListTasks)
 	mux.HandleFunc("GET /tasks/{id}", s.handleGetTask)
@@ -57,7 +59,7 @@ func (s *Server) withCORS(next http.Handler) http.Handler {
 		origin := r.Header.Get("Origin")
 		if _, ok := allowed[origin]; ok {
 			w.Header().Set("Access-Control-Allow-Origin", origin)
-			w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+			w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PATCH, DELETE, OPTIONS")
 			w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Mob-Token")
 		}
 		if r.Method == http.MethodOptions {
@@ -137,7 +139,52 @@ func (s *Server) handleQueue(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleListSessions(w http.ResponseWriter, r *http.Request) {
-	writeJSON(w, http.StatusOK, map[string]any{"sessions": s.store.ListSessions()})
+	var archived *bool
+	switch r.URL.Query().Get("archived") {
+	case "", "false":
+		archived = new(bool)
+	case "true":
+		archived = new(bool)
+		*archived = true
+	case "all":
+	default:
+		writeErr(w, http.StatusBadRequest, "archived must be true, false or all")
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"sessions": s.store.ListSessions(archived)})
+}
+
+func (s *Server) handlePatchSession(w http.ResponseWriter, r *http.Request) {
+	var patch task.SessionPatch
+	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 64*1024)).Decode(&patch); err != nil {
+		writeErr(w, http.StatusBadRequest, "invalid JSON body")
+		return
+	}
+	session, err := s.store.UpdateSession(r.PathValue("id"), patch)
+	switch {
+	case errors.Is(err, task.ErrNotFound):
+		writeErr(w, http.StatusNotFound, "session not found")
+	case errors.Is(err, task.ErrInvalidTitle):
+		writeErr(w, http.StatusBadRequest, err.Error())
+	case err != nil:
+		writeErr(w, http.StatusInternalServerError, err.Error())
+	default:
+		writeJSON(w, http.StatusOK, session)
+	}
+}
+
+func (s *Server) handleDeleteSession(w http.ResponseWriter, r *http.Request) {
+	_, err := s.store.DeleteSession(r.PathValue("id"))
+	switch {
+	case errors.Is(err, task.ErrNotFound):
+		writeErr(w, http.StatusNotFound, "session not found")
+	case errors.Is(err, task.ErrSessionBusy):
+		writeErr(w, http.StatusConflict, err.Error())
+	case err != nil:
+		writeErr(w, http.StatusInternalServerError, err.Error())
+	default:
+		w.WriteHeader(http.StatusNoContent)
+	}
 }
 
 func (s *Server) handleGetSession(w http.ResponseWriter, r *http.Request) {
@@ -150,7 +197,17 @@ func (s *Server) handleGetSession(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleListTasks(w http.ResponseWriter, r *http.Request) {
-	writeJSON(w, http.StatusOK, map[string]any{"tasks": s.store.List(100)})
+	q := r.URL.Query()
+	f := task.TaskFilter{SessionID: q.Get("sessionId"), Status: task.Status(q.Get("status")), Limit: 100}
+	if raw := q.Get("limit"); raw != "" {
+		n, err := strconv.Atoi(raw)
+		if err != nil || n < 1 || n > 500 {
+			writeErr(w, http.StatusBadRequest, "limit must be 1-500")
+			return
+		}
+		f.Limit = n
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"tasks": s.store.ListTasks(f)})
 }
 
 func (s *Server) handleGetTask(w http.ResponseWriter, r *http.Request) {

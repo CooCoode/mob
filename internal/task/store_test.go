@@ -198,7 +198,7 @@ func TestPersistenceFailureDoesNotAcknowledgeOrMutateHistory(t *testing.T) {
 	if _, err := s.UpdateStatus(tk.ID, StatusSucceeded, ""); err == nil {
 		t.Fatal("must not mark a turn successful when saving fails")
 	}
-	if _, err := s.Create("unsaved new session", ""); err == nil || len(s.ListSessions()) != 1 {
+	if _, err := s.Create("unsaved new session", ""); err == nil || len(s.ListSessions(nil)) != 1 {
 		t.Fatal("failed create changed the session list")
 	}
 }

@@ -530,3 +530,88 @@ func TestCancelQueuedTaskNeverStartsRunner(t *testing.T) {
 	// The session is free again for a follow-up.
 	postTask(t, s, `{"sessionId":"`+queued.SessionID+`","prompt":"retry"}`)
 }
+
+func doJSON(t *testing.T, s *Server, method, path, body string) *httptest.ResponseRecorder {
+	t.Helper()
+	rr := httptest.NewRecorder()
+	s.Handler().ServeHTTP(rr, httptest.NewRequest(method, path, bytes.NewBufferString(body)))
+	return rr
+}
+
+func TestSessionAdmin(t *testing.T) {
+	s := testServer(t, "")
+	old, _ := s.store.Create("older", "")
+	_, _ = s.store.UpdateStatus(old.ID, task.StatusSucceeded, "")
+	recent, _ := s.store.Create("recent", "")
+	_, _ = s.store.UpdateStatus(recent.ID, task.StatusSucceeded, "")
+	busy, _ := s.store.Create("busy", "")
+
+	if rr := doJSON(t, s, http.MethodPatch, "/sessions/"+old.SessionID, `{"title":"  Weekly   report ","pinned":true}`); rr.Code != http.StatusOK ||
+		!strings.Contains(rr.Body.String(), `"title":"Weekly report"`) || !strings.Contains(rr.Body.String(), `"pinned":true`) {
+		t.Fatalf("patch: %d %s", rr.Code, rr.Body.String())
+	}
+	if rr := doJSON(t, s, http.MethodPatch, "/sessions/"+old.SessionID, `{"title":"   "}`); rr.Code != http.StatusBadRequest {
+		t.Fatalf("blank title: %d", rr.Code)
+	}
+	if rr := doJSON(t, s, http.MethodPatch, "/sessions/missing", `{"pinned":true}`); rr.Code != http.StatusNotFound {
+		t.Fatalf("missing: %d", rr.Code)
+	}
+	list := func(query string) []task.Session {
+		var body struct{ Sessions []task.Session }
+		_ = json.Unmarshal(doJSON(t, s, http.MethodGet, "/sessions"+query, "").Body.Bytes(), &body)
+		return body.Sessions
+	}
+	if got := list(""); len(got) != 3 || got[0].ID != old.SessionID {
+		t.Fatalf("pinned session not first: %+v", got)
+	}
+	doJSON(t, s, http.MethodPatch, "/sessions/"+recent.SessionID, `{"archived":true}`)
+	if got := list(""); len(got) != 2 {
+		t.Fatalf("archived listed by default: %+v", got)
+	}
+	if got := list("?archived=true"); len(got) != 1 || got[0].ID != recent.SessionID {
+		t.Fatalf("archived filter: %+v", got)
+	}
+	if got := list("?archived=all"); len(got) != 3 {
+		t.Fatalf("all filter: %+v", got)
+	}
+	if rr := doJSON(t, s, http.MethodGet, "/sessions?archived=maybe", ""); rr.Code != http.StatusBadRequest {
+		t.Fatalf("bad filter: %d", rr.Code)
+	}
+
+	if rr := doJSON(t, s, http.MethodDelete, "/sessions/"+busy.SessionID, ""); rr.Code != http.StatusConflict {
+		t.Fatalf("deleted active session: %d", rr.Code)
+	}
+	if rr := doJSON(t, s, http.MethodDelete, "/sessions/"+old.SessionID, ""); rr.Code != http.StatusNoContent {
+		t.Fatalf("delete: %d %s", rr.Code, rr.Body.String())
+	}
+	if rr := doJSON(t, s, http.MethodGet, "/tasks/"+old.ID, ""); rr.Code != http.StatusNotFound {
+		t.Fatalf("task of deleted session still served: %d", rr.Code)
+	}
+	if rr := doJSON(t, s, http.MethodGet, "/sessions/"+old.SessionID, ""); rr.Code != http.StatusNotFound {
+		t.Fatalf("deleted session still served: %d", rr.Code)
+	}
+}
+
+func TestListTasksFilters(t *testing.T) {
+	s := testServer(t, "")
+	a, _ := s.store.Create("a", "")
+	b, _ := s.store.Create("b", "")
+	_, _ = s.store.UpdateStatus(b.ID, task.StatusSucceeded, "")
+	list := func(query string) []task.Task {
+		var body struct{ Tasks []task.Task }
+		_ = json.Unmarshal(doJSON(t, s, http.MethodGet, "/tasks"+query, "").Body.Bytes(), &body)
+		return body.Tasks
+	}
+	if got := list("?sessionId=" + a.SessionID); len(got) != 1 || got[0].ID != a.ID {
+		t.Fatalf("session filter: %+v", got)
+	}
+	if got := list("?status=succeeded"); len(got) != 1 || got[0].ID != b.ID {
+		t.Fatalf("status filter: %+v", got)
+	}
+	if got := list("?limit=1"); len(got) != 1 || got[0].ID != b.ID {
+		t.Fatalf("limit: %+v", got)
+	}
+	if rr := doJSON(t, s, http.MethodGet, "/tasks?limit=0", ""); rr.Code != http.StatusBadRequest {
+		t.Fatalf("bad limit: %d", rr.Code)
+	}
+}

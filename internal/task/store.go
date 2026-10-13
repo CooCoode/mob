@@ -19,7 +19,22 @@ var (
 	ErrNotCancellable    = errors.New("task is not cancellable")
 	ErrSessionBusy       = errors.New("session already has an active turn")
 	ErrInvalidTransition = errors.New("task has already finished")
+	ErrInvalidTitle      = errors.New("title must be 1-200 characters")
 )
+
+// SessionPatch updates user-controlled session fields; nil leaves a field unchanged.
+type SessionPatch struct {
+	Title    *string `json:"title"`
+	Pinned   *bool   `json:"pinned"`
+	Archived *bool   `json:"archived"`
+}
+
+// TaskFilter narrows GET /tasks; zero values match everything.
+type TaskFilter struct {
+	SessionID string
+	Status    Status
+	Limit     int
+}
 
 type state struct {
 	Tasks    map[string]*Task    `json:"tasks"`
@@ -112,13 +127,22 @@ func (s *Store) Get(id string) (*Task, error) {
 }
 
 func (s *Store) List(limit int) []*Task {
+	return s.ListTasks(TaskFilter{Limit: limit})
+}
+
+// ListTasks returns matching tasks, newest first.
+func (s *Store) ListTasks(f TaskFilter) []*Task {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	out := make([]*Task, 0)
 	positions := s.queuePositions()
 	for i := len(s.data.Order) - 1; i >= 0; i-- {
-		out = append(out, s.view(s.data.Tasks[s.data.Order[i]], positions))
-		if limit > 0 && len(out) >= limit {
+		t := s.data.Tasks[s.data.Order[i]]
+		if (f.SessionID != "" && t.SessionID != f.SessionID) || (f.Status != "" && t.Status != f.Status) {
+			continue
+		}
+		out = append(out, s.view(t, positions))
+		if f.Limit > 0 && len(out) >= f.Limit {
 			break
 		}
 	}
@@ -154,17 +178,105 @@ func (s *Store) NextQueued(dispatched func(id string) bool) *Task {
 	return nil
 }
 
-func (s *Store) ListSessions() []*Session {
+// ListSessions returns summaries (no messages): pinned first, then most recent.
+// archived selects archived sessions; nil returns all.
+func (s *Store) ListSessions(archived *bool) []*Session {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	out := make([]*Session, 0, len(s.data.Sessions))
 	for _, session := range s.data.Sessions {
+		if archived != nil && session.Archived != *archived {
+			continue
+		}
 		c := *session
 		c.Messages = nil
 		out = append(out, &c)
 	}
-	sort.Slice(out, func(i, j int) bool { return out[i].UpdatedAt.After(out[j].UpdatedAt) })
+	sort.Slice(out, func(i, j int) bool {
+		if out[i].Pinned != out[j].Pinned {
+			return out[i].Pinned
+		}
+		return out[i].UpdatedAt.After(out[j].UpdatedAt)
+	})
 	return out
+}
+
+// UpdateSession applies a rename/pin/archive patch.
+func (s *Store) UpdateSession(id string, patch SessionPatch) (*Session, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	stored, ok := s.data.Sessions[id]
+	if !ok {
+		return nil, ErrNotFound
+	}
+	session := cloneSession(stored)
+	if patch.Title != nil {
+		title := strings.Join(strings.Fields(*patch.Title), " ")
+		if n := utf8.RuneCountInString(title); n == 0 || n > 200 {
+			return nil, ErrInvalidTitle
+		}
+		session.Title = title
+	}
+	if patch.Pinned != nil {
+		session.Pinned = *patch.Pinned
+	}
+	if patch.Archived != nil {
+		session.Archived = *patch.Archived
+	}
+	next := s.next()
+	next.Sessions[id] = session
+	if err := s.swap(next); err != nil {
+		return nil, err
+	}
+	summary := *session
+	summary.Messages = nil
+	return &summary, nil
+}
+
+// DeleteSession removes an idle session with its turns and activities and
+// returns the artifact IDs those referenced so the caller can delete files.
+func (s *Store) DeleteSession(id string) ([]string, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	session, ok := s.data.Sessions[id]
+	if !ok {
+		return nil, ErrNotFound
+	}
+	if session.ActiveTaskID != "" {
+		return nil, ErrSessionBusy
+	}
+	next := s.next()
+	next.Activities = maps.Clone(s.data.Activities)
+	delete(next.Sessions, id)
+	var artifacts, removed []string
+	next.Order = make([]string, 0, len(s.data.Order))
+	for _, taskID := range s.data.Order {
+		t := s.data.Tasks[taskID]
+		if t.SessionID != id {
+			next.Order = append(next.Order, taskID)
+			continue
+		}
+		artifacts = append(artifacts, t.Attachments...)
+		for _, a := range s.data.Activities[taskID] {
+			artifacts = append(artifacts, a.Images...)
+		}
+		delete(next.Tasks, taskID)
+		delete(next.Activities, taskID)
+		removed = append(removed, taskID)
+	}
+	if err := s.swap(next); err != nil {
+		return nil, err
+	}
+	for _, taskID := range removed {
+		// Wake SSE watchers so they observe the task is gone.
+		if ch := s.changed[taskID]; ch != nil {
+			close(ch)
+		}
+		delete(s.changed, taskID)
+		delete(s.events, taskID)
+		delete(s.logs, taskID)
+	}
+	return artifacts, nil
 }
 
 // Session returns history, turns and activities from the same snapshot.
@@ -364,10 +476,7 @@ func (s *Store) CanCancel(id string) (*Task, error) {
 // Caller holds mu and passes copies of the objects it changed; nil activities
 // leave the task's steps unchanged.
 func (s *Store) commit(t *Task, session *Session, added bool, activities []Activity) error {
-	next := state{
-		Tasks: maps.Clone(s.data.Tasks), Sessions: maps.Clone(s.data.Sessions),
-		Order: s.data.Order, Activities: s.data.Activities,
-	}
+	next := s.next()
 	next.Tasks[t.ID], next.Sessions[session.ID] = t, session
 	if added {
 		next.Order = append(append([]string(nil), s.data.Order...), t.ID)
@@ -376,6 +485,18 @@ func (s *Store) commit(t *Task, session *Session, added bool, activities []Activ
 		next.Activities = maps.Clone(s.data.Activities)
 		next.Activities[t.ID] = activities
 	}
+	return s.swap(next)
+}
+
+// next copies the top-level maps so a failed save leaves s.data untouched.
+func (s *Store) next() state {
+	return state{
+		Tasks: maps.Clone(s.data.Tasks), Sessions: maps.Clone(s.data.Sessions),
+		Order: s.data.Order, Activities: s.data.Activities,
+	}
+}
+
+func (s *Store) swap(next state) error {
 	if err := s.save(next); err != nil {
 		return fmt.Errorf("save conversation: %w", err)
 	}
