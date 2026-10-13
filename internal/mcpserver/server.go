@@ -154,6 +154,7 @@ func New(d Desktop, version string, asker Asker) *mcp.Server {
 		})
 	if asker != nil {
 		registerAskTools(s, asker)
+		registerApproveTool(s, asker)
 	}
 	return s
 }

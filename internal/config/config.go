@@ -23,7 +23,19 @@ type Config struct {
 	MaxRunning    int
 	DataDir       string
 	CodexModels   []string
-	DefaultRunner string
+	// Runners lists the enabled runners (MOBD_RUNNERS, default codex,claude).
+	Runners []string
+	// Claude Code runner.
+	ClaudeBin     string
+	ClaudeWorkDir string
+	ClaudeModels  []string
+	// ClaudePermissions is "bypass" (default) or "approve" (each tool call
+	// outside a safe list waits for the user's approval).
+	ClaudePermissions string
+	// ClaudeSettingSources are the Claude settings loaded ("project" by default,
+	// so personal ~/.claude hooks and MCP servers do not apply; "all" loads every source).
+	ClaudeSettingSources string
+	DefaultRunner        string
 	// QuestionTimeout bounds how long a turn waits for the user's answer.
 	QuestionTimeout time.Duration
 	VNCAddr         string
@@ -44,6 +56,12 @@ type Config struct {
 //	MOBD_DATA_DIR        Root for artifacts/ (default: directory of MOBD_STATE_PATH)
 //	MOBD_CODEX_MODELS    Comma-separated Codex model IDs offered to clients (MOBD_MODELS also accepted)
 //	MOBD_DEFAULT_RUNNER  Runner for new conversations (default codex)
+//	MOBD_RUNNERS         Enabled runners, comma-separated (default codex,claude)
+//	MOBD_CLAUDE_BIN      Claude Code executable (default claude)
+//	MOBD_CLAUDE_WORKDIR  Working directory for Claude (default MOBD_CODEX_WORKDIR)
+//	MOBD_CLAUDE_MODELS   Claude models offered to clients (default opus,sonnet,haiku)
+//	MOBD_CLAUDE_PERMISSIONS bypass (default) or approve
+//	MOBD_CLAUDE_SETTING_SOURCES Claude settings to load (default project; all = every source)
 //	MOBD_QUESTION_TIMEOUT How long a turn waits for an answer (Go duration, default 30m)
 //	MOBD_VNC_ADDR        VNC server relayed by GET /vnc and checked by /health (default 127.0.0.1:5900, Screen Sharing)
 func Load() Config {
@@ -53,24 +71,30 @@ func Load() Config {
 		stateDir = cwd
 	}
 	cfg := Config{
-		ListenAddr:      envOr("MOBD_LISTEN", ":8080"),
-		CodexBin:        envOr("MOBD_CODEX_BIN", "codex"),
-		CodexWorkDir:    envOr("MOBD_CODEX_WORKDIR", cwd),
-		MobMCPCommand:   os.Getenv("MOBD_MOB_MCP_COMMAND"),
-		MobMCPArgs:      nil,
-		SharedSecret:    os.Getenv("MOBD_SHARED_SECRET"),
-		VNCViewURL:      os.Getenv("MOBD_VNC_VIEW_URL"),
-		StatePath:       envOr("MOBD_STATE_PATH", filepath.Join(stateDir, "mob", "state.json")),
-		CORSOrigins:     corsOrigins(os.Getenv("MOBD_CORS_ORIGINS")),
-		MaxRunning:      1,
-		CodexModels:     splitList(envOr("MOBD_CODEX_MODELS", os.Getenv("MOBD_MODELS"))),
-		DefaultRunner:   envOr("MOBD_DEFAULT_RUNNER", "codex"),
-		QuestionTimeout: 30 * time.Minute,
-		VNCAddr:         envOr("MOBD_VNC_ADDR", "127.0.0.1:5900"),
+		ListenAddr:           envOr("MOBD_LISTEN", ":8080"),
+		CodexBin:             envOr("MOBD_CODEX_BIN", "codex"),
+		CodexWorkDir:         envOr("MOBD_CODEX_WORKDIR", cwd),
+		MobMCPCommand:        os.Getenv("MOBD_MOB_MCP_COMMAND"),
+		MobMCPArgs:           nil,
+		SharedSecret:         os.Getenv("MOBD_SHARED_SECRET"),
+		VNCViewURL:           os.Getenv("MOBD_VNC_VIEW_URL"),
+		StatePath:            envOr("MOBD_STATE_PATH", filepath.Join(stateDir, "mob", "state.json")),
+		CORSOrigins:          corsOrigins(os.Getenv("MOBD_CORS_ORIGINS")),
+		MaxRunning:           1,
+		CodexModels:          splitList(envOr("MOBD_CODEX_MODELS", os.Getenv("MOBD_MODELS"))),
+		DefaultRunner:        envOr("MOBD_DEFAULT_RUNNER", "codex"),
+		Runners:              splitList(envOr("MOBD_RUNNERS", "codex,claude")),
+		ClaudeBin:            envOr("MOBD_CLAUDE_BIN", "claude"),
+		ClaudeModels:         splitList(envOr("MOBD_CLAUDE_MODELS", "opus,sonnet,haiku")),
+		ClaudePermissions:    envOr("MOBD_CLAUDE_PERMISSIONS", "bypass"),
+		ClaudeSettingSources: envOr("MOBD_CLAUDE_SETTING_SOURCES", "project"),
+		QuestionTimeout:      30 * time.Minute,
+		VNCAddr:              envOr("MOBD_VNC_ADDR", "127.0.0.1:5900"),
 	}
 	if d, err := time.ParseDuration(strings.TrimSpace(os.Getenv("MOBD_QUESTION_TIMEOUT"))); err == nil && d > 0 {
 		cfg.QuestionTimeout = d
 	}
+	cfg.ClaudeWorkDir = envOr("MOBD_CLAUDE_WORKDIR", cfg.CodexWorkDir)
 	cfg.DataDir = envOr("MOBD_DATA_DIR", filepath.Dir(cfg.StatePath))
 	if n, err := strconv.Atoi(strings.TrimSpace(os.Getenv("MOBD_MAX_RUNNING"))); err == nil && n > 0 {
 		cfg.MaxRunning = n

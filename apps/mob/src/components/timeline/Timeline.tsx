@@ -36,7 +36,10 @@ function UserMessage({ message, task, base }: { message: ChatMessage; task?: Tas
   );
 }
 
+const RUNNER_LABELS: Record<string, string> = { codex: "Codex", claude: "Claude Code" };
+
 function AssistantMessage({ message }: { message: ChatMessage }) {
+  const runnerName = useChat().session?.runner;
   const [copied, setCopied] = useState(false);
   return (
     <div className="group flex gap-3">
@@ -46,7 +49,7 @@ function AssistantMessage({ message }: { message: ChatMessage }) {
       <div className="min-w-0 flex-1">
         <div className="mb-1 flex items-center gap-2 text-xs text-muted-foreground">
           <span className="font-medium text-foreground/80">mob</span>
-          <span>Codex</span>
+          <span>{RUNNER_LABELS[runnerName ?? "codex"] ?? runnerName}</span>
         </div>
         <Markdown text={message.content} />
         <div className="mt-1 flex h-6 opacity-0 transition-opacity group-hover:opacity-100">
@@ -72,7 +75,8 @@ function TurnFooter({ task, last }: { task: Task; last: boolean }) {
   const chat = useChat();
   const took = duration(task.startedAt, task.finishedAt);
   const tokens = task.usage ? task.usage.inputTokens + task.usage.outputTokens : 0;
-  const meta = [took, tokens ? `${compactNumber(tokens)} tokens` : "", task.model ?? "", task.effort ? `effort ${task.effort}` : ""].filter(Boolean);
+  const meta = [took, tokens ? `${compactNumber(tokens)} tokens` : "",
+    task.usage?.costUsd ? `$${task.usage.costUsd < 0.01 ? task.usage.costUsd.toFixed(4) : task.usage.costUsd.toFixed(2)}` : "", task.model ?? "", task.effort ? `effort ${task.effort}` : ""].filter(Boolean);
   return (
     <div className="grid gap-2 pl-9">
       {task.status === "failed" && (

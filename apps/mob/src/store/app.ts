@@ -16,7 +16,9 @@ export interface Machine {
 export type Theme = "system" | "light" | "dark";
 export type SettingsTab = "machines" | "appearance" | "log" | "about";
 
+// Keyed by machine ID (picked runner) and "<machine>/<runner>" (model, effort).
 export interface TurnPrefs {
+  runner?: string;
   model?: string;
   effort?: string;
 }

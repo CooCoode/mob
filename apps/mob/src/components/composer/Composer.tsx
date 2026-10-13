@@ -1,4 +1,4 @@
-import { ArrowUp, Brain, ChevronDown, Cpu, Paperclip, Square, X } from "lucide-react";
+import { ArrowUp, Bot, Brain, ChevronDown, Cpu, Paperclip, Square, X } from "lucide-react";
 import { useEffect, useRef, useState, type ClipboardEvent, type DragEvent } from "react";
 import { runnerFor, supports, uploadImage } from "@/api/client";
 import type { Health } from "@/api/types";
@@ -58,13 +58,18 @@ function Picker({ icon: Icon, label, value, options, onChange, placeholder }: {
 export function Composer({ machineId, machineName, health }: { machineId: string; machineName: string; health?: Health }) {
   const chat = useChat();
   const { text, setText, focusTick } = useComposer();
-  const prefs = useApp((s) => s.turnPrefs[machineId]) ?? {};
+  const machinePrefs = useApp((s) => s.turnPrefs[machineId]) ?? {};
   const setTurnPrefs = useApp((s) => s.setTurnPrefs);
+  const runners = (health?.runners ?? []).filter((r) => r.available);
+  // A conversation keeps its runner; a new chat uses the picked one if it is still available.
+  const picked = chat.sessionId ? chat.session?.runner : runners.find((r) => r.name === machinePrefs.runner)?.name;
+  const runnerKey = `${machineId}/${picked ?? health?.runner ?? ""}`;
+  const prefs = useApp((s) => s.turnPrefs[runnerKey]) ?? {};
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   const [dragging, setDragging] = useState(false);
   const input = useRef<HTMLTextAreaElement>(null);
   const file = useRef<HTMLInputElement>(null);
-  const runner = runnerFor(health, chat.session?.runner);
+  const runner = runnerFor(health, picked);
   const canUpload = supports(health, "uploads") && (runner?.images ?? true);
   const canOptions = supports(health, "taskOptions");
   // Older mobd (no runner list) offers the default runner's models/efforts at the top level.
@@ -105,6 +110,7 @@ export function Composer({ machineId, machineName, health }: { machineId: string
       model: canOptions && prefs.model && (models.length === 0 || models.includes(prefs.model)) ? prefs.model : undefined,
       effort: canOptions && prefs.effort && efforts.includes(prefs.effort) ? prefs.effort : undefined,
       attachments: ready.map((a) => a.id!),
+      runner: chat.sessionId ? undefined : runner?.name,
     });
     if (ok) {
       if (useComposer.getState().text.trim() === prompt) setText("");
@@ -199,12 +205,36 @@ export function Composer({ machineId, machineName, health }: { machineId: string
               </Button>
             </span>
           </Tooltip>
+          {runners.length > 1 && !chat.sessionId && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="sm" className="gap-1 px-2 text-muted-foreground" aria-label="Agent">
+                  <Bot className="size-3.5" />
+                  {runner?.label ?? "Agent"}
+                  <ChevronDown className="size-3 opacity-60" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" side="top">
+                <DropdownMenuLabel>Agent for this chat</DropdownMenuLabel>
+                <DropdownMenuRadioGroup value={runner?.name ?? ""} onValueChange={(name) => setTurnPrefs(machineId, { runner: name })}>
+                  {runners.map((r) => (
+                    <DropdownMenuRadioItem key={r.name} value={r.name}>{r.label}</DropdownMenuRadioItem>
+                  ))}
+                </DropdownMenuRadioGroup>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
+          {chat.sessionId && runner && (health?.runners?.length ?? 0) > 1 && (
+            <Tooltip content="A conversation keeps its agent. Start a new chat to switch." side="top">
+              <span className="flex h-7 items-center gap-1 px-2 text-xs text-muted-foreground"><Bot className="size-3.5" />{runner.label}</span>
+            </Tooltip>
+          )}
           {canOptions && (
             <>
               <Picker icon={Cpu} label="Model" placeholder="Default model" value={prefs.model ?? ""} options={models}
-                onChange={(model) => setTurnPrefs(machineId, { model })} />
+                onChange={(model) => setTurnPrefs(runnerKey, { model })} />
               <Picker icon={Brain} label="Reasoning effort" placeholder="Default effort" value={prefs.effort ?? ""} options={efforts}
-                onChange={(effort) => setTurnPrefs(machineId, { effort })} />
+                onChange={(effort) => setTurnPrefs(runnerKey, { effort })} />
             </>
           )}
           <div className="flex-1" />

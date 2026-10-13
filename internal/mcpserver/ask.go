@@ -125,3 +125,43 @@ func registerAskTools(s *mcp.Server, a Asker) {
 			return nil, nil, fmt.Errorf("the approval was cancelled (%s)", q.Status)
 		})
 }
+
+type approveToolArgs struct {
+	ToolName  string         `json:"tool_name" jsonschema:"Tool Claude Code wants to run."`
+	Input     map[string]any `json:"input,omitempty" jsonschema:"The tool's input."`
+	ToolUseID string         `json:"tool_use_id,omitempty" jsonschema:"Claude's tool call ID."`
+}
+
+// registerApproveTool adds approve_tool, Claude Code's --permission-prompt-tool:
+// each tool call outside the safe list becomes an approval card for the user.
+func registerApproveTool(s *mcp.Server, a Asker) {
+	mcp.AddTool(s, &mcp.Tool{Name: "approve_tool", Description: "Permission prompt for Claude Code (used by mob, not called directly)."},
+		func(ctx context.Context, _ *mcp.CallToolRequest, in approveToolArgs) (*mcp.CallToolResult, any, error) {
+			raw, _ := json.Marshal(in.Input)
+			if in.Input == nil {
+				raw = []byte("{}")
+			}
+			details := string(raw)
+			if len(details) > 2000 {
+				details = details[:2000] + "…"
+			}
+			q, err := a.Ask(ctx, AskRequest{Kind: task.QuestionApproval, Text: "Allow the agent to use " + in.ToolName + "?", Details: details})
+			if err != nil {
+				return nil, nil, err
+			}
+			var out []byte
+			if q.Status == task.QuestionAnswered && q.Approved != nil && *q.Approved {
+				out, _ = json.Marshal(map[string]any{"behavior": "allow", "updatedInput": json.RawMessage(raw)})
+			} else {
+				msg := "The user denied this action."
+				if q.Status != task.QuestionAnswered {
+					msg = "No answer from the user; treat this as denied."
+				}
+				if q.Answer != "" {
+					msg += " The user added: " + q.Answer
+				}
+				out, _ = json.Marshal(map[string]any{"behavior": "deny", "message": msg})
+			}
+			return text(string(out)), nil, nil
+		})
+}

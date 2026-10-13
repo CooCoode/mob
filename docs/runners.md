@@ -60,8 +60,11 @@ Runners also receive `Options.Instructions` (when to ask, which actions need app
 | Runner | Instructions | Long tool calls | mob-mcp tools allowed without prompts |
 | --- | --- | --- | --- |
 | `codex` | `-c developer_instructions=…` | `mcp_servers.mob-mcp.tool_timeout_sec` | `mcp_servers.mob-mcp.default_tools_approval_mode="approve"` |
+| `claude` | `--append-system-prompt …` | `MCP_TOOL_TIMEOUT` (ms) | `--permission-mode bypassPermissions`, or `--allowedTools mcp__mob-mcp,…` in approve mode |
 
-For Codex, approval is a soft gate: the instructions tell it to call `request_approval`, but `codex exec` cannot force it. A hard gate needs the app-server mode.
+For Codex in `exec` mode, approval is a soft gate: the instructions tell it to call `request_approval`, but `codex exec` cannot force it.
+
+**Claude Code hard gate** (`MOBD_CLAUDE_PERMISSIONS=approve`): Claude runs in `manual` permission mode with `--permission-prompt-tool mcp__mob-mcp__approve_tool`. Any tool call Claude would normally ask about (shell commands, edits outside its working directory, …) becomes an approval card "Allow the agent to use Bash?" with the tool input; deny or no answer blocks it. Desktop tools, ask tools, reading and searching are pre-allowed. Claude's own rules still apply: simple writes inside its working directory are allowed without asking.
 
 ## Adding a runner
 
@@ -75,5 +78,9 @@ For Codex, approval is a soft gate: the instructions tell it to call `request_ap
 | Name | Command | Resume | Efforts | Images | Cost |
 | --- | --- | --- | --- | --- | --- |
 | `codex` | `codex exec --json … [resume <id>] -` (prompt on stdin) | ✓ | minimal, low, medium, high, xhigh | ✓ | — |
+| `claude` | `claude -p --input-format stream-json --output-format stream-json --verbose --strict-mcp-config --mcp-config … [--resume <id>]` (prompt and images as a stream-json user message) | ✓ | low, medium, high, xhigh, max | ✓ | ✓ |
 
-Codex models offered to clients come from `MOBD_CODEX_MODELS` (`MOBD_MODELS` is still read).
+Enabled runners come from `MOBD_RUNNERS` (default `codex,claude`); missing CLIs show as unavailable on `/health` and in the App.
+
+- **Codex:** models offered to clients come from `MOBD_CODEX_MODELS` (`MOBD_MODELS` is still read).
+- **Claude Code:** `MOBD_CLAUDE_BIN`, `MOBD_CLAUDE_WORKDIR` (default: Codex's), `MOBD_CLAUDE_MODELS` (default `opus,sonnet,haiku`), `MOBD_CLAUDE_PERMISSIONS` (`bypass` default, or `approve`). Only mob's MCP server is loaded, and `MOBD_CLAUDE_SETTING_SOURCES=project` (default) keeps your personal `~/.claude` hooks and settings out of office runs; `all` loads them. Output mapping: `system/init` → resume, `text` → message, `thinking` → reasoning, `tool_use`/`tool_result` → steps (`Bash` → command, `TodoWrite` → plan, `Edit`/`Write` → file change, `mcp__mob-mcp__*` → desktop tools), `result` → usage with `costUsd`.
