@@ -228,7 +228,7 @@ body {
   padding: 0;
 }
 
-.session-list li {
+.session-list button {
   display: flex;
   align-items: center;
   gap: 0.35rem;
@@ -237,14 +237,19 @@ body {
   font-size: 0.78rem;
   cursor: pointer;
   color: var(--muted);
+  width: 100%;
+  border: 0;
+  background: transparent;
+  text-align: left;
+  font-family: inherit;
 }
 
-.session-list li:hover {
+.session-list button:hover {
   background: rgba(59, 130, 246, 0.08);
   color: var(--text);
 }
 
-.session-list li.active {
+.session-list button.active {
   background: rgba(59, 130, 246, 0.15);
   color: var(--text);
   outline: 1px solid #3a5a8c;
@@ -286,6 +291,13 @@ body {
   flex: 1;
   margin: 0;
   min-width: 0;
+}
+
+.chat-head h2 {
+  max-width: 30%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .chat-stream {

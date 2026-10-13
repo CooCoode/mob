@@ -18,11 +18,14 @@ Clients are a remote control + monitor, not the place where the agent runtime li
 Thin HTTP/API layer owned by MOB, implemented in **Go** as `mobd` (see [ADR 0005](adr/0005-backend-go.md) and [Phase 1 plan](implementation-phase1.md)):
 
 - create / list / cancel tasks
-- attach a runner session (Codex first)
+- list conversations and restore their complete user/assistant transcripts
+- attach each task/turn to a stable runner session (Codex first)
 - stream or poll status (SSE)
 - (later) human approval gates for sensitive actions
 
 MOB learns UX concepts from tools like Paseo / Orca (remote start of coding agents, task state) but does **not** fork those projects. See [ADR 0002](adr/0002-orchestration-thin-custom.md).
+
+`mobd` stores conversations, messages, turn states and native Codex thread IDs in an atomic private JSON snapshot (`MOBD_STATE_PATH`). Each conversation allows one active turn. The CLI runner uses JSONL `agent_message` events and explicitly resumes that conversation's thread; SSE debug logs are separate from chat messages. See [the session API](../cmd/mobd/README.md#conversations-and-runner-lifecycle).
 
 ### Office runner (Codex first)
 

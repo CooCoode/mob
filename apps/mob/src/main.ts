@@ -1,27 +1,4 @@
-type TaskStatus =
-  | "queued"
-  | "running"
-  | "succeeded"
-  | "failed"
-  | "cancelled";
-
-interface Task {
-  id: string;
-  prompt: string;
-  status: TaskStatus;
-  runner: string;
-  createdAt: string;
-  updatedAt: string;
-  error?: string | null;
-  vncViewUrl?: string;
-}
-
-interface TaskEvent {
-  type: string;
-  message?: string;
-  status?: TaskStatus;
-  timestamp: string;
-}
+import { Chat, type Session, type TaskStatus } from "./chat";
 
 interface Machine {
   id: string;
@@ -48,14 +25,12 @@ type SvncConnect = (
 
 const STORAGE_MACHINES = "mob.machines";
 const STORAGE_ACTIVE = "mob.activeMachineId";
+const STORAGE_SESSIONS = "mob.activeSessionByMachine";
 const STORAGE_LEGACY_MOBD = "mob.mobdUrl";
 const STORAGE_LEGACY_VNC = "mob.vncWsUrl";
 const SCREEN_EMPTY =
   "Connect to the office desktop. Mouse and keyboard input is enabled for testing.";
 const LOG_MAX = 2000;
-
-const STDOUT_NOISE =
-  /^(Skipped:\s|tokens used\b|OpenAI Codex\b|-{3,}|workdir:|model:|provider:|approval:|sandbox:|reasoning |session id:|user$|codex$|hook:|warning:|Reading additional)/i;
 
 const machineTree = document.querySelector<HTMLElement>("#machine-tree")!;
 const sidebarEmpty = document.querySelector<HTMLElement>("#sidebar-empty")!;
@@ -102,6 +77,8 @@ const btnSettingsClose = document.querySelector<HTMLButtonElement>(
 )!;
 const btnAddMachine =
   document.querySelector<HTMLButtonElement>("#btn-add-machine")!;
+const btnNewChat = document.querySelector<HTMLButtonElement>("#btn-new-chat")!;
+const chatHeading = document.querySelector<HTMLElement>("#chat-heading")!;
 const btnSubmit = document.querySelector<HTMLButtonElement>("#btn-submit")!;
 const btnCancel = document.querySelector<HTMLButtonElement>("#btn-cancel")!;
 const btnRefresh = document.querySelector<HTMLButtonElement>("#btn-refresh")!;
@@ -118,18 +95,20 @@ const btnLogClear =
 let machines: Machine[] = [];
 let activeMachineId: string | null = null;
 let collapsedMachines = new Set<string>();
-let tasksByMachine = new Map<string, Task[]>();
-let activeTaskId: string | null = null;
-let eventSource: EventSource | null = null;
+const sessionsByMachine = new Map<string, Session[]>();
+let savedSessions: Record<string, string | null> = {};
+let renderedConversation = "";
+const messageBubbles = new Map<string, HTMLElement>();
 let vncClient: SvncClientLike | null = null;
 let svncConnect: SvncConnect | null = null;
 let svncLoadError: string | null = null;
 let previewExpanded = false;
-/** Terminal status seen on current SSE — clean close is normal. */
-let sseTerminal = false;
-let liveAssistantEl: HTMLElement | null = null;
-let liveAssistantText = "";
 let logFilterText = "";
+const chat = new Chat(() => {
+  sessionsByMachine.set(chat.machineId, chat.sessions);
+  renderChat();
+  renderMachineTree();
+}, (line) => appendLog(line));
 
 function envDefault(...keys: (keyof ImportMetaEnv)[]): string {
   for (const key of keys) {
@@ -153,17 +132,6 @@ function activeMachine(): Machine | null {
 function baseUrl(m?: Machine | null): string {
   const machine = m ?? activeMachine();
   return (machine?.mobdUrl ?? "").trim().replace(/\/$/, "");
-}
-
-/** Normalize GET /tasks — API returns `{ tasks: [...] }`, not a bare array. */
-function normalizeTasks(data: unknown): Task[] {
-  if (Array.isArray(data)) return data as Task[];
-  if (data && typeof data === "object") {
-    const obj = data as Record<string, unknown>;
-    if (Array.isArray(obj.tasks)) return obj.tasks as Task[];
-    if (Array.isArray(obj.items)) return obj.items as Task[];
-  }
-  return [];
 }
 
 function loadMachines(): Machine[] {
@@ -253,13 +221,13 @@ function appendStatusPill(status: TaskStatus | string): void {
   pill.dataset.status = status;
   pill.textContent = status;
   row.appendChild(pill);
+  chatStream.appendChild(row);
   scrollChat();
 }
 
 function clearChat(): void {
   chatStream.replaceChildren();
-  liveAssistantEl = null;
-  liveAssistantText = "";
+  messageBubbles.clear();
 }
 
 function appendLog(
@@ -296,63 +264,53 @@ function applyLogFilter(): void {
   }
 }
 
-function ensureAssistantBubble(): HTMLElement {
-  if (liveAssistantEl && liveAssistantEl.isConnected) return liveAssistantEl;
-  liveAssistantEl = appendBubble("assistant", "");
-  liveAssistantText = "";
-  return liveAssistantEl;
+function rememberSession(): void {
+  if (!activeMachineId) return;
+  savedSessions[activeMachineId] = chat.sessionId;
+  try {
+    localStorage.setItem(STORAGE_SESSIONS, JSON.stringify(savedSessions));
+  } catch { /* ignore unavailable storage */ }
 }
 
-function appendAssistantChunk(chunk: string): void {
-  const trimmed = chunk.replace(/\s+$/, "");
-  if (!trimmed) return;
-  if (STDOUT_NOISE.test(trimmed)) return;
-  const el = ensureAssistantBubble();
-  if (liveAssistantText) liveAssistantText += "\n" + trimmed;
-  else liveAssistantText = trimmed;
-  el.textContent = liveAssistantText;
-  scrollChat();
-}
-
-function extractStdout(message: string): string | null {
-  const m = message.match(/^\[stdout\]\s?(.*)$/s);
-  if (!m) return null;
-  return m[1] ?? "";
-}
-
-function setActiveTask(task: Task | null): void {
-  if (!task) {
-    activeTaskId = null;
-    taskMetaPill.dataset.status = "none";
-    taskMetaPill.textContent = "idle";
-    taskMetaText.textContent = "No active task";
-    btnCancel.disabled = true;
-    renderMachineTree();
-    return;
+function renderChat(): void {
+  const key = `${chat.machineId}:${chat.sessionId ?? "new"}`;
+  if (key !== renderedConversation) {
+    renderedConversation = key;
+    clearChat();
   }
-  activeTaskId = task.id;
-  taskMetaPill.dataset.status = task.status;
-  taskMetaPill.textContent = task.status;
-  taskMetaText.textContent = `${task.id.slice(0, 8)}… · ${task.runner}`;
-  btnCancel.disabled = !(
-    task.status === "queued" || task.status === "running"
-  );
-  renderMachineTree();
-}
-
-function updateActiveStatus(status: TaskStatus): void {
-  if (!activeTaskId) return;
-  taskMetaPill.dataset.status = status;
-  taskMetaPill.textContent = status;
-  btnCancel.disabled = !(status === "queued" || status === "running");
-  const mid = activeMachineId;
-  if (mid) {
-    const list = tasksByMachine.get(mid) ?? [];
-    const t = list.find((x) => x.id === activeTaskId);
-    if (t) t.status = status;
+  const messages = chat.session?.messages ?? [];
+  const lastMessage = new Map<string, string>();
+  for (const message of messages) lastMessage.set(message.taskId, message.id);
+  const errors = new Map(chat.tasks.filter((t) => t.error).map((t) => [t.id, t.error!]));
+  function bubble(id: string, role: "user" | "assistant" | "system", content: string): void {
+    let el = messageBubbles.get(id);
+    if (!el) {
+      el = appendBubble(role, content);
+      messageBubbles.set(id, el);
+    } else if (el.textContent !== content) {
+      el.textContent = content;
+    }
   }
-  renderMachineTree();
-  appendStatusPill(status);
+  for (const message of messages) {
+    bubble(message.id, message.role, message.content);
+    if (lastMessage.get(message.taskId) === message.id && errors.has(message.taskId)) {
+      bubble(`${message.taskId}:error`, "system", errors.get(message.taskId)!);
+    }
+  }
+  messageBubbles.get("connection-error")?.parentElement?.remove();
+  messageBubbles.delete("connection-error");
+  if (chat.error) bubble("connection-error", "system", chat.error);
+  chatHeading.textContent = chat.session?.title ?? (chat.loading ? "Loading…" : "New chat");
+  chatHeading.title = chatHeading.textContent;
+  const task = chat.currentTask;
+  taskMetaPill.dataset.status = task?.status ?? "none";
+  taskMetaPill.textContent = chat.submitting ? "sending" : task?.status ?? "idle";
+  taskMetaText.textContent = task ? `${task.id.slice(0, 8)}… · ${task.runner}` : "No active turn";
+  btnSubmit.disabled = !chat.canSend;
+  btnCancel.disabled = !chat.busy || chat.cancelling;
+  btnCancel.textContent = chat.cancelling ? "Cancelling…" : "Cancel";
+  btnNewChat.disabled = chat.submitting || chat.loading || !chat.ready;
+  if (task) appendStatusPill(task.status);
 }
 
 function snippet(prompt: string, n = 36): string {
@@ -392,42 +350,45 @@ function renderMachineTree(): void {
       const ul = document.createElement("ul");
       ul.className = "session-list";
 
-      const defaultLi = document.createElement("li");
-      defaultLi.dataset.id = "default";
-      if (m.id === activeMachineId && !activeTaskId) {
-        defaultLi.classList.add("active");
-      }
-      defaultLi.innerHTML = `<span class="snippet">default session</span>`;
-      defaultLi.addEventListener("click", (ev) => {
-        ev.stopPropagation();
-        void selectMachine(m.id);
-        setActiveTask(null);
-        stopEvents();
-        clearChat();
-        appendLog(`machine ${m.name} · default session`, "info");
+      const newLi = document.createElement("li");
+      const newBtn = document.createElement("button");
+      newBtn.type = "button";
+      newBtn.textContent = "+ New chat";
+      newBtn.disabled = m.id === activeMachineId && (chat.submitting || chat.loading || !chat.ready);
+      if (m.id === activeMachineId && !chat.sessionId) newBtn.classList.add("active");
+      newBtn.addEventListener("click", () => {
+        if (m.id === activeMachineId) {
+          chat.newChat();
+          rememberSession();
+          promptInput.focus();
+        } else void selectMachine(m.id, null);
       });
-      ul.appendChild(defaultLi);
+      newLi.appendChild(newBtn);
+      ul.appendChild(newLi);
 
-      const tasks = tasksByMachine.get(m.id) ?? [];
-      for (const t of tasks.slice(0, 12)) {
+      for (const session of sessionsByMachine.get(m.id) ?? []) {
         const li = document.createElement("li");
-        li.dataset.id = t.id;
-        if (m.id === activeMachineId && t.id === activeTaskId) {
-          li.classList.add("active");
-        }
-        li.innerHTML = `<span class="id">${t.id.slice(0, 8)}…</span><span class="snippet"></span><span class="pill" data-status="${t.status}">${t.status}</span>`;
-        const sn = li.querySelector(".snippet");
-        if (sn) sn.textContent = snippet(t.prompt);
-        li.title = t.prompt;
-        li.addEventListener("click", (ev) => {
-          ev.stopPropagation();
-          void selectMachine(m.id).then(() => {
-            setActiveTask(t);
-            clearChat();
-            if (t.prompt.trim()) appendBubble("user", t.prompt);
-            subscribeEvents(t.id, { keepChat: true });
-          });
+        const button = document.createElement("button");
+        button.type = "button";
+        button.dataset.id = session.id;
+        const selected = m.id === activeMachineId && session.id === chat.sessionId;
+        button.classList.toggle("active", selected);
+        button.setAttribute("aria-current", selected ? "true" : "false");
+        const title = document.createElement("span");
+        title.className = "snippet";
+        title.textContent = snippet(session.title);
+        const pill = document.createElement("span");
+        pill.className = "pill";
+        pill.dataset.status = session.status;
+        pill.textContent = session.status;
+        button.append(title, pill);
+        button.title = session.title;
+        button.addEventListener("click", () => {
+          if (m.id === activeMachineId) {
+            void chat.open(session.id).then(rememberSession);
+          } else void selectMachine(m.id, session.id);
         });
+        li.appendChild(button);
         ul.appendChild(li);
       }
       group.appendChild(ul);
@@ -437,25 +398,16 @@ function renderMachineTree(): void {
   }
 }
 
-async function selectMachine(id: string): Promise<void> {
-  if (activeMachineId === id) return;
-  const prev = activeMachineId;
+async function selectMachine(id: string, sessionId?: string | null): Promise<void> {
+  const machine = machines.find((m) => m.id === id);
+  if (!machine) return;
+  if (activeMachineId !== id && vncClient) disconnectVnc();
   activeMachineId = id;
   persistMachines();
-
-  if (prev && vncClient) {
-    disconnectVnc();
-  }
-
-  stopEvents();
-  activeTaskId = null;
-  setActiveTask(null);
-  clearChat();
-  const m = activeMachine();
-  appendLog(`selected machine: ${m?.name ?? id}`, "info");
-  renderMachineTree();
-  await pingHealth();
-  await refreshTasks();
+  appendLog(`selected machine: ${machine.name}`, "info");
+  void pingHealth(machine);
+  await chat.setMachine(id, baseUrl(machine), sessionId === undefined ? savedSessions[id] : sessionId);
+  if (activeMachineId === id && chat.ready) rememberSession();
 }
 
 async function loadSvnc(): Promise<void> {
@@ -523,107 +475,6 @@ async function pingHealth(m?: Machine | null): Promise<boolean> {
   }
 }
 
-async function refreshTasks(): Promise<void> {
-  const url = baseUrl();
-  const mid = activeMachineId;
-  if (!url || !mid) return;
-  try {
-    const res = await fetch(`${url}/tasks`);
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const data: unknown = await res.json();
-    const tasks = normalizeTasks(data);
-    tasksByMachine.set(mid, tasks.slice(0, 20));
-    renderMachineTree();
-  } catch (err) {
-    appendLog(
-      `list tasks failed: ${err instanceof Error ? err.message : String(err)}`,
-      "error",
-    );
-  }
-}
-
-function stopEvents(): void {
-  eventSource?.close();
-  eventSource = null;
-}
-
-function isTerminalStatus(s?: string): boolean {
-  return s === "succeeded" || s === "failed" || s === "cancelled";
-}
-
-function subscribeEvents(
-  id: string,
-  opts: { keepChat?: boolean } = {},
-): void {
-  const url = baseUrl();
-  if (!url) return;
-  stopEvents();
-  if (!opts.keepChat) clearChat();
-  liveAssistantEl = null;
-  liveAssistantText = "";
-  sseTerminal = false;
-  appendLog(`subscribe ${id}`, "info");
-  const es = new EventSource(`${url}/tasks/${id}/events`);
-  eventSource = es;
-
-  const onPayload = (type: string, ev: MessageEvent<string>) => {
-    // Native EventSource "error" (connection) has no data — ignore here;
-    // es.onerror handles close. Named SSE event:error always has a data payload.
-    if (type === "error" && (ev.data == null || ev.data === "")) {
-      return;
-    }
-    try {
-      const data = JSON.parse(ev.data) as TaskEvent;
-      const bit =
-        (typeof data.message === "string" && data.message) ||
-        (typeof data.status === "string" && data.status) ||
-        "";
-      appendLog(`${type}: ${bit}`, type === "error" ? "error" : type === "status" ? "status" : "log");
-
-      if (type === "log" && typeof data.message === "string") {
-        const out = extractStdout(data.message);
-        if (out !== null) appendAssistantChunk(out);
-      }
-
-      if (data.status && activeTaskId === id) {
-        updateActiveStatus(data.status);
-        if (isTerminalStatus(data.status)) sseTerminal = true;
-      }
-      // Real failure message (not empty / "undefined")
-      if (
-        type === "error" &&
-        bit &&
-        bit !== "undefined" &&
-        activeTaskId === id
-      ) {
-        // Keep chat clean: only surface meaningful failures as a system bubble
-        if (!data.status || data.status === "failed") {
-          appendBubble("system", bit);
-        }
-      }
-    } catch {
-      if (ev.data != null && String(ev.data) !== "undefined") {
-        appendLog(`${type}: ${ev.data}`, "log");
-      }
-    }
-  };
-
-  for (const type of ["status", "log", "progress", "error"]) {
-    es.addEventListener(type, (ev) =>
-      onPayload(type, ev as MessageEvent<string>),
-    );
-  }
-  es.onerror = () => {
-    if (sseTerminal) {
-      appendLog("SSE closed (task finished)", "info");
-    } else {
-      appendLog("SSE closed or error", "error");
-    }
-    stopEvents();
-    void refreshTasks();
-  };
-}
-
 function autoresizePrompt(): void {
   promptInput.style.height = "auto";
   const next = Math.min(Math.max(promptInput.scrollHeight, 40), 200);
@@ -631,60 +482,15 @@ function autoresizePrompt(): void {
 }
 
 async function submitTask(): Promise<void> {
-  const url = baseUrl();
   const prompt = promptInput.value.trim();
-  if (!url) {
-    appendBubble("system", "Select a machine with MOBD_URL (Settings).");
-    appendLog("submit blocked: no MOBD_URL", "error");
-    return;
-  }
-  if (!prompt) {
-    appendBubble("system", "Enter a prompt.");
-    return;
-  }
-  btnSubmit.disabled = true;
-  appendBubble("user", prompt);
-  try {
-    const res = await fetch(`${url}/tasks`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ prompt }),
-    });
-    const body = (await res.json()) as Task & { error?: string };
-    if (!res.ok) throw new Error(body.error || `HTTP ${res.status}`);
-    setActiveTask(body);
-    appendLog(`created ${body.id}`, "status");
-    appendStatusPill(body.status);
-    promptInput.value = "";
-    autoresizePrompt();
-    subscribeEvents(body.id, { keepChat: true });
-    await refreshTasks();
-  } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err);
-    appendBubble("system", `Create failed: ${msg}`);
-    appendLog(`create failed: ${msg}`, "error");
-  } finally {
-    btnSubmit.disabled = false;
-  }
-}
-
-async function cancelTask(): Promise<void> {
-  const url = baseUrl();
-  if (!url || !activeTaskId) return;
-  try {
-    const res = await fetch(`${url}/tasks/${activeTaskId}/cancel`, {
-      method: "POST",
-    });
-    const body = (await res.json()) as Task & { error?: string };
-    if (!res.ok) throw new Error(body.error || `HTTP ${res.status}`);
-    setActiveTask(body);
-    appendLog(`cancel → ${body.status}`, "status");
-    appendStatusPill(body.status);
-    await refreshTasks();
-  } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err);
-    appendBubble("system", `Cancel failed: ${msg}`);
-    appendLog(`cancel failed: ${msg}`, "error");
+  if (!prompt) return;
+  const machineId = activeMachineId;
+  if (await chat.submit(prompt)) {
+    if (activeMachineId === machineId) {
+      rememberSession();
+      if (promptInput.value.trim() === prompt) promptInput.value = "";
+      autoresizePrompt();
+    }
   }
 }
 
@@ -905,7 +711,7 @@ function saveMachineForm(ev: Event): void {
   renderSettingsList();
   renderMachineTree();
   if (mfId.value === activeMachineId) {
-    void pingHealth();
+    void selectMachine(activeMachineId);
   }
 }
 
@@ -913,12 +719,14 @@ function deleteMachine(): void {
   const id = mfId.value;
   if (!id) return;
   machines = machines.filter((m) => m.id !== id);
-  tasksByMachine.delete(id);
+  sessionsByMachine.delete(id);
+  delete savedSessions[id];
   if (activeMachineId === id) {
     if (vncClient) disconnectVnc();
     activeMachineId = machines[0]?.id ?? null;
     persistMachines();
     if (activeMachineId) void selectMachine(activeMachineId);
+    else { chat.newChat(); chat.ready = false; renderChat(); }
   } else {
     persistMachines();
   }
@@ -939,8 +747,13 @@ function boot(): void {
   } catch {
     activeMachineId = machines[0]?.id ?? null;
   }
+  try {
+    const saved = JSON.parse(localStorage.getItem(STORAGE_SESSIONS) ?? "{}");
+    if (saved && typeof saved === "object" && !Array.isArray(saved)) savedSessions = saved;
+  } catch { /* ignore unavailable storage */ }
   persistMachines();
   renderMachineTree();
+  renderChat();
   autoresizePrompt();
 
   btnSettings.addEventListener("click", () =>
@@ -980,8 +793,13 @@ function boot(): void {
   });
 
   btnSubmit.addEventListener("click", () => void submitTask());
-  btnCancel.addEventListener("click", () => void cancelTask());
-  btnRefresh.addEventListener("click", () => void refreshTasks());
+  btnNewChat.addEventListener("click", () => {
+    chat.newChat();
+    rememberSession();
+    promptInput.focus();
+  });
+  btnCancel.addEventListener("click", () => void chat.cancel());
+  btnRefresh.addEventListener("click", () => void chat.refresh());
   btnConnect.addEventListener("click", () => void connectVnc());
   btnDisconnect.addEventListener("click", () => disconnectVnc());
   btnExpand.addEventListener("click", () => enterPreviewFullscreen());
@@ -999,7 +817,7 @@ function boot(): void {
   });
 
   promptInput.addEventListener("keydown", (ev) => {
-    if (ev.key === "Enter" && !ev.shiftKey) {
+    if (ev.key === "Enter" && !ev.shiftKey && !ev.isComposing) {
       ev.preventDefault();
       void submitTask();
     }
@@ -1018,7 +836,7 @@ function boot(): void {
   const m = activeMachine();
   if (m) {
     appendLog(`machine: ${m.name}`, "info");
-    void pingHealth().then(() => void refreshTasks());
+    void selectMachine(m.id);
   } else {
     appendLog("no machines — open Settings to add one", "info");
     appendBubble("system", "No machines yet — open Settings to add one.");

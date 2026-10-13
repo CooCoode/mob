@@ -3,6 +3,7 @@ package config
 import (
 	"encoding/json"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 )
@@ -16,6 +17,7 @@ type Config struct {
 	MobMCPArgs    []string
 	SharedSecret  string
 	VNCViewURL    string
+	StatePath     string
 }
 
 // Load reads configuration from environment variables.
@@ -27,8 +29,13 @@ type Config struct {
 //	MOBD_MOB_MCP_ARGS    JSON array of args, e.g. ["-m","mob_mcp"] (default [])
 //	MOBD_SHARED_SECRET   Optional bearer/shared secret for mutating routes
 //	MOBD_VNC_VIEW_URL    Human svnc viewOnly URL (returned in health/info)
+//	MOBD_STATE_PATH      Conversation snapshot (default user config dir/mob/state.json)
 func Load() Config {
 	cwd, _ := os.Getwd()
+	stateDir, err := os.UserConfigDir()
+	if err != nil {
+		stateDir = cwd
+	}
 	cfg := Config{
 		ListenAddr:    envOr("MOBD_LISTEN", ":8080"),
 		CodexBin:      envOr("MOBD_CODEX_BIN", "codex"),
@@ -37,6 +44,7 @@ func Load() Config {
 		MobMCPArgs:    nil,
 		SharedSecret:  os.Getenv("MOBD_SHARED_SECRET"),
 		VNCViewURL:    os.Getenv("MOBD_VNC_VIEW_URL"),
+		StatePath:     envOr("MOBD_STATE_PATH", filepath.Join(stateDir, "mob", "state.json")),
 	}
 	if raw := strings.TrimSpace(os.Getenv("MOBD_MOB_MCP_ARGS")); raw != "" {
 		var args []string

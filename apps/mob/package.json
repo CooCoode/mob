@@ -5,6 +5,7 @@
   "description": "MOB home Mac client — task dispatch + viewOnly svnc",
   "type": "module",
   "scripts": {
+    "test": "node --test src/chat.test.mjs",
     "dev": "vite",
     "build": "tsc && vite build",
     "preview": "vite preview",

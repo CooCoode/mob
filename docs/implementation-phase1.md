@@ -40,7 +40,7 @@ mob/
 | `internal/api` | `POST/GET` tasks, cancel, SSE progress |
 | `internal/runner/codex` | Build Codex + `mob-mcp` MCP config; start/cancel process; parse progress |
 | `services/mob-mcp` | In-repo actuation MCP (MIT); Codex stdio target |
-| `internal/task` | In-memory (Phase 1) store; statuses; runner type field (`codex`) |
+| `internal/task` | Persistent conversations, transcripts, thread IDs and turn states; memory-only debug replay |
 | `web/` (optional) | Minimal HTML/JS to create a task and show status + link to svnc |
 
 Phase 1 may co-locate the control plane on the office Mac (`mobd`). Splitting API to another host is a later ops choice, not required for the exit criteria.
@@ -51,7 +51,9 @@ Base URL example: `http://mobd:8080` (config-driven).
 
 | Method | Path | Purpose |
 | --- | --- | --- |
-| `POST` | `/tasks` | Create a task; body includes `prompt` and optional metadata |
+| `GET` | `/sessions` | List conversations newest-updated first |
+| `GET` | `/sessions/:id` | Full transcript and ordered task/turn snapshots |
+| `POST` | `/tasks` | Create a turn; `prompt` and optional `sessionId` (omitted = new conversation); 409 when busy |
 | `GET` | `/tasks` | List recent tasks |
 | `GET` | `/tasks/:id` | Task snapshot (status, timestamps, runner, error if any) |
 | `GET` | `/tasks/:id/events` | **SSE** stream of progress / log / status changes |
@@ -62,6 +64,9 @@ Suggested task shape (illustrative):
 ```json
 {
   "id": "…",
+  "sessionId": "…",
+  "threadId": "…",
+  "eventId": 12,
   "prompt": "…",
   "status": "queued|running|succeeded|failed|cancelled",
   "runner": "codex",
@@ -97,6 +102,7 @@ Minimum knobs (names illustrative):
 | Listen address | HTTP bind for the task API (e.g. intranet interface + port) |
 | mob-mcp command / args | How `runner/codex` injects MCP into Codex (path to binary, flags) |
 | Codex executable / working dir | Spawn parameters for the Codex CLI |
+| `MOBD_STATE_PATH` | Durable conversation snapshot (defaults to user config directory/mob/state.json) |
 | VNC view URL | URL (or host/port/path) clients use with svnc viewOnly — returned or documented for the dispatch UI |
 | Optional shared secret | **Deferred** until Phase 2 App; leave unset in Phase 1 |
 

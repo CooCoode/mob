@@ -60,12 +60,16 @@ npm run tauri build
 
 ## MVP behavior
 
-- **Left:** sessions / agents grouped by remote machine (localStorage)
-- **Center:** chat-style dispatch — `POST /tasks`, cancel, SSE (`GET /tasks/:id/events`)
+- **Left:** real conversations from each office mobd, grouped by machine; New chat starts a conversation on the first send. The last selection per machine is remembered locally.
+- **Center:** complete user/assistant history from `GET /sessions/:id`; sends reuse `sessionId`, replies arrive as structured SSE messages, and Cancel stops the current turn. Send stays disabled while the turn runs.
 - **Right:** interactive thumbnail; Expand → App-fullscreen preview; Exit preview returns to the thumbnail
 - **Settings:** add/edit machines (`MOBD_URL`, `VNC_WS_URL`, …)
 - **Live view:** `SVNCClient.connect(..., { viewOnly: false })` temporarily enables mouse and keyboard input for testing. Click the desktop to type; while it is focused, Escape is sent to the remote machine.
 - **Auth:** deferred (intranet/VPN only)
+
+Requires the matching office mobd (`/health` API version 2). Update/restart the daemon before testing this client; older versions show an upgrade message. History lives in `MOBD_STATE_PATH` on the office host, not in browser storage. Switching conversations, reopening the client and reconnecting restore that history. See [mobd's session API and persistence](../../cmd/mobd/README.md#conversations-and-runner-lifecycle).
+
+Checks: `npm test` covers conversation lifecycle, stale requests, duplicate sends and reconnect recovery; `npm run build` checks TypeScript and the production bundle.
 
 ### CORS note
 

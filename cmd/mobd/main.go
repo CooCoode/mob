@@ -17,7 +17,10 @@ import (
 
 func main() {
 	cfg := config.Load()
-	store := task.NewStore()
+	store, err := task.OpenStore(cfg.StatePath)
+	if err != nil {
+		log.Fatalf("open conversation state: %v", err)
+	}
 	runner := codex.New(cfg)
 	srv := api.New(cfg, store, runner)
 
@@ -37,6 +40,7 @@ func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 	<-ctx.Done()
+	srv.Close()
 
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()

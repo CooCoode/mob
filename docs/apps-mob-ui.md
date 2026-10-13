@@ -2,7 +2,7 @@
 
 **Product:** home Mac **mob** App = **remote control (dispatch)** + **viewOnly monitor**.  
 **Stack:** Tauri 2 + Vite/TS; embed [svnc](https://github.com/xrdavies/svnc).  
-**Auth:** none yet (intranet / VPN only). See [client-phase2-lite.md](client-phase2-lite.md).
+**Current implementation:** server-backed conversations and durable user/assistant history; human VNC input is temporarily enabled for testing. **Auth:** none yet (intranet / VPN only). See [client-phase2-lite.md](client-phase2-lite.md).
 
 This doc is the living UI target. Scaffold lives in [`apps/mob`](../apps/mob). IA mirrors a Grok Bot–style shell: **left sessions · center chat · right screen thumbnail**, with Settings for remote machines.
 
@@ -12,7 +12,7 @@ This doc is the living UI target. Scaffold lives in [`apps/mob`](../apps/mob). I
 
 | Job | User need | Surfaces | System |
 | --- | --- | --- | --- |
-| **Sessions** | Pick a remote machine and a session/agent under it | Left sidebar: machines → nested sessions | localStorage machines; later multi-`mobd` |
+| **Sessions** | Pick a remote machine and a session/agent under it | Left sidebar: machines → nested sessions | `localStorage` machines/selection; `GET /sessions` per mobd |
 | **Dispatch** | Chat-style: tell office Codex what to do; watch progress; cancel | Center: message/SSE stream + prompt composer | Active machine’s `MOBD_URL` → `mobd` HTTP/SSE |
 | **Monitor** | See office desktop while Agent works; **never** drive UI yourself | Right thumbnail preview; double-click → App-fullscreen | Active machine’s `VNC_WS_URL` → websockify → VNC via svnc `viewOnly: true` |
 | **Settings** | Add/edit remote machines (connection info) | Settings overlay/view — not main chrome | Persisted in localStorage |
@@ -147,10 +147,13 @@ sequenceDiagram
 | Concept | Meaning | Persistence |
 | --- | --- | --- |
 | **Machine** | Named remote office host: `MOBD_URL`, `VNC_WS_URL`, optional VNC password | `localStorage` (`mob.machines`) |
-| **Session / agent** | A dispatch context under a machine (MVP: one “default” session per machine + recent tasks as session-like rows; later multi-agent) | UI state + task list from `GET /tasks` |
-| **Active selection** | Which machine’s URLs drive fetch/SSE/svnc; which session’s stream is shown in chat | In-memory + last-selected id in localStorage |
+| **Session** | A stable conversation with one native Codex thread and multiple turns; New chat creates a new conversation on first send | Office `MOBD_STATE_PATH`; `GET /sessions` and `GET /sessions/:id` |
+| **Task / turn** | One prompt and execution inside a conversation; only one active turn per session | Office task snapshot + structured message/status events |
+| **Active selection** | Which machine’s URLs drive fetch/SSE/svnc; which conversation history is shown | `mob.activeMachineId` + `mob.activeSessionByMachine` in localStorage |
 
-MVP can keep a single live `mobd` endpoint per selected machine. Multi-machine is local list + switch active; no server-side session sync yet.
+Each selected machine has its own `mobd` endpoint. Switching sessions restores the complete transcript and subscribes to the active turn after its snapshot event cursor. Late responses from a previous selection are ignored. Reconnects deduplicate event/message IDs and recover from the server snapshot. Send stays disabled until the active turn finishes, including cancellation.
+
+The matching office daemon must be updated with this client. `/sessions` missing on an older daemon displays an upgrade message; it does not silently fall back to one new task/session per message.
 
 ---
 
@@ -206,11 +209,14 @@ MVP can keep a single live `mobd` endpoint per selected machine. Multi-machine i
 - [x] **Thumbnail** right pane; **dblclick ↔ fullscreen** (Esc to exit)
 - [x] Connection fields only in Settings (not main chrome)
 - [x] Chat **bubbles** (not raw SSE dump); Settings → **Log** for debug
-- [x] Composer: Enter send · Shift+Enter newline; normalize `GET /tasks` `{tasks:[]}`
+- [x] Composer: Enter send · Shift+Enter newline; ignore IME composition and duplicate sends
+- [x] Real session rows, New chat, persistent user/assistant history and explicit thread resume
+- [x] Restore selected session per machine; recover replies after reconnect/reopen
+- [x] Cancel current turn; keep the session busy until the runner stops
 - CORS on `mobd` if browser blocks (office follow-up)
 - End-to-end: home Send → office UI moves → canvas updates
 
-**Out of MVP:** auth/login, chat history DB, multi-window, human remote input, real multi-agent server sessions, iPhone layout pass, light theme.
+**Out of MVP:** auth/login, a database service, multi-window, permanent human remote input, multiple runner types, iPhone layout pass, light theme. Conversation history already persists in a private office-side JSON snapshot.
 
 ### Next polish
 
@@ -252,7 +258,8 @@ MVP can keep a single live `mobd` endpoint per selected machine. Multi-machine i
 | --- | --- |
 | [`apps/mob/index.html`](../apps/mob/index.html) | Shell: header, sidebar, chat, preview, settings, fullscreen |
 | [`apps/mob/src/styles.css`](../apps/mob/src/styles.css) | Three-column grid, thumbnail, fullscreen overlay, tokens |
-| [`apps/mob/src/main.ts`](../apps/mob/src/main.ts) | Machines localStorage, chat stream, mobd + svnc, expand/collapse |
+| [`apps/mob/src/main.ts`](../apps/mob/src/main.ts) | Machines/selection localStorage, chat rendering, svnc, expand/collapse |
+| [`apps/mob/src/chat.ts`](../apps/mob/src/chat.ts) | Session history, turn lifecycle, request guards, SSE recovery and message deduplication |
 | [`apps/mob/README.md`](../apps/mob/README.md) | Run / env |
 
 When changing UI, update this doc’s MVP checklist and wireframe if IA shifts.

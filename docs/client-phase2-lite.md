@@ -51,12 +51,12 @@ Prototype shortcut (optional, same frontend): run the Vite app in Chrome against
 
 Grok-like three-column shell (see [apps-mob-ui.md](apps-mob-ui.md)):
 
-1. **Left — Sessions** — remote machines (localStorage) with nested sessions/tasks; select active machine.
-2. **Center — Chat** — prompt composer → `POST ${MOBD_URL}/tasks`; SSE stream (`GET .../tasks/:id/events`); Cancel → `POST .../cancel`.
+1. **Left — Sessions** — remote machines (localStorage) with real conversations from `GET /sessions`; restore the last selection per machine.
+2. **Center — Chat** — full transcript from `GET /sessions/:id`; prompt composer → `POST ${MOBD_URL}/tasks` with `sessionId`; structured message/status SSE (`GET .../tasks/:id/events`); Cancel → `POST .../cancel`.
 3. **Right — Preview** — svnc thumbnail with **`viewOnly: true`** on `VNC_WS_URL`; double-click expands to App-fullscreen; Esc returns. Never enable human input.
 4. **Settings** — add/edit machines (`MOBD_URL`, `VNC_WS_URL`, optional password, display name). Connection fields are not a permanent main-chrome strip.
 
-No chat history DB required for MVP; in-memory UI + localStorage machines is enough.
+Conversation history is now persisted by the office daemon in `MOBD_STATE_PATH`; the client stores connection settings and selected IDs locally. No database dependency is required. Update the daemon together with the client.
 
 ## Environment variables (client)
 

@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -16,31 +17,27 @@ import (
 	"github.com/xrdavies/mob/internal/task"
 )
 
-// Server is the Phase 1 HTTP task API.
 type Server struct {
 	cfg    config.Config
 	store  *task.Store
 	runner *codex.Runner
 
-	mu          sync.Mutex
-	subscribers map[string]map[chan task.Event]struct{}
+	mu      sync.Mutex
+	cancels map[string]context.CancelFunc
+	closing bool
+	runs    sync.WaitGroup
 }
 
-// New constructs the API server.
 func New(cfg config.Config, store *task.Store, runner *codex.Runner) *Server {
-	return &Server{
-		cfg:         cfg,
-		store:       store,
-		runner:      runner,
-		subscribers: make(map[string]map[chan task.Event]struct{}),
-	}
+	return &Server{cfg: cfg, store: store, runner: runner, cancels: make(map[string]context.CancelFunc)}
 }
 
-// Handler returns the root HTTP handler.
 func (s *Server) Handler() http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /health", s.handleHealth)
 	mux.HandleFunc("GET /healthz", s.handleHealth)
+	mux.HandleFunc("GET /sessions", s.handleListSessions)
+	mux.HandleFunc("GET /sessions/{id}", s.handleGetSession)
 	mux.HandleFunc("POST /tasks", s.withAuth(s.handleCreateTask))
 	mux.HandleFunc("GET /tasks", s.handleListTasks)
 	mux.HandleFunc("GET /tasks/{id}", s.handleGetTask)
@@ -51,31 +48,57 @@ func (s *Server) Handler() http.Handler {
 
 func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]any{
-		"ok":         true,
-		"service":    "mobd",
-		"vncViewUrl": s.cfg.VNCViewURL,
-		"runner":     task.RunnerCodex,
-		"mobMcp":     s.cfg.MobMCPCommand,
+		"ok": true, "service": "mobd", "apiVersion": 2,
+		"vncViewUrl": s.cfg.VNCViewURL, "runner": task.RunnerCodex, "mobMcp": s.cfg.MobMCPCommand,
 	})
 }
 
 func (s *Server) handleCreateTask(w http.ResponseWriter, r *http.Request) {
 	var req task.CreateRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		writeErr(w, http.StatusBadRequest, "invalid JSON body")
+	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 1024*1024)).Decode(&req); err != nil {
+		writeErr(w, http.StatusBadRequest, "invalid JSON body (maximum 1 MiB)")
 		return
 	}
-	t, err := s.store.Create(req.Prompt, s.cfg.VNCViewURL)
+	s.mu.Lock()
+	if s.closing {
+		s.mu.Unlock()
+		writeErr(w, http.StatusServiceUnavailable, "mobd is stopping")
+		return
+	}
+	t, err := s.store.CreateTurn(req.SessionID, req.Prompt, s.cfg.VNCViewURL)
 	if err != nil {
-		if errors.Is(err, task.ErrInvalidPrompt) {
-			writeErr(w, http.StatusBadRequest, err.Error())
-			return
+		s.mu.Unlock()
+		code := http.StatusInternalServerError
+		switch {
+		case errors.Is(err, task.ErrInvalidPrompt):
+			code = http.StatusBadRequest
+		case errors.Is(err, task.ErrNotFound):
+			code = http.StatusNotFound
+		case errors.Is(err, task.ErrSessionBusy):
+			code = http.StatusConflict
 		}
-		writeErr(w, http.StatusInternalServerError, err.Error())
+		writeErr(w, code, err.Error())
 		return
 	}
-	go s.runTask(t.ID)
+	ctx, cancel := context.WithCancel(context.Background())
+	s.cancels[t.ID] = cancel
+	s.runs.Add(1)
+	s.mu.Unlock()
+	go s.runTask(ctx, t.ID)
 	writeJSON(w, http.StatusCreated, t)
+}
+
+func (s *Server) handleListSessions(w http.ResponseWriter, r *http.Request) {
+	writeJSON(w, http.StatusOK, map[string]any{"sessions": s.store.ListSessions()})
+}
+
+func (s *Server) handleGetSession(w http.ResponseWriter, r *http.Request) {
+	session, tasks, err := s.store.Session(r.PathValue("id"))
+	if err != nil {
+		writeErr(w, http.StatusNotFound, "session not found")
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"session": session, "tasks": tasks})
 }
 
 func (s *Server) handleListTasks(w http.ResponseWriter, r *http.Request) {
@@ -83,8 +106,7 @@ func (s *Server) handleListTasks(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleGetTask(w http.ResponseWriter, r *http.Request) {
-	id := r.PathValue("id")
-	t, err := s.store.Get(id)
+	t, err := s.store.Get(r.PathValue("id"))
 	if err != nil {
 		writeErr(w, http.StatusNotFound, "task not found")
 		return
@@ -94,31 +116,24 @@ func (s *Server) handleGetTask(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) handleCancelTask(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
+	s.mu.Lock()
 	t, err := s.store.CanCancel(id)
+	if err == nil {
+		if cancel := s.cancels[id]; cancel != nil {
+			cancel()
+		}
+	}
+	s.mu.Unlock()
 	if err != nil {
+		code := http.StatusConflict
 		if errors.Is(err, task.ErrNotFound) {
-			writeErr(w, http.StatusNotFound, "task not found")
-			return
+			code = http.StatusNotFound
 		}
-		if errors.Is(err, task.ErrNotCancellable) {
-			writeErr(w, http.StatusConflict, "task is not cancellable")
-			return
-		}
-		writeErr(w, http.StatusInternalServerError, err.Error())
+		writeErr(w, code, err.Error())
 		return
 	}
-	_ = s.runner.Cancel(id)
-	updated, _ := s.store.UpdateStatus(id, task.StatusCancelled, "cancelled by client")
-	s.broadcast(id, task.Event{
-		Type:      "status",
-		Status:    task.StatusCancelled,
-		Message:   "cancelled by client",
-		Timestamp: time.Now().UTC(),
-	})
-	if updated != nil {
-		t = updated
-	}
-	writeJSON(w, http.StatusOK, t)
+	// Keep the session busy until the process and its output readers have stopped.
+	writeJSON(w, http.StatusAccepted, t)
 }
 
 func (s *Server) handleTaskEvents(w http.ResponseWriter, r *http.Request) {
@@ -127,146 +142,94 @@ func (s *Server) handleTaskEvents(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, http.StatusNotFound, "task not found")
 		return
 	}
-
+	cursor := r.Header.Get("Last-Event-ID")
+	if cursor == "" {
+		cursor = r.URL.Query().Get("after")
+	}
+	var after int64
+	if cursor != "" {
+		var err error
+		after, err = strconv.ParseInt(cursor, 10, 64)
+		if err != nil || after < 0 {
+			writeErr(w, http.StatusBadRequest, "invalid event cursor")
+			return
+		}
+	}
 	flusher, ok := w.(http.Flusher)
 	if !ok {
 		writeErr(w, http.StatusInternalServerError, "streaming unsupported")
 		return
 	}
-
 	w.Header().Set("Content-Type", "text/event-stream")
 	w.Header().Set("Cache-Control", "no-cache")
-	w.Header().Set("Connection", "keep-alive")
+	w.Header().Set("X-Accel-Buffering", "no")
 	w.WriteHeader(http.StatusOK)
 	flusher.Flush()
-
-	// Replay existing events.
-	past, _ := s.store.Events(id)
-	terminal := false
-	for _, ev := range past {
-		writeSSE(w, ev)
-		flusher.Flush()
-		if ev.Status == task.StatusSucceeded || ev.Status == task.StatusFailed || ev.Status == task.StatusCancelled {
-			terminal = true
-		}
-	}
-	if terminal {
-		return
-	}
-	// Also stop if store already shows a terminal status (event shape may vary).
-	if cur, err := s.store.Get(id); err == nil {
-		switch cur.Status {
-		case task.StatusSucceeded, task.StatusFailed, task.StatusCancelled:
-			return
-		}
-	}
-
-	ch := make(chan task.Event, 32)
-	s.subscribe(id, ch)
-	defer s.unsubscribe(id, ch)
-
 	ticker := time.NewTicker(15 * time.Second)
 	defer ticker.Stop()
-
 	for {
+		past, terminal, changed, err := s.store.Watch(id, after)
+		if err != nil {
+			return
+		}
+		for _, ev := range past {
+			if err := writeSSE(w, ev); err != nil {
+				return
+			}
+			after = ev.ID
+			flusher.Flush()
+		}
+		if terminal {
+			return
+		}
 		select {
 		case <-r.Context().Done():
 			return
+		case <-changed:
 		case <-ticker.C:
-			fmt.Fprintf(w, ": ping\n\n")
-			flusher.Flush()
-		case ev, ok := <-ch:
-			if !ok {
+			if _, err := fmt.Fprint(w, ": ping\n\n"); err != nil {
 				return
 			}
-			writeSSE(w, ev)
 			flusher.Flush()
-			if ev.Status == task.StatusSucceeded || ev.Status == task.StatusFailed || ev.Status == task.StatusCancelled {
-				// Allow a brief moment then end stream for terminal states.
-				return
-			}
 		}
 	}
 }
 
-func (s *Server) runTask(id string) {
-	t, err := s.store.Get(id)
-	if err != nil {
-		return
+func (s *Server) runTask(ctx context.Context, id string) {
+	defer func() {
+		s.mu.Lock()
+		s.cancels[id]()
+		delete(s.cancels, id)
+		s.mu.Unlock()
+		s.runs.Done()
+	}()
+	t, err := s.store.UpdateStatus(id, task.StatusRunning, "")
+	if err == nil {
+		err = s.runner.Start(ctx, t, func(ev task.Event) error { return s.store.AppendEvent(id, ev) })
 	}
-	if _, err := s.store.UpdateStatus(id, task.StatusRunning, ""); err != nil {
-		return
+	status, message := task.StatusSucceeded, ""
+	if ctx.Err() != nil {
+		status, message = task.StatusCancelled, "cancelled"
+	} else if err != nil {
+		status, message = task.StatusFailed, err.Error()
 	}
-	s.broadcast(id, task.Event{
-		Type:      "status",
-		Status:    task.StatusRunning,
-		Message:   "running",
-		Timestamp: time.Now().UTC(),
-	})
-
-	emit := func(ev task.Event) {
-		if ev.Timestamp.IsZero() {
-			ev.Timestamp = time.Now().UTC()
+	if _, err := s.store.UpdateStatus(id, status, message); err != nil {
+		log.Printf("finish task %s: %v", id, err)
+		if emitErr := s.store.AppendEvent(id, task.Event{Type: "error", Message: err.Error()}); emitErr != nil {
+			log.Printf("report task %s failure: %v", id, emitErr)
 		}
-		_ = s.store.AppendEvent(id, ev)
-		s.broadcast(id, ev)
 	}
-
-	ctx := context.Background()
-	err = s.runner.Start(ctx, t, emit)
-
-	// If client already cancelled, leave cancelled.
-	cur, getErr := s.store.Get(id)
-	if getErr == nil && cur.Status == task.StatusCancelled {
-		return
-	}
-
-	if err != nil {
-		if errors.Is(err, context.Canceled) {
-			_, _ = s.store.UpdateStatus(id, task.StatusCancelled, "cancelled")
-			s.broadcast(id, task.Event{Type: "status", Status: task.StatusCancelled, Message: "cancelled", Timestamp: time.Now().UTC()})
-			return
-		}
-		msg := err.Error()
-		_, _ = s.store.UpdateStatus(id, task.StatusFailed, msg)
-		s.broadcast(id, task.Event{Type: "status", Status: task.StatusFailed, Message: msg, Timestamp: time.Now().UTC()})
-		return
-	}
-	_, _ = s.store.UpdateStatus(id, task.StatusSucceeded, "")
-	s.broadcast(id, task.Event{Type: "status", Status: task.StatusSucceeded, Message: "succeeded", Timestamp: time.Now().UTC()})
 }
 
-func (s *Server) subscribe(id string, ch chan task.Event) {
+// Close cancels active turns and waits for their final state to be saved.
+func (s *Server) Close() {
 	s.mu.Lock()
-	defer s.mu.Unlock()
-	if s.subscribers[id] == nil {
-		s.subscribers[id] = make(map[chan task.Event]struct{})
+	s.closing = true
+	for _, cancel := range s.cancels {
+		cancel()
 	}
-	s.subscribers[id][ch] = struct{}{}
-}
-
-func (s *Server) unsubscribe(id string, ch chan task.Event) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	if m, ok := s.subscribers[id]; ok {
-		delete(m, ch)
-		close(ch)
-		if len(m) == 0 {
-			delete(s.subscribers, id)
-		}
-	}
-}
-
-func (s *Server) broadcast(id string, ev task.Event) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	for ch := range s.subscribers[id] {
-		select {
-		case ch <- ev:
-		default:
-			// drop if slow consumer
-		}
-	}
+	s.mu.Unlock()
+	s.runs.Wait()
 }
 
 func (s *Server) withAuth(next http.HandlerFunc) http.HandlerFunc {
@@ -303,10 +266,11 @@ func writeErr(w http.ResponseWriter, code int, msg string) {
 	writeJSON(w, code, map[string]string{"error": msg})
 }
 
-func writeSSE(w http.ResponseWriter, ev task.Event) {
+func writeSSE(w http.ResponseWriter, ev task.Event) error {
 	b, err := json.Marshal(ev)
 	if err != nil {
-		return
+		return err
 	}
-	fmt.Fprintf(w, "event: %s\ndata: %s\n\n", ev.Type, b)
+	_, err = fmt.Fprintf(w, "id: %d\nevent: %s\ndata: %s\n\n", ev.ID, ev.Type, b)
+	return err
 }
