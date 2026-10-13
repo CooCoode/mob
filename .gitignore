@@ -61,7 +61,6 @@ bin/
 cmd/mobd/mobd
 vendor/
 
-# Office service runtime / local env
+# Legacy local runtime files (kept during CLI migration)
 scripts/.env
 scripts/run/*
-!scripts/run/.gitkeep

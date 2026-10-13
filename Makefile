@@ -2,12 +2,13 @@
 
 GO      ?= go
 BIN     ?= bin/mobd
+ARGS    ?=
 APP_DIR := apps/mob
 NPM     := npm --prefix $(APP_DIR)
 
 .DEFAULT_GOAL := help
 .PHONY: help build test race vet fmt check clean \
-	start stop restart status logs \
+	init serve start stop restart status logs \
 	app-install app-dev app-desktop app-test app-build app-bundle
 
 help: ## List targets
@@ -30,20 +31,26 @@ vet: ## go vet
 fmt: ## gofmt all Go files
 	gofmt -w cmd internal
 
-start: ## Start mobd in the background (rebuilds when sources changed)
-	./scripts/mobd.sh start
+init: build ## Create the user config (never overwrite)
+	$(BIN) init $(ARGS)
 
-stop: ## Stop mobd
-	./scripts/mobd.sh stop
+serve: build ## Run mobd in the foreground
+	$(BIN) serve $(ARGS)
 
-restart: ## Restart mobd (rebuilds when sources changed)
-	./scripts/mobd.sh restart
+start: build ## Start mobd via the user LaunchAgent
+	$(BIN) start $(ARGS)
 
-status: ## Show mobd status
-	./scripts/mobd.sh status
+stop: build ## Stop mobd and disable login startup
+	$(BIN) stop
 
-logs: ## Follow the mobd log
-	tail -f scripts/run/mobd.log
+restart: build ## Reload config and restart mobd
+	$(BIN) restart $(ARGS)
+
+status: build ## Show mobd status and address
+	$(BIN) status
+
+logs: build ## Follow the mobd log
+	$(BIN) logs
 
 ## --- apps/mob (home App) ---
 

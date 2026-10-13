@@ -75,13 +75,13 @@ Older office daemons (API v2) still work for chat; activities, queue, uploads, m
 
 ### CORS note
 
-The UI uses browser `fetch` / `EventSource` against `MOBD_URL`. `mobd` allows `http://localhost:1420`, `http://127.0.0.1:1420`, `tauri://localhost`, and `http://tauri.localhost` by default. For another home-client origin, set `MOBD_CORS_ORIGINS` in the office machine's `scripts/.env` to a comma-separated allowlist (replaces the defaults). Use the origin shown in the error, without a trailing slash; `localhost:1420` here refers to the client UI, even when the office API is on another machine.
+The UI uses browser `fetch` / `EventSource` against `MOBD_URL`. `mobd` allows `http://localhost:1420`, `http://127.0.0.1:1420`, `tauri://localhost`, and `http://tauri.localhost` by default. For another home-client origin, set `corsOrigins` in the office machine's `~/.mobd/config.json` to an array of allowed origins (replaces the defaults). Use the origin shown in the error, without a trailing slash; `localhost:1420` here refers to the client UI, even when the office API is on another machine.
 
-After updating office Go code, restart `mobd`; the service script rebuilds `bin/mobd` when Go sources are newer:
+After updating office Go code, restart `mobd`; `make restart` rebuilds the binary and reloads configuration:
 
 ```bash
 # Office machine, repo root
-./scripts/mobd.sh restart
+make restart
 curl -i -H 'Origin: http://localhost:1420' http://127.0.0.1:8080/health
 ```
 

@@ -25,6 +25,6 @@ The bridge only copies bytes; it never interprets RFB. The VNC server itself is 
 
 ## Consequences
 
-- One office process and one port; no Python or websockify for mob. The websockify scripts were removed; `scripts/mobd.sh` is the only office script. Plain svnc users run websockify themselves.
+- One office process and one port; no Python or websockify for mob. The websockify scripts were removed; service management is now built into the `mobd` CLI. Plain svnc users run websockify themselves.
 - Screen Sharing still has to be turned on once in System Settings (mobd cannot do it without admin rights); `/health` reports when it is off.
 - Live-view traffic now shares mobd's port and, once added, its auth. Transport encryption is still a reverse proxy / VPN concern ([security.md](../security.md)).

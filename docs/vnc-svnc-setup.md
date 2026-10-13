@@ -43,12 +43,12 @@ Browsers cannot open raw TCP VNC. [svnc](https://github.com/xrdavies/svnc) expec
 
 ### With mob: no bridge needed
 
-`mobd` relays VNC itself on `GET /vnc`. Start it with [`scripts/mobd.sh`](../scripts/README.md) and point the App at the mobd URL only:
+`mobd` relays VNC itself on `GET /vnc`. Start it with the [mobd CLI](../cmd/mobd/README.md) and point the App at the mobd URL only:
 
 ```bash
-cp scripts/env.example scripts/.env   # set MOBD_*
-./scripts/mobd.sh start
-./scripts/mobd.sh status
+make init   # edit ~/.mobd/config.json (listen, vncAddr)
+make start
+make status
 ```
 
 The rest of this section is for plain svnc without mob.
@@ -67,7 +67,7 @@ Notes:
 - Alternatives: a native WebSocket VNC server (no bridge), or a thin lab bridge such as svnc’s non-production [`examples/ws-tcp-bridge/`](https://github.com/xrdavies/svnc/tree/main/examples/ws-tcp-bridge) for local experiments only.
 - A future **`mobvnc`** package may replace these scripts; the viewer contract remains a WebSocket RFB URL.
 
-Leave mobd running while you test (launchd/plist later is optional; the script backgrounds it). Restart with `./scripts/mobd.sh restart`. For plain svnc without mob, run websockify yourself (e.g. `websockify 6080 127.0.0.1:5900`).
+Leave mobd running while you test (the CLI manages a user LaunchAgent). Restart with `make restart`. For plain svnc without mob, run websockify yourself (e.g. `websockify 6080 127.0.0.1:5900`).
 
 ## 3. TLS / WSS (when the path leaves a trusted LAN)
 
@@ -137,7 +137,7 @@ Checklist row: [office-smoke-checklist.md](office-smoke-checklist.md) §3 / acce
 
 - [svnc](https://github.com/xrdavies/svnc) — MIT npm package `@xrdavies/svnc`
 - [websockify](https://github.com/novnc/websockify)
-- [scripts](../scripts/README.md) — office service start/stop/status helpers
+- [mobd CLI](../cmd/mobd/README.md) — office service and configuration
 - [Office smoke checklist](office-smoke-checklist.md)
 - [Office smoke test report](office-smoke-test-report.md)
 - [Architecture](architecture.md)

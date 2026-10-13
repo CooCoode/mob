@@ -57,6 +57,7 @@ A `Makefile` wraps the usual commands; run `make` to list them.
 
 ```bash
 make build        # bin/mobd
+make init         # create ~/.mobd/config.json once; configure the LAN bind
 make start        # run mobd on the office Mac (logs: make logs)
 make app-desktop  # home App as a desktop window (app-install once)
 make check        # Go vet + tests, App tests + typecheck
@@ -70,7 +71,7 @@ make check        # Go vet + tests, App tests + typecheck
 - [Office Mac smoke checklist](docs/office-smoke-checklist.md)
 - [Office smoke test report](docs/office-smoke-test-report.md)
 - [VNC + svnc viewOnly setup](docs/vnc-svnc-setup.md)
-- [Office service scripts](scripts/README.md)
+- [mobd CLI and configuration](cmd/mobd/README.md)
 - [Runners (agent CLIs)](docs/runners.md)
 - [Roadmap](docs/roadmap.md)
 - [Phase 2 lite home App `apps/mob` (embed svnc)](docs/client-phase2-lite.md)
