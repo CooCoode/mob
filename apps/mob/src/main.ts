@@ -460,7 +460,7 @@ async function selectMachine(id: string): Promise<void> {
 
 async function loadSvnc(): Promise<void> {
   try {
-    const mod = await import("svnc");
+    const mod = await import("@xrdavies/svnc");
     svncConnect = mod.SVNCClient.connect.bind(mod.SVNCClient) as SvncConnect;
     svncLoadError = null;
   } catch (err) {
@@ -469,7 +469,7 @@ async function loadSvnc(): Promise<void> {
       err instanceof Error ? err.message : "failed to import svnc";
     screenEl.classList.add("stub");
     screenEl.textContent =
-      "svnc package not built yet. Run npm install (postinstall builds github:xrdavies/svnc). You can still dispatch tasks.";
+      "Could not load @xrdavies/svnc. Run npm install, then retry. You can still dispatch tasks.";
   }
 }
 

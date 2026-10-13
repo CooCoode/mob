@@ -8,7 +8,7 @@ Accepted
 
 Operators need to watch the office Mac desktop while an agent works. Cloud desktop products (Manus, Grok Bot) embed that experience but are not suitable for private office intranet deployment. Existing remote-agent tools (e.g. Paseo, Orca) can start agents remotely but do not show the live desktop inside the product.
 
-Sibling project [svnc](https://github.com/xrdavies/svnc) already provides a browser VNC client and related APIs (MIT, npm `svnc`), and can be modified as a first-party dependency.
+Sibling project [svnc](https://github.com/xrdavies/svnc) already provides a browser VNC client and related APIs (MIT, npm `@xrdavies/svnc`), and can be modified as a first-party dependency.
 
 ## Decision
 

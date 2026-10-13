@@ -100,7 +100,7 @@ npm install svnc
 Minimal connect (replace URL, password, and mount element; **keep `viewOnly: true` for MOB humans**):
 
 ```ts
-import { SVNCClient } from 'svnc';
+import { SVNCClient } from '@xrdavies/svnc';
 
 const mount = document.getElementById('screen');
 
@@ -138,7 +138,7 @@ Checklist row: [office-smoke-checklist.md](office-smoke-checklist.md) §3 / acce
 
 ## References
 
-- [svnc](https://github.com/xrdavies/svnc) — MIT npm package `svnc`
+- [svnc](https://github.com/xrdavies/svnc) — MIT npm package `@xrdavies/svnc`
 - [websockify](https://github.com/novnc/websockify)
 - [scripts/office-vnc](../scripts/office-vnc/README.md) — start/stop/status helpers
 - [Office smoke checklist](office-smoke-checklist.md)

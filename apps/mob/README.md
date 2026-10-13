@@ -8,7 +8,7 @@ Plan: [docs/client-phase2-lite.md](../../docs/client-phase2-lite.md) · UI: [doc
 
 - **Tauri 2** shell (`src-tauri/`)
 - **Vite + TypeScript** UI (`src/`)
-- **svnc** from GitHub (`github:xrdavies/svnc`) — not on the public npm registry yet; `postinstall` builds `dist/`
+- **[@xrdavies/svnc](https://www.npmjs.com/package/@xrdavies/svnc)** `^0.1.0` (npm; ships with `dist/`)
 
 ## Prerequisites (macOS)
 
@@ -73,7 +73,7 @@ The UI uses browser `fetch` / `EventSource` against `MOBD_URL`. If the browser b
 
 ### svnc stub
 
-If `postinstall` cannot build svnc, the view pane shows a stub message; task dispatch still works. Re-run `npm install` or build `node_modules/svnc` with `npx tsc -p tsconfig.json` inside that package.
+If `@xrdavies/svnc` fails to load, the view pane shows a stub message; task dispatch still works. Re-run `npm install` (registry package includes `dist/`).
 
 ## Out of scope (MVP)
 

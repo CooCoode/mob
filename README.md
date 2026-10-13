@@ -10,7 +10,7 @@ MOB is a private alternative shape to cloud desktop agents (e.g. Manus, Grok Bot
 
 ## Relationship to svnc
 
-Screen viewing uses the VNC protocol. The human-facing viewer is the sibling project **[svnc](https://github.com/xrdavies/svnc)** (Simple VNC, MIT, npm package `svnc`). Human sessions connect in **viewOnly** mode.
+Screen viewing uses the VNC protocol. The human-facing viewer is the sibling project **[svnc](https://github.com/xrdavies/svnc)** (Simple VNC, MIT, npm package `@xrdavies/svnc`). Human sessions connect in **viewOnly** mode.
 
 For current client testing, human input is temporarily enabled in [`apps/mob`](apps/mob/README.md).
 

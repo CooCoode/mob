@@ -31,9 +31,9 @@ Exit criteria for Phase 1 remain: from home, dispatch a Codex UI task and watch 
 
 | Option | Pros | Cons |
 | --- | --- | --- |
-| **Tauri 2 + Vite/TypeScript** | Real Mac app; small footprint; webview runs `svnc` npm package as-is; same UI can later wrap iOS or stay web | Rust toolchain on build machine |
+| **Tauri 2 + Vite/TypeScript** | Real Mac app; small footprint; webview runs `@xrdavies/svnc` npm package as-is; same UI can later wrap iOS or stay web | Rust toolchain on build machine |
 | Electron + Vite/TS | Familiar Node packaging | Heavy binary; more update/security surface |
-| Swift + WKWebView | Native feel | Awkward npm/`svnc` bundling; two stacks for web+API glue |
+| Swift + WKWebView | Native feel | Awkward npm/`@xrdavies/svnc` bundling; two stacks for web+API glue |
 | Browser-only Vite shell | Fastest prototype | Not an “App”; windowing/deeplinks weaker |
 
 ### Recommendation: **Tauri 2 + Vite / TypeScript**
