@@ -1,32 +1,22 @@
-# Office service scripts
+# Office service script
 
-These scripts manage the services that run on the office Mac. Copy `env.example` to `scripts/.env` once and set the LAN bind and ports.
-
-```bash
-cp scripts/env.example scripts/.env
-./scripts/start.sh          # mobd (API, agent, actuation and live-view relay)
-./scripts/status.sh
-./scripts/stop.sh
-```
-
-Each service can be restarted without touching the other one:
+`mobd.sh` runs **mobd** on the office Mac. mobd is the whole office side of mob: task API, Codex runner, desktop actuation (`mobd mcp`, [ADR 0008](../docs/adr/0008-actuation-in-mobd.md)) and the live-view relay to Screen Sharing (`GET /vnc`, [ADR 0010](../docs/adr/0010-vnc-relay-in-mobd.md)).
 
 ```bash
-./scripts/vnc.sh             # optional standalone websockify (not needed by mob)
-./scripts/vnc.sh restart
-./scripts/vnc-status.sh
-./scripts/vnc-stop.sh
-
-./scripts/mobd.sh start
+cp scripts/env.example scripts/.env   # once; adjust the LAN bind and options
+./scripts/mobd.sh start               # builds bin/mobd when Go sources changed
 ./scripts/mobd.sh status
 ./scripts/mobd.sh restart
 ./scripts/mobd.sh stop
 ```
 
-`mobd.sh` builds `bin/mobd` when needed and starts it with the environment from `scripts/.env`. Desktop actuation is built into the same binary ([ADR 0008](../docs/adr/0008-actuation-in-mobd.md)): Codex starts `bin/mobd mcp` over stdio for each task, so there is no separate daemon or Python environment. Grant **Accessibility** and **Screen Recording** to the app that launches `mobd` (Terminal/iTerm when using these scripts); `GET /health` reports both under `checks`. Set `MOBD_MOB_MCP_COMMAND` only to try an external MCP server.
+Before the first start, on the office Mac:
 
-Runtime files are kept in `scripts/run/` and are ignored by Git. Logs are `websockify.log` and `mobd.log`.
+- Turn on **System Settings → General → Sharing → Screen Sharing** (the live view).
+- Grant **Accessibility** and **Screen Recording** to the app that launches `mobd` (Terminal/iTerm when using this script). `GET /health` reports both under `checks`.
 
-**Live view:** mobd relays the desktop itself on `GET /vnc` to `MOBD_VNC_ADDR` (macOS Screen Sharing, default `127.0.0.1:5900`; [ADR 0010](../docs/adr/0010-vnc-relay-in-mobd.md)). Turn on **System Settings → General → Sharing → Screen Sharing** once; the home App only needs the mobd URL.
+The home App only needs the mobd URL, e.g. `http://<office-ip>:8080`.
 
-`vnc.sh` (websockify) is kept for plain svnc or custom setups: it listens on `WS_LISTEN_HOST:WS_LISTEN_PORT` and forwards only to `VNC_HOST:VNC_PORT`. Keep it on a trusted LAN/VPN or put WSS and access control in front of it.
+Runtime files (`mobd.pid`, `mobd.log`) live in `scripts/run/` and are ignored by Git.
+
+Plain svnc without mob still needs a WebSocket bridge such as [websockify](https://github.com/novnc/websockify); see [docs/vnc-svnc-setup.md](../docs/vnc-svnc-setup.md).

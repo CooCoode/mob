@@ -41,23 +41,19 @@ Optional: another VNC server (e.g. TigerVNC) is fine if you already run one; MOB
 
 Browsers cannot open raw TCP VNC. [svnc](https://github.com/xrdavies/svnc) expects a **WebSocket** that carries RFB bytes. Use **[websockify](https://github.com/novnc/websockify)** (or an equivalent WS↔TCP bridge). svnc itself does not ship a production bridge.
 
-### Recommended: MOB helper scripts
+### With mob: no bridge needed
 
-Repo helpers wrap websockify start/stop/status. The same scripts also manage the office `mobd` process:
-
-See **[scripts/README.md](../scripts/README.md)**.
+`mobd` relays VNC itself on `GET /vnc`. Start it with [`scripts/mobd.sh`](../scripts/README.md) and point the App at the mobd URL only:
 
 ```bash
-cp scripts/env.example scripts/.env   # set VNC_HOST/VNC_PORT, WS_LISTEN_*, and MOBD_*
-# uv tool install websockify   # once, if not already on PATH
-./scripts/start.sh
-./scripts/status.sh
-# ./scripts/stop.sh when done
+cp scripts/env.example scripts/.env   # set MOBD_*
+./scripts/mobd.sh start
+./scripts/mobd.sh status
 ```
 
-Defaults match the example below (`6080` → `127.0.0.1:5900`). Point home `VNC_WS_URL` / apps/mob at the printed `ws://…` URL.
+The rest of this section is for plain svnc without mob.
 
-### Manual one-liner (same idea)
+### Plain svnc: websockify one-liner
 
 ```bash
 # Example only: listen on WS port 6080, forward to local Screen Sharing on 5900
@@ -71,7 +67,7 @@ Notes:
 - Alternatives: a native WebSocket VNC server (no bridge), or a thin lab bridge such as svnc’s non-production [`examples/ws-tcp-bridge/`](https://github.com/xrdavies/svnc/tree/main/examples/ws-tcp-bridge) for local experiments only.
 - A future **`mobvnc`** package may replace these scripts; the viewer contract remains a WebSocket RFB URL.
 
-Leave the services running while you test (launchd/plist later is optional; scripts already background websockify and mobd). Restart one service independently with `./scripts/mobd.sh restart` or `./scripts/vnc-stop.sh && ./scripts/vnc.sh`.
+Leave mobd running while you test (launchd/plist later is optional; the script backgrounds it). Restart with `./scripts/mobd.sh restart`. For plain svnc without mob, run websockify yourself (e.g. `websockify 6080 127.0.0.1:5900`).
 
 ## 3. TLS / WSS (when the path leaves a trusted LAN)
 

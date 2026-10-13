@@ -1,12 +1,35 @@
 #!/usr/bin/env bash
-# Manage the office mobd control plane. Codex starts `mobd mcp` (actuation) per task.
+# Manage mobd on the office Mac: task API, agent runner, actuation (`mobd mcp`)
+# and the live-view relay (GET /vnc). Usage: mobd.sh {start|stop|status|restart}
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-# shellcheck disable=SC1091
-source "${SCRIPT_DIR}/common.sh"
-load_env
-ensure_run_dir
+ROOT_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
+
+# scripts/.env (optional, gitignored) is exported to mobd.
+if [[ -f "${SCRIPT_DIR}/.env" ]]; then
+  set -a
+  # shellcheck disable=SC1091
+  source "${SCRIPT_DIR}/.env"
+  set +a
+fi
+MOBD_LISTEN="${MOBD_LISTEN:-:8080}"
+MOBD_BIN="${MOBD_BIN:-${ROOT_DIR}/bin/mobd}"
+RUN_DIR="${RUN_DIR:-${SCRIPT_DIR}/run}"
+MOBD_PID_FILE="${RUN_DIR}/mobd.pid"
+MOBD_LOG_FILE="${RUN_DIR}/mobd.log"
+mkdir -p "${RUN_DIR}"
+
+is_mobd_running() {
+  local pid
+  pid="$(cat "${MOBD_PID_FILE}" 2>/dev/null || true)"
+  [[ -n "${pid}" ]] && kill -0 "${pid}" 2>/dev/null
+}
+
+# Empty means mobd's built-in actuation server (`mobd mcp`, ADR 0008).
+mobd_mcp_command() {
+  echo "${MOBD_MOB_MCP_COMMAND:-}"
+}
 
 usage() { echo "Usage: $0 {start|stop|status|restart}" >&2; exit 2; }
 
