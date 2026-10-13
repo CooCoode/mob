@@ -122,6 +122,11 @@ func (s *Store) Create(prompt, vncViewURL string) (*Task, error) {
 }
 
 func (s *Store) CreateTurn(sessionID, prompt, vncViewURL string) (*Task, error) {
+	return s.CreateTurnWith(sessionID, prompt, vncViewURL, TurnOptions{})
+}
+
+// CreateTurnWith queues a turn with validated runner options.
+func (s *Store) CreateTurnWith(sessionID, prompt, vncViewURL string, opts TurnOptions) (*Task, error) {
 	prompt = strings.TrimSpace(prompt)
 	if prompt == "" {
 		return nil, ErrInvalidPrompt
@@ -149,6 +154,7 @@ func (s *Store) CreateTurn(sessionID, prompt, vncViewURL string) (*Task, error) 
 	t := &Task{
 		ID: newID(), SessionID: session.ID, ThreadID: session.ThreadID,
 		Prompt: prompt, Status: StatusQueued, Runner: RunnerCodex,
+		Model: opts.Model, Effort: opts.Effort, Attachments: append([]string(nil), opts.Attachments...),
 		CreatedAt: now, UpdatedAt: now, VNCViewURL: vncViewURL, EventID: 1,
 	}
 	session.ActiveTaskID, session.Status, session.UpdatedAt = t.ID, t.Status, now

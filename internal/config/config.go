@@ -20,6 +20,8 @@ type Config struct {
 	StatePath     string
 	CORSOrigins   []string
 	MaxRunning    int
+	DataDir       string
+	Models        []string
 }
 
 // Load reads configuration from environment variables.
@@ -34,6 +36,8 @@ type Config struct {
 //	MOBD_STATE_PATH      Conversation snapshot (default user config dir/mob/state.json)
 //	MOBD_CORS_ORIGINS    Comma-separated browser origins (Tauri dev defaults)
 //	MOBD_MAX_RUNNING     Tasks allowed to run at once across sessions (default 1: one desktop)
+//	MOBD_DATA_DIR        Root for artifacts/ (default: directory of MOBD_STATE_PATH)
+//	MOBD_MODELS          Comma-separated model IDs offered to clients (default: Codex default only)
 func Load() Config {
 	cwd, _ := os.Getwd()
 	stateDir, err := os.UserConfigDir()
@@ -51,7 +55,9 @@ func Load() Config {
 		StatePath:     envOr("MOBD_STATE_PATH", filepath.Join(stateDir, "mob", "state.json")),
 		CORSOrigins:   corsOrigins(os.Getenv("MOBD_CORS_ORIGINS")),
 		MaxRunning:    1,
+		Models:        splitList(os.Getenv("MOBD_MODELS")),
 	}
+	cfg.DataDir = envOr("MOBD_DATA_DIR", filepath.Dir(cfg.StatePath))
 	if n, err := strconv.Atoi(strings.TrimSpace(os.Getenv("MOBD_MAX_RUNNING"))); err == nil && n > 0 {
 		cfg.MaxRunning = n
 	}
@@ -81,13 +87,17 @@ func corsOrigins(raw string) []string {
 			"http://tauri.localhost",
 		}
 	}
-	var origins []string
-	for _, origin := range strings.Split(raw, ",") {
-		if origin = strings.TrimSpace(origin); origin != "" {
-			origins = append(origins, origin)
+	return splitList(raw)
+}
+
+func splitList(raw string) []string {
+	var items []string
+	for _, item := range strings.Split(raw, ",") {
+		if item = strings.TrimSpace(item); item != "" {
+			items = append(items, item)
 		}
 	}
-	return origins
+	return items
 }
 
 func envOr(key, def string) string {

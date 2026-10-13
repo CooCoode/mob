@@ -4,7 +4,13 @@ import (
 	"bufio"
 	"bytes"
 	"context"
+	"encoding/base64"
 	"encoding/json"
+	"github.com/xrdavies/mob/internal/actuate"
+	"image"
+	"image/jpeg"
+	"image/png"
+	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -28,6 +34,7 @@ func testServer(t *testing.T, secret string) *Server {
 		SharedSecret:  secret,
 		VNCViewURL:    "https://office.example/view",
 		CORSOrigins:   []string{"http://localhost:1420"},
+		DataDir:       t.TempDir(),
 	}
 	store := task.NewStore()
 	runner := codex.New(cfg)
@@ -462,7 +469,7 @@ func fakeCodexServer(t *testing.T, script string) (*Server, string) {
 	if err := os.WriteFile(bin, []byte("#!/bin/sh\n"+script), 0700); err != nil {
 		t.Fatal(err)
 	}
-	cfg := config.Config{CodexBin: bin, CodexWorkDir: dir, MobMCPCommand: "mob-mcp", MaxRunning: 1}
+	cfg := config.Config{CodexBin: bin, CodexWorkDir: dir, MobMCPCommand: "mob-mcp", MaxRunning: 1, DataDir: dir}
 	s := New(cfg, task.NewStore(), codex.New(cfg))
 	t.Cleanup(s.Close)
 	return s, dir
@@ -716,5 +723,106 @@ func TestHubResetsEvictedCursor(t *testing.T) {
 	events, reset, _, _ := h.since(h.cursor() - 2)
 	if reset || len(events) != 2 {
 		t.Fatalf("recent cursor: reset=%v n=%d", reset, len(events))
+	}
+}
+
+func pngBytes(t *testing.T) []byte {
+	t.Helper()
+	var buf bytes.Buffer
+	if err := png.Encode(&buf, image.NewRGBA(image.Rect(0, 0, 64, 32))); err != nil {
+		t.Fatal(err)
+	}
+	return buf.Bytes()
+}
+
+func upload(t *testing.T, s *Server, name string, data []byte) *httptest.ResponseRecorder {
+	t.Helper()
+	var body bytes.Buffer
+	mw := multipart.NewWriter(&body)
+	fw, _ := mw.CreateFormFile("file", name)
+	_, _ = fw.Write(data)
+	_ = mw.Close()
+	req := httptest.NewRequest(http.MethodPost, "/uploads", &body)
+	req.Header.Set("Content-Type", mw.FormDataContentType())
+	rr := httptest.NewRecorder()
+	s.Handler().ServeHTTP(rr, req)
+	return rr
+}
+
+func TestUploadAttachAndScreenshotArtifacts(t *testing.T) {
+	shot := base64.StdEncoding.EncodeToString(pngBytes(t))
+	s, dir := fakeCodexServer(t, `cat > /dev/null
+printf '%s\n' "$@" > args
+printf '%s\n' '{"type":"thread.started","thread_id":"th"}'
+printf '%s\n' '{"type":"item.completed","item":{"id":"shot","type":"mcp_tool_call","server":"mob-mcp","tool":"screenshot","arguments":{},"result":{"content":[{"type":"image","data":"`+shot+`","mimeType":"image/png"}]},"error":null,"status":"completed"}}'
+printf '%s\n' '{"type":"item.completed","item":{"id":"m","type":"agent_message","text":"ok"}}' '{"type":"turn.completed"}'
+`)
+	rr := upload(t, s, "photo.png", pngBytes(t))
+	var up struct{ ID, Mime, URL string }
+	if err := json.Unmarshal(rr.Body.Bytes(), &up); rr.Code != http.StatusCreated || err != nil || up.Mime != "image/png" {
+		t.Fatalf("upload %d %s", rr.Code, rr.Body.String())
+	}
+	if rr := upload(t, s, "x.html", []byte("<html>")); rr.Code != http.StatusUnsupportedMediaType {
+		t.Fatalf("html upload: %d", rr.Code)
+	}
+	if rr := doJSON(t, s, http.MethodGet, up.URL, ""); rr.Code != http.StatusOK || rr.Header().Get("Content-Type") != "image/png" {
+		t.Fatalf("artifact: %d %v", rr.Code, rr.Header())
+	}
+
+	for _, bad := range []string{`{"prompt":"x","effort":"max"}`, `{"prompt":"x","model":"bad model"}`, `{"prompt":"x","attachments":["nope.png"]}`} {
+		if rr := doJSON(t, s, http.MethodPost, "/tasks", bad); rr.Code != http.StatusBadRequest {
+			t.Fatalf("%s accepted: %d", bad, rr.Code)
+		}
+	}
+	created := postTask(t, s, `{"prompt":"look","model":"gpt-5.5","effort":"high","attachments":["`+up.ID+`"]}`)
+	if got := waitTask(t, s, created.ID); got.Status != task.StatusSucceeded || got.Model != "gpt-5.5" || len(got.Attachments) != 1 {
+		t.Fatalf("task %+v", got)
+	}
+	args, _ := os.ReadFile(filepath.Join(dir, "args"))
+	path, _, _ := s.artifacts.Path(up.ID)
+	if !strings.Contains(string(args), "--image="+path+"\n") || !strings.Contains(string(args), "--model=gpt-5.5\n") ||
+		!strings.Contains(string(args), `model_reasoning_effort="high"`) {
+		t.Fatalf("args: %s", args)
+	}
+
+	acts := s.store.Activities(created.ID)
+	if len(acts) != 1 || len(acts[0].Images) != 1 {
+		t.Fatalf("activities %+v", acts)
+	}
+	shotURL := "/artifacts/" + acts[0].Images[0]
+	if rr := doJSON(t, s, http.MethodGet, shotURL, ""); rr.Code != http.StatusOK {
+		t.Fatalf("screenshot artifact: %d", rr.Code)
+	}
+	doJSON(t, s, http.MethodDelete, "/sessions/"+created.SessionID, "")
+	for _, url := range []string{shotURL, up.URL} {
+		if rr := doJSON(t, s, http.MethodGet, url, ""); rr.Code != http.StatusNotFound {
+			t.Fatalf("%s survived session delete: %d", url, rr.Code)
+		}
+	}
+}
+
+func TestScreen(t *testing.T) {
+	s := testServer(t, "")
+	frame := pngBytes(t)
+	capture = func(context.Context) ([]byte, error) { return frame, nil }
+	t.Cleanup(func() { capture = actuate.Capture })
+
+	rr := doJSON(t, s, http.MethodGet, "/screen?maxWidth=32", "")
+	if rr.Code != http.StatusOK || rr.Header().Get("Content-Type") != "image/jpeg" {
+		t.Fatalf("screen %d %v", rr.Code, rr.Header())
+	}
+	img, err := jpeg.Decode(rr.Body)
+	if err != nil || img.Bounds().Dx() != 32 || img.Bounds().Dy() != 16 {
+		t.Fatalf("bounds %v err %v", img, err)
+	}
+	if rr := doJSON(t, s, http.MethodGet, "/screen?format=png", ""); !bytes.Equal(rr.Body.Bytes(), frame) {
+		t.Fatal("png passthrough changed bytes")
+	}
+	if rr := doJSON(t, s, http.MethodGet, "/screen?format=gif", ""); rr.Code != http.StatusBadRequest {
+		t.Fatalf("bad format: %d", rr.Code)
+	}
+	capture = func(context.Context) ([]byte, error) { return nil, actuate.ErrUnsupported }
+	if rr := doJSON(t, s, http.MethodGet, "/screen", ""); rr.Code != http.StatusNotImplemented {
+		t.Fatalf("unsupported: %d", rr.Code)
 	}
 }

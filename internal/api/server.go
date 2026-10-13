@@ -7,11 +7,14 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"sync"
 	"time"
 
+	"github.com/xrdavies/mob/internal/artifact"
 	"github.com/xrdavies/mob/internal/config"
 	"github.com/xrdavies/mob/internal/runner"
 	"github.com/xrdavies/mob/internal/task"
@@ -22,7 +25,8 @@ type Server struct {
 	store  *task.Store
 	runner runner.Runner
 
-	hub *hub
+	hub       *hub
+	artifacts *artifact.Store
 
 	mu      sync.Mutex
 	cancels map[string]context.CancelFunc
@@ -34,10 +38,19 @@ type Server struct {
 func New(cfg config.Config, store *task.Store, r runner.Runner) *Server {
 	s := &Server{
 		cfg: cfg, store: store, runner: r, hub: newHub(),
-		cancels: make(map[string]context.CancelFunc), done: make(chan struct{}),
+		artifacts: artifact.New(filepath.Join(dataDir(cfg), "artifacts")),
+		cancels:   make(map[string]context.CancelFunc), done: make(chan struct{}),
 	}
 	store.SetNotifier(s.onChange)
 	return s
+}
+
+// dataDir falls back to a private temp directory for configs built in tests.
+func dataDir(cfg config.Config) string {
+	if cfg.DataDir != "" {
+		return cfg.DataDir
+	}
+	return filepath.Join(os.TempDir(), "mobd-data")
 }
 
 // onChange runs under the store lock; the hub never calls back into the store.
@@ -69,6 +82,9 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("POST /tasks/{id}/cancel", s.withAuth(s.handleCancelTask))
 	mux.HandleFunc("GET /queue", s.handleQueue)
 	mux.HandleFunc("GET /events", s.handleEvents)
+	mux.HandleFunc("GET /screen", s.handleScreen)
+	mux.HandleFunc("POST /uploads", s.withAuth(s.handleUpload))
+	mux.HandleFunc("GET /artifacts/{id}", s.handleArtifact)
 	return s.withCORS(mux)
 }
 
@@ -114,13 +130,18 @@ func (s *Server) handleCreateTask(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, http.StatusBadRequest, "invalid JSON body (maximum 1 MiB)")
 		return
 	}
+	opts, problem := s.turnOptions(req)
+	if problem != "" {
+		writeErr(w, http.StatusBadRequest, problem)
+		return
+	}
 	s.mu.Lock()
 	if s.closing {
 		s.mu.Unlock()
 		writeErr(w, http.StatusServiceUnavailable, "mobd is stopping")
 		return
 	}
-	t, err := s.store.CreateTurn(req.SessionID, req.Prompt, s.cfg.VNCViewURL)
+	t, err := s.store.CreateTurnWith(req.SessionID, req.Prompt, s.cfg.VNCViewURL, opts)
 	if err != nil {
 		s.mu.Unlock()
 		code := http.StatusInternalServerError
@@ -197,7 +218,10 @@ func (s *Server) handlePatchSession(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleDeleteSession(w http.ResponseWriter, r *http.Request) {
-	_, err := s.store.DeleteSession(r.PathValue("id"))
+	artifacts, err := s.store.DeleteSession(r.PathValue("id"))
+	if err == nil {
+		s.artifacts.Delete(artifacts...)
+	}
 	switch {
 	case errors.Is(err, task.ErrNotFound):
 		writeErr(w, http.StatusNotFound, "session not found")
@@ -400,7 +424,7 @@ func (s *Server) runTask(ctx context.Context, id string) {
 	}()
 	t, err := s.store.UpdateStatus(id, task.StatusRunning, "")
 	if err == nil {
-		err = s.runner.Start(ctx, t, runner.Options{}, func(ev task.Event) error { return s.store.AppendEvent(id, ev) })
+		err = s.runner.Start(ctx, t, s.runOptions(t), func(ev task.Event) error { return s.store.AppendEvent(id, ev) })
 	}
 	status, message := task.StatusSucceeded, ""
 	if ctx.Err() != nil {
