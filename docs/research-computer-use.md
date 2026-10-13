@@ -208,6 +208,12 @@ Office engineers may **temporarily** spike Codex against [CursorTouch/MacOS-MCP]
 
 ---
 
+### Related later: per-agent desktop isolation
+
+Actuation assumes **one** GUI session per driver. Parallel agents on one WindowServer will fight the cursor; future isolation (multi-user or Tart/UTM) is planned in [research-per-agent-desktop-vm.md](research-per-agent-desktop-vm.md), not in the MCP tool surface.
+
+---
+
 ## 9. ADR impact
 
 - [ADR 0006](adr/0006-actuation-controlmcp-first.md) (**ControlMCP first**) → **Superseded** by [ADR 0007](adr/0007-actuation-mob-mcp.md).

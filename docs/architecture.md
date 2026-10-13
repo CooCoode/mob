@@ -66,6 +66,8 @@ Monitor implementations should sit behind a small abstraction (name: `DesktopVie
 
 Actuation APIs are **not** part of `DesktopView`. Viewing and driving stay separate.
 
+**Later (planning):** parallel agents need separate GUI sessions (multi-user Screen Sharing or Tart/UTM VMs), not Spaces on one desktop — see [research-per-agent-desktop-vm.md](research-per-agent-desktop-vm.md). MVP stays one desktop + global queue.
+
 ## Trust and network sketch
 
 ```mermaid

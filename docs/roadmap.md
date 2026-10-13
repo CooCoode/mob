@@ -33,3 +33,8 @@ Order of work (2026-10-13): design docs ([mobd-v3](mobd-v3.md), [apps-mob-ui v2]
 - Human approval gates for sensitive actions
 
 **Exit criteria:** Clients can switch view backends without rewriting task/actuation paths; human control remains an explicit, rare escape hatch.
+
+## Later — Per-agent desktops (planning)
+
+Not an MVP gate. Target shape: shared filesystem, independent GUI desktop per agent (Grok Bot–like). Options and Tart/UTM orchestration notes: **[research-per-agent-desktop-vm.md](research-per-agent-desktop-vm.md)**. Until then, keep the **single desktop + global queue**.
+
