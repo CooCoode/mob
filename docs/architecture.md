@@ -52,7 +52,7 @@ See [ADR 0003](adr/0003-actuation-local-mcp.md).
 ### View (VNC + svnc)
 
 - Office Mac runs a VNC server exposing the desktop.
-- Humans connect with **[svnc](https://github.com/xrdavies/svnc)** in `viewOnly: true`.
+- Humans connect with **[svnc](https://github.com/xrdavies/svnc)** through mobd's WebSocket relay at `/vnc` ([ADR 0010](adr/0010-vnc-relay-in-mobd.md)); view-only by default, with an explicit Control mode in the App's full-size view.
 - Transport: prefer intranet / VPN; use WSS reverse proxy or SSH as documented for svnc peripherals (not VeNCrypt).
 
 See [ADR 0001](adr/0001-screen-view-vnc-svnc.md) and [security](security.md).
@@ -88,7 +88,8 @@ flowchart TB
   C -->|tasks| T --> API
   API --> Runner
   Runner --> MCP
-  C -->|viewOnly VNC via svnc| T --> VNC
+  C -->|live view via svnc| T
+  API -->|/vnc relay| VNC
 ```
 
 Sensitive operations (payments, credentials) should eventually require explicit human approval in the control plane; not required for Phase 1 scaffolding.

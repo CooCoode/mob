@@ -52,7 +52,7 @@ Temporary MIT third-party spikes (e.g. [CursorTouch/MacOS-MCP](https://github.co
 
 ## 3. VNC + websockify/WSS + home svnc (viewOnly)
 
-Step-by-step (Screen Sharing, websockify examples, WSS, home `viewOnly` snippet): **[vnc-svnc-setup.md](vnc-svnc-setup.md)**.
+With mobd running, no bridge is needed: turn on Screen Sharing and the App connects through `ws://<office>:<mobd-port>/vnc` ([ADR 0010](adr/0010-vnc-relay-in-mobd.md)). The websockify steps below apply to plain svnc. Step-by-step (Screen Sharing, websockify examples, WSS, home `viewOnly` snippet): **[vnc-svnc-setup.md](vnc-svnc-setup.md)**.
 
 1. On the office Mac, enable **System Settings → General → Sharing → Screen Sharing** (or another VNC server). Note host, port, and credentials — ports are site-specific; see setup doc for examples only.
 2. Bridge TCP VNC → WebSocket with **websockify** (or equivalent). Prefer repo helpers [`scripts/`](../scripts/README.md) (`vnc.sh` / `vnc-stop.sh` / `vnc-status.sh`). Prefer **intranet/VPN**; use **WSS** (or SSH/VPN) when the path leaves a trusted LAN ([svnc](https://github.com/xrdavies/svnc) peripheral security).

@@ -38,7 +38,8 @@ flowchart LR
   D --> API
   API --> R
   R --> A
-  M -->|svnc viewOnly| V
+  M -->|svnc via mobd /vnc| API
+  API -->|relay| V
   A -.->|fallback optional| V
 ```
 
@@ -74,6 +75,7 @@ flowchart LR
   - [0007 — Actuation: in-repo mob-mcp](docs/adr/0007-actuation-mob-mcp.md) (language **superseded** by 0008)
   - [0008 — Actuation: merge mob-mcp into mobd (Go)](docs/adr/0008-actuation-in-mobd.md)
   - [0009 — Home App frontend: React + Tailwind + shadcn/ui](docs/adr/0009-app-frontend-react.md)
+  - [0010 — VNC WebSocket relay in mobd](docs/adr/0010-vnc-relay-in-mobd.md)
 
 ## License
 

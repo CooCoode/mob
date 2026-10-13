@@ -118,6 +118,7 @@ Existing v2 endpoints keep their shape. New fields are additive.
 | GET | `/screen` | Current desktop snapshot. `?format=png\|jpeg` (default jpeg), `?maxWidth=` (default full size), `?quality=1..100` (default 80) |
 | POST | `/uploads` | `multipart/form-data` field `file`; PNG/JPEG/GIF/WebP up to 20 MiB → `{id, name, mime, size, url}` |
 | GET | `/artifacts/{id}` | Stored image (screenshots from tool results, uploads). Immutable, `Cache-Control: max-age=31536000` |
+| GET | `/vnc` | WebSocket ↔ TCP relay to `MOBD_VNC_ADDR` (Screen Sharing); replaces websockify ([ADR 0010](adr/0010-vnc-relay-in-mobd.md)). 403 for unknown origins, 502 if the VNC server is down |
 
 ### Health (v3)
 
@@ -139,7 +140,7 @@ Existing v2 endpoints keep their shape. New fields are additive.
 }
 ```
 
-`ok` stays true when mobd is serving. `checks` explain readiness without blocking anything and are cached for 10 s. Each check is `{ok, unknown?, detail?}`; permission checks come from `CGPreflightPostEventAccess` / `CGPreflightScreenCaptureAccess` in mobd ([ADR 0008](adr/0008-actuation-in-mobd.md)) and are `unknown` off macOS. `models` comes from `MOBD_MODELS` (comma-separated). An empty list means "Codex default only". The `vnc` check runs only when `MOBD_VNC_ADDR` is set.
+`ok` stays true when mobd is serving. `checks` explain readiness without blocking anything and are cached for 10 s. Each check is `{ok, unknown?, detail?}`; permission checks come from `CGPreflightPostEventAccess` / `CGPreflightScreenCaptureAccess` in mobd ([ADR 0008](adr/0008-actuation-in-mobd.md)) and are `unknown` off macOS. `models` comes from `MOBD_MODELS` (comma-separated). An empty list means "Codex default only". The `vnc` check dials `MOBD_VNC_ADDR` (default `127.0.0.1:5900`); `vncSessions` counts open `/vnc` relays.
 
 ### Global events (`GET /events`)
 
@@ -162,7 +163,7 @@ Per-task timelines stay on `/tasks/{id}/events`. The global stream carries only 
 | `MOBD_MAX_RUNNING` | `1` | Tasks allowed to run at once (one desktop → 1) |
 | `MOBD_DATA_DIR` | directory of `MOBD_STATE_PATH` | Root for `artifacts/` (screenshots, uploads) |
 | `MOBD_MODELS` | empty | Comma-separated model IDs offered to clients |
-| `MOBD_VNC_ADDR` | empty | `host:port` for the VNC readiness check |
+| `MOBD_VNC_ADDR` | `127.0.0.1:5900` | VNC server relayed by `GET /vnc` and checked by `/health` |
 
 ## Internal structure
 

@@ -4,7 +4,7 @@ These scripts manage the services that run on the office Mac. Copy `env.example`
 
 ```bash
 cp scripts/env.example scripts/.env
-./scripts/start.sh          # websockify + mobd
+./scripts/start.sh          # mobd (API, agent, actuation and live-view relay)
 ./scripts/status.sh
 ./scripts/stop.sh
 ```
@@ -12,7 +12,7 @@ cp scripts/env.example scripts/.env
 Each service can be restarted without touching the other one:
 
 ```bash
-./scripts/vnc.sh             # start websockify
+./scripts/vnc.sh             # optional standalone websockify (not needed by mob)
 ./scripts/vnc.sh restart
 ./scripts/vnc-status.sh
 ./scripts/vnc-stop.sh
@@ -27,4 +27,6 @@ Each service can be restarted without touching the other one:
 
 Runtime files are kept in `scripts/run/` and are ignored by Git. Logs are `websockify.log` and `mobd.log`.
 
-The VNC bridge listens on `WS_LISTEN_HOST:WS_LISTEN_PORT` and forwards only to `VNC_HOST:VNC_PORT`. Use the printed `ws://...` value as `VNC_WS_URL` in the home app. Keep it on a trusted LAN/VPN or put WSS and access control in front of it.
+**Live view:** mobd relays the desktop itself on `GET /vnc` to `MOBD_VNC_ADDR` (macOS Screen Sharing, default `127.0.0.1:5900`; [ADR 0010](../docs/adr/0010-vnc-relay-in-mobd.md)). Turn on **System Settings → General → Sharing → Screen Sharing** once; the home App only needs the mobd URL.
+
+`vnc.sh` (websockify) is kept for plain svnc or custom setups: it listens on `WS_LISTEN_HOST:WS_LISTEN_PORT` and forwards only to `VNC_HOST:VNC_PORT`. Keep it on a trusted LAN/VPN or put WSS and access control in front of it.

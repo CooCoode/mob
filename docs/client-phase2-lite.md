@@ -63,7 +63,7 @@ Conversation history is now persisted by the office daemon in `MOBD_STATE_PATH`;
 | Variable | Meaning | Example |
 | --- | --- | --- |
 | `MOBD_URL` | Base URL of office `mobd` task API | `http://192.168.50.86:8080` |
-| `VNC_WS_URL` | WebSocket URL for svnc (after websockify / WSS proxy) | `ws://192.168.50.86:6080/` or `wss://…` |
+| `VNC_WS_URL` | WebSocket URL for svnc (after websockify / WSS proxy). Since [ADR 0010](adr/0010-vnc-relay-in-mobd.md) optional: default is mobd's `/vnc` relay | `ws://192.168.50.86:6080/` or `wss://…` |
 
 Notes:
 

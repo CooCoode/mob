@@ -92,6 +92,9 @@ curl -s -X DELETE localhost:8080/sessions/SESSION_ID -o /dev/null -w '%{http_cod
 # timeline: messages + activities (tool calls, commands, plans…) + task usage
 curl -s localhost:8080/sessions/SESSION_ID | jq '.activities'
 
+# live view: WebSocket relay to Screen Sharing (what websockify used to do; ADR 0010)
+# ws://localhost:8080/vnc   ← svnc / the App connect here
+
 # global live stream (session / session.deleted / task / queue / reset)
 curl -N localhost:8080/events
 
@@ -124,7 +127,7 @@ curl -s -X POST localhost:8080/tasks \
 | `MOBD_MAX_RUNNING` | `1` | Tasks running at once across all sessions; others wait in the FIFO desktop queue |
 | `MOBD_DATA_DIR` | directory of `MOBD_STATE_PATH` | Root of `artifacts/` (tool screenshots, uploads) |
 | `MOBD_MODELS` | empty | Comma-separated model IDs advertised on `/health` for client pickers |
-| `MOBD_VNC_ADDR` | empty | `host:port` probed by the `/health` VNC check |
+| `MOBD_VNC_ADDR` | `127.0.0.1:5900` | VNC server (macOS Screen Sharing) relayed by `GET /vnc` and checked by `/health` |
 
 ## Conversations and runner lifecycle
 

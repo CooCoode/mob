@@ -4,6 +4,8 @@ Practical setup for **acceptance B** of the [office smoke checklist](office-smok
 
 Related: [ADR 0001](adr/0001-screen-view-vnc-svnc.md), [security.md](security.md), svnc [peripheral security](https://github.com/xrdavies/svnc/blob/main/docs/peripheral-security.md) and [websockify decision](https://github.com/xrdavies/svnc/blob/main/docs/websockify-decision.md).
 
+> **mob users (2026-10-13):** mobd now relays the live view itself on `GET /vnc` ([ADR 0010](adr/0010-vnc-relay-in-mobd.md)). Turn on Screen Sharing (section 1) and paste only the mobd URL into the App; the websockify steps below are for plain svnc or custom bridges.
+
 **Ports below are examples only** — pick free ports and firewall rules that fit your LAN. Nothing here mandates a specific port number.
 
 ## Topology (Phase 1)
