@@ -17,7 +17,7 @@ import (
 // APIVersion is advertised on /health; clients gate features on it.
 const APIVersion = 3
 
-var features = []string{"queue", "activities", "sessionAdmin", "events", "screen", "uploads", "taskOptions"}
+var features = []string{"queue", "activities", "sessionAdmin", "events", "screen", "uploads", "taskOptions", "vncProxy"}
 
 // check is one readiness item; Unknown means mobd cannot tell yet.
 type check struct {
@@ -45,6 +45,7 @@ func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
 		"vncViewUrl": s.cfg.VNCViewURL, "runner": task.RunnerCodex, "mobMcp": s.cfg.MobMCPCommand,
 		"maxRunning": max(s.cfg.MaxRunning, 1), "features": features,
 		"models": models, "efforts": Efforts, "checks": s.readiness(r.Context()),
+		"vncSessions": s.vncSessions.Load(),
 	})
 }
 
@@ -64,8 +65,9 @@ func (s *Server) readiness(ctx context.Context) map[string]check {
 		checks["actuation"] = check{OK: true, Detail: "built-in (mobd mcp)"}
 	}
 	checks["accessibility"], checks["screenRecording"] = permissionChecks()
-	if s.cfg.VNCAddr != "" {
-		checks["vnc"] = dialCheck(ctx, s.cfg.VNCAddr)
+	checks["vnc"] = dialCheck(ctx, s.vncAddr())
+	if !checks["vnc"].OK {
+		checks["vnc"] = check{Detail: s.vncAddr() + " unreachable; turn on Screen Sharing in System Settings > General > Sharing"}
 	}
 	s.health.at, s.health.checks = time.Now(), checks
 	return checks

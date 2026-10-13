@@ -12,6 +12,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/xrdavies/mob/internal/artifact"
@@ -28,6 +29,8 @@ type Server struct {
 	hub       *hub
 	artifacts *artifact.Store
 	health    healthCache
+
+	vncSessions atomic.Int64
 
 	mu      sync.Mutex
 	cancels map[string]context.CancelFunc
@@ -86,6 +89,7 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("GET /screen", s.handleScreen)
 	mux.HandleFunc("POST /uploads", s.withAuth(s.handleUpload))
 	mux.HandleFunc("GET /artifacts/{id}", s.handleArtifact)
+	mux.HandleFunc("GET /vnc", s.handleVNC)
 	return s.withCORS(mux)
 }
 

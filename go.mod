@@ -3,6 +3,7 @@ module github.com/xrdavies/mob
 go 1.27.0
 
 require (
+	github.com/coder/websocket v1.8.15
 	github.com/modelcontextprotocol/go-sdk v1.8.0
 	golang.org/x/image v0.47.0
 )

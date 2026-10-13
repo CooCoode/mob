@@ -39,7 +39,7 @@ type Config struct {
 //	MOBD_MAX_RUNNING     Tasks allowed to run at once across sessions (default 1: one desktop)
 //	MOBD_DATA_DIR        Root for artifacts/ (default: directory of MOBD_STATE_PATH)
 //	MOBD_MODELS          Comma-separated model IDs offered to clients (default: Codex default only)
-//	MOBD_VNC_ADDR        host:port probed by the /health VNC check (default: no check)
+//	MOBD_VNC_ADDR        VNC server relayed by GET /vnc and checked by /health (default 127.0.0.1:5900, Screen Sharing)
 func Load() Config {
 	cwd, _ := os.Getwd()
 	stateDir, err := os.UserConfigDir()
@@ -58,7 +58,7 @@ func Load() Config {
 		CORSOrigins:   corsOrigins(os.Getenv("MOBD_CORS_ORIGINS")),
 		MaxRunning:    1,
 		Models:        splitList(os.Getenv("MOBD_MODELS")),
-		VNCAddr:       strings.TrimSpace(os.Getenv("MOBD_VNC_ADDR")),
+		VNCAddr:       envOr("MOBD_VNC_ADDR", "127.0.0.1:5900"),
 	}
 	cfg.DataDir = envOr("MOBD_DATA_DIR", filepath.Dir(cfg.StatePath))
 	if n, err := strconv.Atoi(strings.TrimSpace(os.Getenv("MOBD_MAX_RUNNING"))); err == nil && n > 0 {
