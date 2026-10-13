@@ -1,4 +1,5 @@
 import { useSyncExternalStore } from "react";
+import { log } from "@/store/log";
 
 type SvncClient = {
   disconnect: () => void;
@@ -58,6 +59,10 @@ class VncController {
         return;
       }
       this.client = client;
+      // Diagnostics: shows in Settings → Log whether Control-mode keys leave the App.
+      client.canvas?.addEventListener("keydown", (e) => {
+        if (this.client === client && this.state.control) log(`key → office: ${e.key} (${e.code})`, "info");
+      });
       const d = client.desktop;
       this.update({ status: "connected", detail: "", width: d?.width ?? 0, height: d?.height ?? 0, control: false });
       client.on("disconnect", () => {
