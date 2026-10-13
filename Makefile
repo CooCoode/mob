@@ -71,7 +71,7 @@ app-build: ## Production web build of the App
 	$(NPM) run build
 
 app-bundle: ## Packaged desktop App (.app / .dmg)
-	$(NPM) run tauri build
+	$(NPM) run tauri build -- --target aarch64-apple-darwin
 
 ## --- everything ---
 

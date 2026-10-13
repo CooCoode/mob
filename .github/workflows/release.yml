@@ -1,0 +1,122 @@
+name: Release macOS arm64
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing stable tag (vMAJOR.MINOR.PATCH)
+        required: true
+        type: string
+permissions:
+  contents: read
+concurrency:
+  group: release-${{ inputs.tag || github.ref_name }}
+  cancel-in-progress: false
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.version.outputs.tag }}
+      version: ${{ steps.version.outputs.version }}
+      commit: ${{ steps.version.outputs.commit }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - id: version
+        env:
+          RELEASE_TAG: ${{ inputs.tag || github.ref_name }}
+        run: |
+          set -euo pipefail
+          [[ "$RELEASE_TAG" =~ ^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ]]
+          commit="$(git rev-parse --verify "refs/tags/$RELEASE_TAG^{commit}")"
+          echo "tag=$RELEASE_TAG" >> "$GITHUB_OUTPUT"
+          echo "version=${RELEASE_TAG#v}" >> "$GITHUB_OUTPUT"
+          echo "commit=$commit" >> "$GITHUB_OUTPUT"
+  app:
+    needs: prepare
+    runs-on: macos-15
+    environment: release
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.prepare.outputs.commit }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: apps/mob/package-lock.json
+      - name: Install Rust target
+        run: rustup target add aarch64-apple-darwin
+      - name: Install frontend dependencies and test
+        working-directory: apps/mob
+        run: npm ci && npm test
+      - name: Import Apple certificate
+        id: signing
+        uses: ./.github/actions/apple-signing
+        with:
+          certificate: ${{ secrets.APPLE_CERTIFICATE }}
+          password: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+      - name: Build, sign and notarize App
+        working-directory: apps/mob
+        env:
+          RELEASE_VERSION: ${{ needs.prepare.outputs.version }}
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          set -euo pipefail
+          test -n "$APPLE_SIGNING_IDENTITY"
+          test -n "$APPLE_ID"
+          test -n "$APPLE_PASSWORD"
+          test -n "$APPLE_TEAM_ID"
+          node --input-type=module <<'JS'
+          import fs from 'node:fs';
+          fs.writeFileSync(`${process.env.RUNNER_TEMP}/tauri-release.json`, JSON.stringify({version: process.env.RELEASE_VERSION}));
+          JS
+          npm run tauri build -- --ci --target aarch64-apple-darwin --bundles app,dmg --config "$RUNNER_TEMP/tauri-release.json" -- --locked
+          bundle=src-tauri/target/aarch64-apple-darwin/release/bundle
+          codesign --verify --deep --strict --verbose=2 "$bundle/macos/mob.app"
+          xcrun stapler validate "$bundle/macos/mob.app"
+          spctl --assess --type execute --verbose=2 "$bundle/macos/mob.app"
+          mkdir -p ../../release-assets
+          cp "$bundle"/dmg/*.dmg "../../release-assets/mob_${RELEASE_VERSION}_darwin_arm64.dmg"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: app-release
+          path: release-assets/*
+          if-no-files-found: error
+      - name: Remove signing keychain
+        if: always() && steps.signing.outputs.keychain != ''
+        env:
+          SIGNING_KEYCHAIN: ${{ steps.signing.outputs.keychain }}
+        run: security delete-keychain "$SIGNING_KEYCHAIN"
+  release:
+    needs: [prepare, app]
+    runs-on: ubuntu-latest
+    environment: release
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: '*-release'
+          merge-multiple: true
+          path: release-assets
+      - name: Create draft release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_TAG: ${{ needs.prepare.outputs.tag }}
+        run: |
+          set -euo pipefail
+          cd release-assets
+          sha256sum ./* > SHA256SUMS
+          if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
+            test "$(gh release view "$RELEASE_TAG" --json isDraft --jq .isDraft)" = true
+          else
+            gh release create "$RELEASE_TAG" --verify-tag --draft --title "mob $RELEASE_TAG" --generate-notes
+          fi
+          gh release upload "$RELEASE_TAG" ./* --clobber
