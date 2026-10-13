@@ -71,7 +71,7 @@ start() {
     echo "mobd process started but health check failed; see ${MOBD_LOG_FILE}" >&2
     return 1
   fi
-  echo "mobd started (pid $(cat "${MOBD_PID_FILE}")); MCP=${MOBD_MOB_MCP_COMMAND:-built-in (mobd mcp)}"
+  echo "mobd started (pid $(cat "${MOBD_PID_FILE}")); listen=${MOBD_LISTEN}; health=http://127.0.0.1:${port}/health; MCP=${MOBD_MOB_MCP_COMMAND:-built-in (mobd mcp)}"
 }
 
 stop() {
