@@ -38,7 +38,7 @@ cp .env.example .env
 # edit MOBD_URL and VNC_WS_URL
 ```
 
-Env values prefill the first **machine**. Manage machines (name, mobd URL, VNC WebSocket URL, optional VNC password) in **Settings → Machines**, where **Test connection** shows the office readiness checks. Settings from the v1 client are migrated on first start.
+Env values prefill the first **machine**. Manage machines (name, mobd URL, VNC WebSocket URL, macOS user name and password) in **Settings → Machines**, where **Test connection** shows the office readiness checks. Settings from the v1 client are migrated on first start.
 
 | Variable | Meaning |
 | --- | --- |
@@ -65,7 +65,7 @@ Checks: `npm test` (conversation lifecycle, reconnect recovery, timeline groupin
 - **Live view (right):** svnc connection (⏻) or, when not connected, a refreshing `/screen` snapshot. Clicks by the agent flash at their position. Double-click or ⤢ for full screen, `Esc` to return. Below: the desktop queue and the current turn's steps.
 - **Title bar:** machine status chip opens the readiness checks (Codex, actuation, Accessibility, Screen Recording, VNC).
 - **Shortcuts:** ⌘K command palette · ⌘N new chat · ⌘B sidebar · ⌘⇧B live view · ⌘, settings · ⌘1–9 switch conversation.
-- **View / Control:** the thumbnail is always view-only. To drive the office Mac yourself, click **Control** (opens full screen) or use the **View | Control** switch in full screen; your mouse, keyboard and scroll then go to the Mac, and `Esc` goes to the Mac too — switch back to **View** to use `Esc` for leaving. Leaving full screen always returns to View. Control needs a live VNC connection (not the snapshot fallback); switching does not reconnect.
+- **View / Control:** the thumbnail is always view-only. To drive the office Mac yourself, click **Control** (opens full screen) or use the **View | Control** switch in full screen; your mouse, keyboard and scroll then go to the Mac, and `Esc` goes to the Mac too — switch back to **View** to use `Esc` for leaving. Leaving full screen always returns to View. Control needs a live VNC connection (not the snapshot fallback); switching does not reconnect. To control the logged-in desktop, set the office Mac's **macOS user name** and its account password on the machine: svnc then signs in like Apple's Screen Sharing (ARD, needs `@xrdavies/svnc` ≥ 0.2.0). With only a VNC password, macOS shows its login window and ignores the sign-in there.
 - **Auth:** deferred (intranet/VPN only).
 
 Older office daemons (API v2) still work for chat; activities, queue, uploads, model/effort and session management appear once mobd reports API v3 on `/health`.

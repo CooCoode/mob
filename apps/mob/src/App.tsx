@@ -83,7 +83,7 @@ export default function App() {
 
   const connectVnc = () => {
     const host = document.querySelector<HTMLElement>(".vnc-host");
-    if (machine && host) void vnc.connect(host, machine.vncWsUrl.trim(), machine.vncPassword);
+    if (machine && host) void vnc.connect(host, machine.vncWsUrl.trim(), machine.vncPassword, machine.vncUsername);
   };
 
   useEffect(() => {

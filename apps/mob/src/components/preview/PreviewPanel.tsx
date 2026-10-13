@@ -192,7 +192,7 @@ export function PreviewPanel({ machine, health, queue, hidden }: { machine: Mach
     return () => ro.disconnect();
   }, []);
 
-  const connect = () => host.current && void vnc.connect(host.current, machine.vncWsUrl.trim(), machine.vncPassword);
+  const connect = () => host.current && void vnc.connect(host.current, machine.vncWsUrl.trim(), machine.vncPassword, machine.vncUsername);
   const control = connected && state.control;
   const dot = { idle: "bg-muted-foreground/40", connecting: "bg-warning", connected: "bg-success", error: "bg-danger" }[state.status];
 

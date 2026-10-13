@@ -46,13 +46,13 @@ export function ChecksList({ checks }: { checks?: Record<string, Check> }) {
 function MachinesTab() {
   const { machines, editMachineId, saveMachine, deleteMachine, selectMachine, set } = useApp();
   const editing = machines.find((m) => m.id === editMachineId);
-  const blank = useMemo(() => ({ name: "", mobdUrl: defaultMobdUrl(), vncWsUrl: defaultVncUrl(), vncPassword: "" }), []);
+  const blank = useMemo(() => ({ name: "", mobdUrl: defaultMobdUrl(), vncWsUrl: defaultVncUrl(), vncUsername: "", vncPassword: "" }), []);
   const [form, setForm] = useState(blank);
   const [test, setTest] = useState<{ state: "idle" | "testing" | "ok" | "error"; health?: Health; error?: string }>({ state: "idle" });
   const [saved, setSaved] = useState(false);
 
   useEffect(() => {
-    setForm(editing ? { name: editing.name, mobdUrl: editing.mobdUrl, vncWsUrl: editing.vncWsUrl, vncPassword: editing.vncPassword ?? "" } : blank);
+    setForm(editing ? { name: editing.name, mobdUrl: editing.mobdUrl, vncWsUrl: editing.vncWsUrl, vncUsername: editing.vncUsername ?? "", vncPassword: editing.vncPassword ?? "" } : blank);
     setTest({ state: "idle" });
     setSaved(false);
   }, [editMachineId]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -97,7 +97,14 @@ function MachinesTab() {
         <Label>Display name<Input value={form.name} placeholder="Office Mac" onChange={(e) => setForm({ ...form, name: e.target.value })} required /></Label>
         <Label>mobd URL<Input value={form.mobdUrl} placeholder="http://192.168.x.x:8080" onChange={(e) => setForm({ ...form, mobdUrl: e.target.value })} required /></Label>
         <Label>VNC WebSocket URL<Input value={form.vncWsUrl} placeholder="ws://192.168.x.x:6080/" onChange={(e) => setForm({ ...form, vncWsUrl: e.target.value })} required /></Label>
-        <Label>VNC password<Input type="password" autoComplete="off" value={form.vncPassword} placeholder="Optional" onChange={(e) => setForm({ ...form, vncPassword: e.target.value })} /></Label>
+        <div className="grid grid-cols-2 gap-3">
+          <Label>macOS user name<Input autoComplete="off" value={form.vncUsername} placeholder="Office Mac account" onChange={(e) => setForm({ ...form, vncUsername: e.target.value })} /></Label>
+          <Label>Password<Input type="password" autoComplete="off" value={form.vncPassword} placeholder="Account or VNC password" onChange={(e) => setForm({ ...form, vncPassword: e.target.value })} /></Label>
+        </div>
+        <p className="-mt-1.5 text-[11px] text-muted-foreground">
+          With a user name, the live view signs in to that account like Apple's Screen Sharing and can be controlled. Without it, the
+          password is used as a VNC password, which macOS answers with its login window.
+        </p>
         <div className="flex items-center gap-2 pt-1">
           <Button type="submit" disabled={!valid}>{editing ? "Save" : "Add machine"}</Button>
           <Button variant="secondary" disabled={!form.mobdUrl.trim() || test.state === "testing"} onClick={() => void runTest()}>

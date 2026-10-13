@@ -38,7 +38,7 @@ class VncController {
     for (const l of this.listeners) l();
   }
 
-  async connect(host: HTMLElement, url: string, password: string | undefined): Promise<void> {
+  async connect(host: HTMLElement, url: string, password: string | undefined, username?: string): Promise<void> {
     if (!url) {
       this.update({ status: "error", detail: "Set the VNC WebSocket URL in Settings" });
       return;
@@ -50,7 +50,8 @@ class VncController {
     try {
       const mod = await import("@xrdavies/svnc");
       const client = (await mod.SVNCClient.connect(host, {
-        url, credentials: password ? { password } : undefined, viewOnly: false, inputMode: "script",
+        // With a user name, macOS Screen Sharing signs in as that user (ARD) instead of showing the login window.
+        url, credentials: password ? { username: username || undefined, password } : undefined, viewOnly: false, inputMode: "script",
       })) as unknown as SvncClient;
       if (attempt !== this.attempt) {
         client.disconnect();

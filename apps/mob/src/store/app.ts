@@ -7,6 +7,8 @@ export interface Machine {
   name: string;
   mobdUrl: string;
   vncWsUrl: string;
+  /** macOS user for Screen Sharing sign-in (ARD); empty uses VNC password auth. */
+  vncUsername?: string;
   vncPassword?: string;
 }
 
@@ -120,7 +122,7 @@ export const useApp = create<AppState>()(
         const id = m.id || uid();
         const machine: Machine = {
           id, name: m.name.trim(), mobdUrl: m.mobdUrl.trim(), vncWsUrl: m.vncWsUrl.trim(),
-          vncPassword: m.vncPassword || undefined,
+          vncUsername: m.vncUsername?.trim() || undefined, vncPassword: m.vncPassword || undefined,
         };
         const machines = get().machines.some((x) => x.id === id)
           ? get().machines.map((x) => (x.id === id ? machine : x))
