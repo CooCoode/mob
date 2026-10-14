@@ -8,7 +8,7 @@ globalThis.isTauri = true;
 const metadata = { rid: 1, version: "0.4.0", currentVersion: "0.3.0", rawJson: {} };
 function reset(t, handler) {
   useUpdates.setState(useUpdates.getInitialState());
-  mockIPC(handler);
+  mockIPC((command, args) => command === "updater_configured" ? true : handler(command, args));
   t.after(clearMocks);
 }
 
@@ -24,6 +24,21 @@ test("simultaneous checks share one request; release the previous resource", asy
   assert.equal(useUpdates.getState().phase, "available");
   await useUpdates.getState().check();
   assert.equal(closes, 1);
+});
+
+test("development builds show the version without calling the updater plugin", async (t) => {
+  useUpdates.setState(useUpdates.getInitialState());
+  t.after(clearMocks);
+  let checks = 0;
+  mockIPC(command => {
+    if (command === "plugin:app|version") return "0.2.0";
+    if (command === "updater_configured") return false;
+    if (command === "plugin:updater|check") checks++;
+  });
+  await useUpdates.getState().check();
+  assert.equal(useUpdates.getState().phase, "disabled");
+  assert.equal(useUpdates.getState().currentVersion, "0.2.0");
+  assert.equal(checks, 0);
 });
 
 test("signature or download failure never restarts the app", async (t) => {

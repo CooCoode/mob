@@ -76,6 +76,7 @@ The shell must export the variables before running `make start` or `make serve`.
 
 ## Docs
 
+- [Public R2 downloads, signing, installer and Tauri updates](docs/releases.md)
 - [Screen Buddy logo and app icons](docs/brand/README.md)
 - [Architecture](docs/architecture.md)
 - [Computer-use research](docs/research-computer-use.md)

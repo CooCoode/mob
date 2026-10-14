@@ -6,6 +6,9 @@ Design: [docs/apps-mob-ui.md](../../docs/apps-mob-ui.md) · Stack decision: [ADR
 
 Logo: **Screen Buddy** — editable SVG sources, app icons and regeneration commands are in the [brand guide](../../docs/brand/README.md).
 
+Distribution: signed DMGs and Tauri updates use the public R2 download domain,
+independently of the private source repository. See the [release setup](../../docs/releases.md).
+
 ## Stack
 
 - **Tauri 2** shell (`src-tauri/`): overlay title bar, sidebar vibrancy

@@ -11,7 +11,7 @@ export function UpdateNotice() {
   const [confirm, setConfirm] = useState(false);
   const busy = chat.busy || chat.submitting;
   useEffect(() => {
-    if (isTauri() && import.meta.env.PROD) void useUpdates.getState().check();
+    if (isTauri()) void useUpdates.getState().check();
   }, []);
   if (!["available", "installing", "installed"].includes(state.phase) && !(state.phase === "error" && state.update)) return null;
   const progress = state.total ? `${Math.min(100, Math.round(state.downloaded / state.total * 100))}%` : `${Math.round(state.downloaded / 1024)} KB`;
@@ -48,7 +48,8 @@ export function UpdateSettings() {
   if (!isTauri()) return <p className="text-muted-foreground">Updates are available in the desktop App.</p>;
   return <div className="mt-3 grid gap-2">
     {state.currentVersion && <p>Version {state.currentVersion}</p>}
-    <Button className="w-fit" variant="secondary" disabled={["checking", "installing", "installed"].includes(state.phase)} onClick={() => void state.check()}>
+    {state.phase === "disabled" && <p className="text-muted-foreground">Automatic updates are not configured in this development build.</p>}
+    <Button className="w-fit" variant="secondary" disabled={["disabled", "checking", "installing", "installed"].includes(state.phase)} onClick={() => void state.check()}>
       {state.phase === "checking" ? "Checking…" : "Check for updates"}
     </Button>
     {state.phase === "current" && <p role="status">You’re up to date.</p>}

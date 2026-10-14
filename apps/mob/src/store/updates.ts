@@ -1,10 +1,10 @@
 import { getVersion } from "@tauri-apps/api/app";
-import { isTauri } from "@tauri-apps/api/core";
+import { invoke, isTauri } from "@tauri-apps/api/core";
 import { relaunch } from "@tauri-apps/plugin-process";
 import { check, type Update } from "@tauri-apps/plugin-updater";
 import { create } from "zustand";
 
-type Phase = "idle" | "checking" | "available" | "current" | "installing" | "installed" | "error";
+type Phase = "idle" | "disabled" | "checking" | "available" | "current" | "installing" | "installed" | "error";
 interface UpdateState {
   phase: Phase;
   currentVersion: string;
@@ -26,6 +26,10 @@ export const useUpdates = create<UpdateState>()((set, get) => ({
       set({ update: null });
       const currentVersion = await getVersion();
       set({ currentVersion });
+      if (!await invoke<boolean>("updater_configured")) {
+        set({ phase: "disabled", update: null });
+        return;
+      }
       const update = await check({ timeout: 15_000 });
       set({ currentVersion, update, phase: update ? "available" : "current" });
     } catch (error) {

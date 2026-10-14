@@ -6,6 +6,12 @@ See [docs/implementation-phase1.md](../../docs/implementation-phase1.md).
 
 ## Install / run (office Mac)
 
+Published packages and the one-line installer are served from the public R2 download
+domain, independently of the private source repository. See the product website's
+download page and the [release/installation guide](../../docs/releases.md#5-mobd-安装和升级).
+The installer uses `~/.local/bin`, verifies the archive and Apple signing identity,
+and preserves configuration. Stop an existing service before upgrading.
+
 The standalone binary needs no source checkout, Go, Makefile or service scripts:
 
 ```bash
