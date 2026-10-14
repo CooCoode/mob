@@ -14,6 +14,9 @@ Logo: **Screen Buddy** — editable SVG sources, app icons and regeneration comm
 
 Distribution: signed DMGs and Tauri updates use the public R2 download domain,
 independently of the private source repository. See the [release setup](docs/releases.md).
+Once configured, run `make release VERSION=v0.4.0` from a clean `main` matching
+`origin/main` to create and push a tag. CI builds a draft Release; test its DMG,
+then publish the stable Release on GitHub to distribute it through R2.
 
 ## Stack
 
@@ -112,10 +115,10 @@ docs/          UI design, branding, release and migration guides
 ```
 
 Run commands from this repository root: `make install`, `make dev`, `make desktop`,
-`make test`, `make build`, `make bundle`, `make check`. No Go toolchain or sibling
-checkout is required to build the desktop app; a running office daemon is required
-to dispatch tasks. See [repository split notes](docs/repository-split.md) for old
-command mappings and independent release configuration.
+`make test`, `make build`, `make bundle`, `make check`, `make release VERSION=vX.Y.Z`.
+No Go toolchain or sibling checkout is required to build the desktop app; a running
+office daemon is required to dispatch tasks. See [repository split notes](docs/repository-split.md)
+for old command mappings and independent release configuration.
 
 ## License
 
