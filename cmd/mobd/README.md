@@ -53,29 +53,11 @@ The default config is `~/.mobd/config.json`; a missing default file is allowed,
 while an explicitly supplied `--config` path must exist. Unknown fields, malformed
 JSON, invalid addresses and invalid concurrency values fail with an error.
 `init` creates a private directory/file (0700/0600). No `.env` is read or executed.
-Developers can opt in using their shell:
-
-```bash
-set -a
-source ./.env
-set +a
-make serve
-```
 
 Supported flags: `--config`, `--listen`, `--codex-bin`, `--workdir`,
 `--state-path`, `--max-running`. Put other options in JSON or exported variables.
 Relative filesystem paths resolve from the invoking directory. Use absolute paths
 in long-lived configs; JSON does not expand `~`, `$HOME`, or shell expressions.
-
-```json
-{
-  "listen": "0.0.0.0:8080",
-  "codexBin": "/opt/homebrew/bin/codex",
-  "workdir": "/Users/you/Projects",
-  "maxRunning": 1,
-  "vncAddr": "127.0.0.1:5900"
-}
-```
 
 All JSON keys and their environment equivalents are listed below. An exported
 empty string overrides JSON too: it clears optional values, but is invalid for
@@ -87,6 +69,96 @@ is not automatically migrated; export it yourself once or copy its values into
 JSON. Stop any old script-managed process before starting the LaunchAgent.
 
 If `codex` is not on `PATH`, creating a task still works: the runner logs a clear error and marks the task **failed** (safe stub — mobd does not crash).
+
+### JSON configuration (recommended for end users)
+
+End users configure `~/.mobd/config.json` and run the installed `mobd` directly;
+no `.env`, Makefile or source checkout is required. Create a minimal config once:
+
+```bash
+mobd init
+# Edit ~/.mobd/config.json before starting.
+mobd start
+mobd status
+```
+
+[`config.example.json`](../../config.example.json) is a more complete example
+with runner settings. If you have downloaded the example or checked out the
+repository, run the following from the directory containing it:
+
+```bash
+mkdir -p -m 700 "$HOME/.mobd"
+cp -n config.example.json "$HOME/.mobd/config.json"  # preserves an existing config
+chmod 600 "$HOME/.mobd/config.json"
+```
+
+Use either `mobd init` or the copy command for initial setup. If the config
+already exists, edit it and use the example as a reference; neither command
+overwrites or merges your existing settings.
+
+Before starting, replace `/Users/you/Projects` with an existing absolute working
+directory. Set `codexBin` / `claudeBin` to executable names on your shell's PATH,
+or their absolute paths. Claude uses `workdir` unless you set `claudeWorkdir`.
+To enable only Codex, set `runners` to `["codex"]` and keep `defaultRunner` as
+`"codex"`. Permissions use `"bypass"` (the current default, skips approval prompts);
+choose `"approve"` to request approval for supported actions.
+
+The example listens on `127.0.0.1:8080`; change `listen` to `"0.0.0.0:8080"`
+for LAN/VPN clients. Optional fields omitted from the example use their defaults,
+including the existing conversation and artifact locations. JSON must not contain
+comments or trailing commas, and paths do not expand `~` or `$HOME`.
+
+After editing the config, run `mobd restart` to apply it. Use `mobd serve` to run
+in the foreground, or select another file with `mobd start --config /path/to/config.json`.
+Exported `MOBD_*` variables and command-line flags still take precedence over JSON.
+
+### Environment variables (developers only)
+
+For development, the repository root contains a [mobd `.env.example`](../../.env.example).
+From the repository root, copy it once and edit `.env` for your machine:
+
+```bash
+cp -n .env.example .env   # preserves an existing .env
+# Edit .env: listen address, runner executables and working directories.
+```
+
+This developer example listens on `127.0.0.1:8080`; use `0.0.0.0:8080` for LAN/VPN
+clients. Its working directory is the directory where you source the file
+(`$PWD`); use a fixed absolute path if needed. This file configures **mobd**;
+[`apps/mob/.env.example`](../../apps/mob/.env.example) configures the frontend.
+
+Load the variables into the current shell and start the background service:
+
+```bash
+set -a
+source ./.env
+set +a
+make start
+make status
+```
+
+`set -a` exports the assignments so the child mobd process can read them.
+Use `make serve` instead of `make start` for foreground operation. If you
+installed the standalone binary, use `mobd start` / `mobd serve` / `mobd status`
+after the same `source` steps. Neither mobd nor Makefile reads `.env` automatically.
+`mobd init` is optional: an existing JSON config still loads, and exported
+variables override its values; other fields use JSON or defaults.
+
+After editing `.env`, reload it and restart the service:
+
+```bash
+set -a
+source ./.env
+set +a
+make restart             # or: mobd restart
+```
+
+The LaunchAgent keeps the resolved configuration from `start` / `restart`,
+so it continues using those values after you close the shell. Removing a line
+from `.env` does not unset a variable already exported in your shell; use
+`unset VARIABLE_NAME` before reloading to fall back to JSON/defaults. An empty
+assignment is an explicit override, not a request to use the default. `.env`
+is ignored by Git; commit only the example.
 
 ## curl examples
 

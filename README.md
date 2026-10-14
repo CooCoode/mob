@@ -63,6 +63,15 @@ make app-desktop  # home App as a desktop window (app-install once)
 make check        # Go vet + tests, App tests + typecheck
 ```
 
+End users configure `~/.mobd/config.json` and run `mobd start` directly. See
+[`config.example.json`](config.example.json) and the
+[JSON setup instructions](cmd/mobd/README.md#json-configuration-recommended-for-end-users).
+
+**Developers only:** to configure mobd through environment variables, copy the root
+[`.env.example`](.env.example) to `.env` and follow the
+[environment startup instructions](cmd/mobd/README.md#environment-variables-developers-only).
+The shell must export the variables before running `make start` or `make serve`.
+
 ## Docs
 
 - [Architecture](docs/architecture.md)
