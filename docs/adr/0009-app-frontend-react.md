@@ -6,7 +6,7 @@ Accepted
 
 ## Context
 
-`apps/mob` (Tauri 2 + Vite/TS) started as a lite scaffold: about 850 lines of imperative DOM code in `main.ts`, about 900 lines of hand-written CSS, and one tested logic module (`chat.ts`). It proved the loop, but:
+`mob` (Tauri 2 + Vite/TS) started as a lite scaffold: about 850 lines of imperative DOM code in `main.ts`, about 900 lines of hand-written CSS, and one tested logic module (`chat.ts`). It proved the loop, but:
 
 - every visual change touches DOM-building code and global CSS, so polish does not build up;
 - there are no components, design tokens, icons, markdown rendering or motion;
@@ -26,13 +26,13 @@ The UI should look like a modern agent client (Grok, ChatGPT desktop, Manus) and
 | Server state | **TanStack Query** for REST snapshots; a small SSE layer pushes into the query cache |
 | UI state | **Zustand** (selected machine/session, layout, preview mode) |
 | Domain logic | Keep `chat.ts` as framework-free, unit-tested logic (turn lifecycle, dedup, recovery). React calls into it. |
-| API types | Typed client in `src/api/` mirroring [mobd-v3.md](../mobd-v3.md); generated from OpenAPI once the spec exists |
+| API types | Typed client in `src/api/` mirroring [mobd-v3.md](https://github.com/xrdavies/mobd/blob/main/docs/mobd-v3.md); generated from OpenAPI once the spec exists |
 | Native chrome | Tauri `titleBarStyle: "Overlay"` + `hiddenTitle`, macOS sidebar vibrancy via `window-vibrancy` |
 | svnc | Unchanged: `@xrdavies/svnc` mounted inside a React component that owns the RFB lifecycle |
 
 ## Consequences
 
-- Migrate in two steps. First port to React with the same look and behaviour (a reviewable diff, existing tests keep passing). Then apply the new design from [apps-mob-ui.md](../apps-mob-ui.md).
+- Migrate in two steps. First port to React with the same look and behaviour (a reviewable diff, existing tests keep passing). Then apply the new design from [ui.md](../ui.md).
 - The bundle grows (React + Radix + markdown/shiki, roughly 300–500 KB gzipped). That is acceptable for a desktop Tauri app; shiki languages are loaded lazily.
 - shadcn components live in the repo (`src/components/ui`) and are owned and edited locally, not imported as a versioned dependency.
 - The iPhone client can reuse the same React code through a Tauri mobile target or a PWA. That choice is deferred.

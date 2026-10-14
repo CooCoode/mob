@@ -1,4 +1,4 @@
-// Mirrors the mobd v3 API (docs/mobd-v3.md).
+// Mirrors https://github.com/xrdavies/mobd/blob/main/docs/mobd-v3.md.
 
 export type TaskStatus = "queued" | "running" | "succeeded" | "failed" | "cancelled";
 

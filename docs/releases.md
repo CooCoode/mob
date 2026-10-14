@@ -1,6 +1,8 @@
 # 发布与公开下载（macOS Apple Silicon）
 
-源码仓库可以保持私有。GitHub Actions 构建、签名并公证 mob 和 mobd，GitHub
+源码仓库可以保持私有。mobd 已迁到独立的 [mobd 仓库](https://github.com/xrdavies/mobd)，
+其签名、安装器和发布配置见该仓库的 [发布文档](https://github.com/xrdavies/mobd/blob/main/docs/releases.md)。
+本仓库的 GitHub Actions 构建、签名并公证 mob 桌面应用，GitHub
 Release 保存构建产物；发布正式 Release 后，独立工作流将产物上传到 Cloudflare
 R2，用户通过自定义域名下载。官网在同级目录 `../mob-site`，独立构建和部署。
 
@@ -61,7 +63,7 @@ Tauri 原生更新请求及 curl 不依赖浏览器 CORS，官网获取发布清
 | `APPLE_SIGNING_IDENTITY` | 完整签名身份，例如 `Developer ID Application: Your Name (TEAMID)` |
 | `APPLE_ID` | 公证使用的 Apple 账号 |
 | `APPLE_PASSWORD` | Apple app-specific password |
-| `APPLE_TEAM_ID` | 10 位 Apple Developer Team ID；也会作为公开签名身份写入安装脚本 |
+| `APPLE_TEAM_ID` | 10 位 Apple Developer Team ID |
 | `TAURI_SIGNING_PRIVATE_KEY` | Tauri 更新私钥文件的完整内容 |
 | `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` | 更新私钥密码 |
 | `R2_ACCESS_KEY_ID` | 限定到发布桶的 R2 Access Key ID |
@@ -82,7 +84,7 @@ Apple 证书与 Tauri 更新密钥是独立的。导出证书并生成更新密�
 openssl base64 -A -in /path/to/DeveloperID.p12 -out /tmp/apple-certificate.txt
 security find-identity -v -p codesigning
 mkdir -p ~/.tauri
-npm --prefix apps/mob run tauri -- signer generate -w ~/.tauri/mob.key
+npm run tauri -- signer generate -w ~/.tauri/mob.key
 ```
 
 私钥应有离线备份，每个版本沿用同一 Tauri 公钥/私钥。`GITHUB_TOKEN` 自动提供，
@@ -96,33 +98,31 @@ git tag v0.4.0
 git push origin v0.4.0
 ```
 
-也可以手动运行 **Release macOS arm64**，填写已存在的稳定标签。
-`.github/workflows/release.yml` 将同一个标签解析到的提交用于两个 macOS 构建任务：
+也可以手动运行 **Release mob macOS arm64**，填写已存在的稳定标签。
+`.github/workflows/release.yml` 将标签解析到的提交用于桌面端 macOS 构建：
 
 - mob：运行前端测试，构建 arm64 `.app` 和 `.dmg`，Apple 签名、公证并检查
   stapled ticket；生成 Tauri 签名的 `.app.tar.gz` 及 `.sig`。
-- mobd：Go vet/test，CGO arm64 构建，注入版本，Developer ID 签名和 Apple 公证，
-  再打包签名后的原始二进制、LICENSE 和 README。
-- 合并文件、生成 `SHA256SUMS`，创建或更新**草稿** GitHub Release。
+- 收集桌面文件、生成 `SHA256SUMS`，创建或更新**草稿** GitHub Release。
   `mob_release.json` 记录构建时的公开更新配置，供发布阶段核对域名和版本。
 
 检查草稿中的文件，在单独的 Mac 上试装，并编辑面向最终用户的 release notes。
 不要直接把包含私有 PR 链接的自动生成说明当作公开产品文案。
 之后在 GitHub 界面发布稳定 Release（不是 prerelease）。
 
-`.github/workflows/publish-r2.yml` 的 **Publish downloads to R2** 自动执行：
+`.github/workflows/publish-r2.yml` 的 **Publish mob downloads to R2** 自动执行：
 
 1. 下载已发布 Release 的产物，验证 `SHA256SUMS`。
 2. 验证发布域名与构建时嵌入 App 的更新域名一致。
-3. 生成 mob / mobd 各自的 `release.json`、校验文件和公开安装脚本。
+3. 生成 mob 的 `release.json` 和校验文件。
 4. 拒绝覆盖内容不同的版本文件，拒绝把 stable 指向更低版本。
 5. 上传缺少的版本文件，经公开 HTTPS 下载并重新校验全部文件。
-6. 最后更新安装脚本、发布历史和两端独立的 `latest.json`。
+6. 最后更新 `mob/releases.json` 和 `mob/latest.json`。
 
 也可以手动运行发布工作流，输入已发布的 `vX.Y.Z`，用于重试或补发。
-所有 R2 发布任务串行执行。完全相同的文件允许重试；已发布文件或说明变化时需要新版本。
-如果中途失败，已上传的版本文件保留供重试；两个产品的入口更新不是一个原子事务，
-短暂的不同版本不会影响各自下载，重新运行会继续完成。更高版本发布后不再补发旧版本。
+同一仓库的 R2 发布任务串行执行；本仓库只读写 `mob/`。完全相同的文件允许重试；已发布文件或说明变化时需要新版本。
+如果中途失败，已上传的版本文件保留供重试；重新运行会继续完成。更高版本发布后不再补发旧版本。
+mobd 仓库独立维护 `mobd/`，两个产品的版本号和发布时间不需要一致。
 
 使用普通账号或 GitHub 网页发布 Release 可以触发此流程；由工作流的默认
 `GITHUB_TOKEN` 发布的事件不会自动触发另一个工作流，此时手动运行 R2 发布流程。
@@ -140,18 +140,9 @@ mob/
     release.json
   latest.json
   releases.json
-mobd/
-  v0.4.0/
-    mobd_0.4.0_darwin_arm64.tar.gz
-    SHA256SUMS
-    release.json
-    install.sh
-  install.sh
-  latest.json
-  releases.json
 ```
 
-两个产品分别维护清单和历史，当前一个版本标签仍同时构建两端。官网读取
+两个仓库分别打 `vX.Y.Z` 标签，各自构建自己的产品并维护清单和历史。官网读取
 `latest.json` 展示当前下载，读取 `releases.json` 展示历史记录，不依赖私有 GitHub API。
 
 ## 4. Tauri updater
@@ -204,47 +195,7 @@ App 启动时检查更新，Settings → About 可以手动重试。用户确认
 重启及离线重试。修改静态清单到较低版本不会让已安装客户端自动降级；修复应发布更高版本。
 官方协议：[Tauri updater](https://v2.tauri.app/plugin/updater/)。
 
-## 5. mobd 安装和升级
-
-以下地址在完成配置并发布首个版本后才可使用：
-
-```sh
-curl -fsSL https://download.mob.example.com/mobd/install.sh | sh
-```
-
-也可以先查看脚本，或指定版本及安装目录：
-
-```sh
-curl -fsSL https://download.mob.example.com/mobd/install.sh -o install.sh
-less install.sh
-sh install.sh --version 0.4.0 --install-dir "$HOME/.local/bin"
-```
-
-脚本使用 macOS 自带的 curl、plutil、tar、shasum 和 codesign，不需要 jq、Python、
-Go、Node、Make。检查 macOS 13+ 和 Apple Silicon（含 Rosetta 终端），下载精确版本，
-验证 SHA-256、归档条目、Developer ID / Team ID / 程序标识和二进制版本，然后通过同目录
-临时文件替换 `mobd`。不使用 sudo，不去除 quarantine，不自动修改 shell 配置。
-
-运行中的 LaunchAgent 或 `mobd serve` 会导致安装停止并提示；先完成任务并停止服务。
-配置、服务快照、会话和附件均不改动。安装后：
-
-```sh
-export PATH="$HOME/.local/bin:$PATH"
-mobd --version
-mobd init       # 仅首次；编辑 ~/.mobd/config.json
-mobd start
-mobd status
-```
-
-升级：`mobd stop` → 重新运行安装脚本 → `mobd start`。
-`stop` 会关闭登录启动，原先希望登录启动的用户在升级后使用 `mobd start --login`。
-安装器只负责安装/替换；日常运行仍使用 mobd CLI。安装时正在运行的前台进程需要手动停止。
-裸 CLI 无法 stapling 公证票据，Gatekeeper 查询 Apple 公证记录时可能需要联网。
-
-Codex/Claude 的安装和登录、辅助功能、屏幕录制、屏幕共享仍是办公室端运行前提。
-使用普通登录用户，不安装 root 服务。详细配置见 [mobd 文档](../cmd/mobd/README.md)。
-
-## 6. 官网部署
+## 5. 官网部署
 
 `../mob-site` 是独立的静态网站项目，包含首页、下载、快速开始、更新日志和 404 页。
 无域名时可本地预览；生产构建要求 `SITE_URL` 和 `DOWNLOAD_BASE_URL`。
@@ -268,8 +219,8 @@ Settings → Domains & Routes 添加官网自定义域名。没有版本时显�
 - [ ] CORS 允许官网，缓存规则区分版本文件和动态入口。
 - [ ] `release` 环境的 10 个 Secrets、4 个 Variables 完整。
 - [ ] 生成并备份 Tauri 密钥，Apple 签名/公证检查通过。
-- [ ] 在其他 Apple Silicon Mac 上试装草稿中的 DMG 与 mobd。
+- [ ] 在其他 Apple Silicon Mac 上试装草稿中的 DMG。
 - [ ] 发布 GitHub 稳定 Release，确认 R2 工作流完成。
-- [ ] 无 GitHub 登录的设备可下载；脚本安装/失败校验/升级保留配置正常。
+- [ ] 无 GitHub 登录的设备可下载桌面 DMG 和更新包。
 - [ ] 网站展示真实版本、安装命令和历史链接；初次配置能完成连接。
 - [ ] 下一个版本执行一次实际的 Tauri A → B 更新验证。

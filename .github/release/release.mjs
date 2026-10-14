@@ -32,44 +32,35 @@ const json = (data) => JSON.stringify(data, null, 2) + '\n';
 export function prepareDistribution(assets, output, options) {
   const v = version(options.version);
   const base = baseURL(options.base);
-  if (!/^[A-Z0-9]{10}$/.test(options.team ?? '')) throw Error('Invalid APPLE_TEAM_ID');
   if (!Number.isFinite(Date.parse(options.date))) throw Error('Missing release publication date');
-  const manifests = {};
+  const prefix = `mob/v${v}`;
+  const stem = `mob_${v}_darwin_arm64`;
+  const names = [`${stem}.dmg`, `${stem}.app.tar.gz`, `${stem}.app.tar.gz.sig`];
   const put = (key, data) => {
     mkdirSync(dirname(join(output, key)), { recursive: true });
     writeFileSync(join(output, key), data);
   };
-  for (const product of ['mob', 'mobd']) {
-    const prefix = `${product}/v${v}`;
-    const stem = `${product}_${v}_darwin_arm64`;
-    const names = product === 'mob' ? [`${stem}.dmg`, `${stem}.app.tar.gz`, `${stem}.app.tar.gz.sig`] : [`${stem}.tar.gz`];
-    const hashes = {};
-    for (const name of names) {
-      const data = readFileSync(join(assets, name));
-      if (!data.length) throw Error(`Empty artifact: ${name}`);
-      hashes[name] = sha256(data);
-      put(`${prefix}/${name}`, data);
-    }
-    const payload = product === 'mob' ? `${stem}.app.tar.gz` : `${stem}.tar.gz`;
-    const platform = { url: `${base}/${prefix}/${payload}`, sha256: hashes[payload] };
-    if (product === 'mob') {
-      platform.signature = readFileSync(join(assets, `${payload}.sig`), 'utf8').trim();
-      if (!platform.signature) throw Error('Missing updater signature');
-    }
-    const download = product === 'mob' ? `${stem}.dmg` : payload;
-    const manifest = {
-      version: v, notes: options.notes || `${product} ${v}`, pub_date: options.date,
-      platforms: { 'darwin-aarch64': platform },
-      download: { url: `${base}/${prefix}/${download}`, sha256: hashes[download] },
-      checksums_url: `${base}/${prefix}/SHA256SUMS`,
-    };
-    manifests[product] = manifest;
-    put(`${prefix}/release.json`, json(manifest));
-    put(`${prefix}/SHA256SUMS`, names.map(name => `${hashes[name]}  ${name}\n`).join(''));
+  const hashes = {};
+  for (const name of names) {
+    const data = readFileSync(join(assets, name));
+    if (!data.length) throw Error(`Empty artifact: ${name}`);
+    hashes[name] = sha256(data);
+    put(`${prefix}/${name}`, data);
   }
-  const template = readFileSync(new URL('./install.sh', import.meta.url), 'utf8');
-  put(`mobd/v${v}/install.sh`, template.replaceAll('@DOWNLOAD_BASE_URL@', base).replaceAll('@APPLE_TEAM_ID@', options.team));
-  return manifests;
+  const payload = `${stem}.app.tar.gz`;
+  const platform = { url: `${base}/${prefix}/${payload}`, sha256: hashes[payload] };
+  platform.signature = readFileSync(join(assets, `${payload}.sig`), 'utf8').trim();
+  if (!platform.signature) throw Error('Missing updater signature');
+  const download = `${stem}.dmg`;
+  const manifest = {
+    version: v, notes: options.notes || `mob ${v}`, pub_date: options.date,
+    platforms: { 'darwin-aarch64': platform },
+    download: { url: `${base}/${prefix}/${download}`, sha256: hashes[download] },
+    checksums_url: `${base}/${prefix}/SHA256SUMS`,
+  };
+  put(`${prefix}/release.json`, json(manifest));
+  put(`${prefix}/SHA256SUMS`, names.map(name => `${hashes[name]}  ${name}\n`).join(''));
+  return { mob: manifest };
 }
 
 export function checkPromotion(current, next) {
@@ -91,7 +82,7 @@ function files(root, prefix = '') {
 }
 
 export async function publish(output, manifests, remote) {
-  // Validate all products and immutable keys before writing anything.
+  // Validate release metadata and immutable keys before writing anything.
   const histories = {};
   for (const [product, manifest] of Object.entries(manifests)) {
     checkPromotion(await remote.readJSON(`${product}/latest.json`), manifest);
@@ -110,8 +101,6 @@ export async function publish(output, manifests, remote) {
   for (const key of pending) await remote.upload(key, join(output, key), true);
   for (const key of keys) await remote.verify(key, sha256(readFileSync(join(output, key))));
   // The stable pointers are written only after every public artifact is readable.
-  const installerKey = keys.find(key => key.endsWith('/install.sh'));
-  await remote.upload('mobd/install.sh', join(output, installerKey), false);
   for (const [product, manifest] of Object.entries(manifests)) {
     const historyFile = join(output, `${product}-releases.json`);
     const latestFile = join(output, `${product}-latest.json`);
@@ -173,7 +162,7 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
     if (builtConfig.version !== v || builtConfig.plugins?.updater?.endpoints?.[0] !== `${base}/mob/latest.json`) {
       throw Error('Published download origin/version must match the updater configuration embedded at build time');
     }
-    const manifests = prepareDistribution(path, output, { version: v, base, team: process.env.APPLE_TEAM_ID, notes: metadata.body, date: metadata.publishedAt });
+    const manifests = prepareDistribution(path, output, { version: v, base, notes: metadata.body, date: metadata.publishedAt });
     // Keep remote reads outside the immutable artifact tree.
     const remote = r2Remote(process.env.RUNNER_TEMP, base);
     await publish(output, manifests, remote);

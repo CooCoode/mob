@@ -1,81 +1,34 @@
-# Common tasks for mob. Run `make` (or `make help`) to list them.
-
-GO      ?= go
-BIN     ?= bin/mobd
-ARGS    ?=
-APP_DIR := apps/mob
-NPM     := npm --prefix $(APP_DIR)
-
+# Desktop app tasks. Run `make` to list them.
+NPM ?= npm
 .DEFAULT_GOAL := help
-.PHONY: help build test race vet fmt check clean \
-	init serve start stop restart status logs \
-	app-install app-dev app-desktop app-test app-build app-bundle
+.PHONY: help install dev desktop test build bundle check release-test clean
 
 help: ## List targets
-	@awk 'BEGIN {FS = ":.*## "} /^[a-zA-Z_-]+:.*## / {printf "  \033[36m%-12s\033[0m %s\n", $$1, $$2}' $(MAKEFILE_LIST)
+	@awk 'BEGIN {FS = ":.*## "} /^[a-zA-Z_-]+:.*## / {printf "  %-14s %s\n", $$1, $$2}' $(MAKEFILE_LIST)
 
-## --- mobd (office Mac) ---
+install: ## Install locked frontend dependencies
+	$(NPM) ci
 
-build: ## Build mobd into bin/mobd
-	$(GO) build -o $(BIN) ./cmd/mobd
-
-test: ## Run Go tests
-	$(GO) test ./...
-
-race: ## Run Go tests with the race detector
-	$(GO) test -race ./...
-
-vet: ## go vet
-	$(GO) vet ./...
-
-fmt: ## gofmt all Go files
-	gofmt -w cmd internal
-
-init: build ## Create the user config (never overwrite)
-	$(BIN) init $(ARGS)
-
-serve: build ## Run mobd in the foreground
-	$(BIN) serve $(ARGS)
-
-start: build ## Start mobd via the user LaunchAgent
-	$(BIN) start $(ARGS)
-
-stop: build ## Stop mobd and disable login startup
-	$(BIN) stop
-
-restart: build ## Reload config and restart mobd
-	$(BIN) restart $(ARGS)
-
-status: build ## Show mobd status and address
-	$(BIN) status
-
-logs: build ## Follow the mobd log
-	$(BIN) logs
-
-## --- apps/mob (home App) ---
-
-app-install: ## Install App dependencies
-	$(NPM) install
-
-app-dev: ## App in the browser (http://localhost:1420)
+dev: ## Run browser preview at http://localhost:1420
 	$(NPM) run dev
 
-app-desktop: ## App as the Tauri desktop window
+desktop: ## Run the Tauri desktop app
 	$(NPM) run tauri dev
 
-app-test: ## App logic tests and typecheck
+test: ## Run app logic tests and typecheck
 	$(NPM) test
 	$(NPM) run typecheck
 
-app-build: ## Production web build of the App
+build: ## Build the production frontend
 	$(NPM) run build
 
-app-bundle: ## Packaged desktop App (.app / .dmg)
+bundle: ## Build the macOS Apple Silicon app and DMG
 	$(NPM) run tauri build -- --target aarch64-apple-darwin
 
-## --- everything ---
+release-test: ## Test R2 publishing and updater manifests
+	node --test .github/release/*.test.mjs
 
-check: vet test app-test ## Everything CI would run: Go vet + tests, App tests + typecheck
+check: test release-test ## Run desktop and release checks
 
-clean: ## Remove build outputs
-	rm -rf bin $(APP_DIR)/dist
+clean: ## Remove frontend and native build outputs
+	rm -rf dist src-tauri/target

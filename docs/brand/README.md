@@ -2,17 +2,17 @@
 
 已选定 **Screen Buddy（屏幕小搭档）** 为 mob 的正式 Logo：奶白色电脑外壳、紫色屏幕笑脸、薄荷绿鼠标指针，表达「看见远程桌面，让 AI 操作电脑」的产品能力。
 
-<img src="../../apps/mob/public/logo.svg" alt="mob Screen Buddy 透明版" width="200" />
-<img src="../../apps/mob/app-icon.svg" alt="mob macOS 应用图标" width="200" />
+<img src="../../public/logo.svg" alt="mob Screen Buddy 透明版" width="200" />
+<img src="../../app-icon.svg" alt="mob macOS 应用图标" width="200" />
 
 ## 正式资源
 
 | 文件 | 用途 |
 | --- | --- |
-| [logo.svg](../../apps/mob/public/logo.svg) | 透明底矢量 Logo；应用标题栏、首次连接页、新对话页、回复头像、About 页面及浏览器 favicon 共用 |
-| [app-icon.svg](../../apps/mob/app-icon.svg) | macOS 应用图标母版；同一角色加奶白至淡紫色圆角底板，四周保留透明留白 |
-| [icon.icns](../../apps/mob/src-tauri/icons/icon.icns) | macOS Dock、Finder 及打包时使用的多尺寸图标 |
-| [icon.png](../../apps/mob/src-tauri/icons/icon.png) | 应用图标 PNG；同目录包含 Tauri 使用的其他尺寸 |
+| [logo.svg](../../public/logo.svg) | 透明底矢量 Logo；应用标题栏、首次连接页、新对话页、回复头像、About 页面及浏览器 favicon 共用 |
+| [app-icon.svg](../../app-icon.svg) | macOS 应用图标母版；同一角色加奶白至淡紫色圆角底板，四周保留透明留白 |
+| [icon.icns](../../src-tauri/icons/icon.icns) | macOS Dock、Finder 及打包时使用的多尺寸图标 |
+| [icon.png](../../src-tauri/icons/icon.png) | 应用图标 PNG；同目录包含 Tauri 使用的其他尺寸 |
 
 两个 SVG 均为 `512 × 512` 画布，不依赖外部字体或图片。修改角色时同步更新两个 SVG 的角色路径，再重新导出图标；图标母版只额外增加底板及居中偏移。
 
@@ -23,7 +23,6 @@
 在仓库根目录运行，使用项目已安装的 Tauri CLI：
 
 ```bash
-cd apps/mob
 icon_dir=$(mktemp -d)
 npm run tauri -- icon app-icon.svg --output "$icon_dir"
 cp "$icon_dir"/*.png "$icon_dir"/*.icns "$icon_dir"/*.ico src-tauri/icons/

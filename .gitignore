@@ -52,15 +52,8 @@ temp/
 # OS / misc
 Thumbs.db
 
-# Go
-bin/
-*.exe
-*.test
-*.out
-/mobd
-cmd/mobd/mobd
-vendor/
-
-# Legacy local runtime files (kept during CLI migration)
-scripts/.env
-scripts/run/*
+# Desktop native and release outputs
+src-tauri/target/
+release-assets/
+dist-ssr/
+*.local

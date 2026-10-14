@@ -1,9 +1,9 @@
-# apps/mob — UI design (v2)
+# mob — UI design (v2)
 
 **Product:** the home Mac **mob** App: dispatch tasks to the office agent, watch what it does, and monitor the office desktop.
 **Stack:** Tauri 2 + React 19 + Tailwind v4 + shadcn/ui ([ADR 0009](adr/0009-app-frontend-react.md)), embedding [svnc](https://github.com/xrdavies/svnc).
-**Backend:** [mobd v3](mobd-v3.md). Each v2 feature below names the API it depends on.
-**Status:** implemented in `apps/mob` 0.2.0 (2026-10-13). Remaining gaps are listed under "Migration plan".
+**Backend:** [mobd v3](https://github.com/xrdavies/mobd/blob/main/docs/mobd-v3.md). Each v2 feature below names the API it depends on.
+**Status:** implemented in `mob` 0.2.0 (2026-10-13). Remaining gaps are listed under "Migration plan".
 
 ---
 
@@ -128,7 +128,7 @@ Empty session: centered greeting + 4 example prompt cards ("Open Safari and …"
 
 ### First run / setup
 
-With no machines: a centered card "Connect your office Mac" with a URL field. Test runs `/health` and shows the checks list. Save creates the machine. Failed checks link to [office-smoke-checklist.md](office-smoke-checklist.md) steps.
+With no machines: a centered card "Connect your office Mac" with a URL field. Test runs `/health` and shows the checks list. Save creates the machine. Failed checks link to [office-smoke-checklist.md](https://github.com/xrdavies/mobd/blob/main/docs/office-smoke-checklist.md) steps.
 
 ---
 
@@ -160,7 +160,7 @@ With no machines: a centered card "Connect your office Mac" with a URL field. Te
 ## Code structure (target)
 
 ```text
-apps/mob/src/
+src/
   main.tsx                 React root, providers (Query, Theme, Tooltip)
   api/                     mobd client: types (mirror mobd-v3.md), fetchers, SSE helpers
   store/                   Zustand: machines, selection, layout, preferences
@@ -193,4 +193,4 @@ Update this doc when the IA changes.
 
 ## References
 
-- [mobd-v3.md](mobd-v3.md) · [ADR 0009](adr/0009-app-frontend-react.md) · [client-phase2-lite.md](client-phase2-lite.md) · [vnc-svnc-setup.md](vnc-svnc-setup.md) · [apps/mob/README.md](../apps/mob/README.md)
+- [mobd-v3.md](https://github.com/xrdavies/mobd/blob/main/docs/mobd-v3.md) · [ADR 0009](adr/0009-app-frontend-react.md) · [client-phase2-lite.md](https://github.com/xrdavies/mobd/blob/main/docs/client-phase2-lite.md) · [vnc-svnc-setup.md](https://github.com/xrdavies/mobd/blob/main/docs/vnc-svnc-setup.md) · [Desktop README](../README.md)
