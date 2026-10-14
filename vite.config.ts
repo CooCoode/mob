@@ -12,7 +12,7 @@ export default defineConfig(() => ({
     alias: { "@": fileURLToPath(new URL("./src", import.meta.url)) },
   },
   clearScreen: false,
-  envPrefix: ["VITE_", "MOBD_", "VNC_"],
+  envPrefix: ["VITE_", "MOBD_"],
   server: {
     port: 1420,
     strictPort: true,

@@ -51,12 +51,11 @@ cp .env.example .env
 # edit MOBD_URL
 ```
 
-Env values prefill the first **machine**. A machine only needs its **mobd URL**: the live view uses mobd's relay at `<mobd URL>/vnc`. Manage machines (name, mobd URL, macOS user name and password, optional custom VNC WebSocket URL) in **Settings → Machines**, where **Test connection** shows the office readiness checks. Settings from the v1 client are migrated on first start.
+Env values prefill the first **machine**. A machine only needs its **mobd URL**: the live view uses mobd's relay at `<mobd URL>/vnc`. Manage machines (name, mobd URL, macOS user name and password) in **Settings → Machines**, where **Test connection** shows the office readiness checks. Settings from the v1 client are migrated on first start.
 
 | Variable | Meaning |
 | --- | --- |
 | `MOBD_URL` | Office `mobd` base URL, e.g. `http://192.168.50.86:8080` |
-| `VNC_WS_URL` | Optional custom VNC WebSocket. Empty = mobd's relay at `<MOBD_URL>/vnc` |
 
 ## Install & run
 

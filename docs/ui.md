@@ -20,7 +20,7 @@
 - Three-column shell: sessions · timeline · preview. Connection settings live only in Settings.
 - Human VNC input is opt-in per use: the thumbnail is always **view only**; only the full-size view has a **View | Control** switch, which starts on View and resets to View when full screen closes. The svnc session connects input-capable with `inputMode: "script"` (human events ignored) and switches to `"human"` for control, so no reconnect is needed.
 - No auth UI until mobd has auth.
-- Machines are first-class; each has its own `mobd` URL, VNC WebSocket URL and optional VNC password.
+- Machines are first-class; each has its own `mobd` URL (the live view goes through its `/vnc` relay) and optional Screen Sharing sign-in.
 
 ---
 

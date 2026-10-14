@@ -23,7 +23,7 @@ Go 源码、服务配置示例、安装脚本和服务端设计文档已迁出�
 执行。特别注意：**mob 的 `make build` 现在构建桌面前端**。
 `make check` 检查桌面测试、类型和发布逻辑；不再需要 Go。
 
-根目录 `.env` 只用于桌面 `MOBD_URL` / `VNC_WS_URL` 等配置。原服务端开发者
+根目录 `.env` 只用于桌面 `MOBD_URL` 等配置。原服务端开发者
 `.env` 应放在 mobd checkout，按照其 README 手动 export/source。已安装用户的
 `~/.mobd/config.json`、LaunchAgent 标识、会话和附件路径保持不变。
 

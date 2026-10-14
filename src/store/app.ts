@@ -6,8 +6,6 @@ export interface Machine {
   id: string;
   name: string;
   mobdUrl: string;
-  /** Optional override; empty means mobd's built-in relay at <mobdUrl>/vnc. */
-  vncWsUrl: string;
   /** macOS user for Screen Sharing sign-in (ARD); empty uses VNC password auth. */
   vncUsername?: string;
   vncPassword?: string;
@@ -63,7 +61,6 @@ export function envDefault(...keys: (keyof ImportMetaEnv)[]): string {
 }
 
 export const defaultMobdUrl = () => envDefault("MOBD_URL", "VITE_MOBD_URL") || "http://127.0.0.1:8080";
-export const defaultVncUrl = () => envDefault("VNC_WS_URL", "VITE_VNC_WS_URL");
 
 function read<T>(key: string): T | null {
   try {
@@ -88,7 +85,6 @@ function initial(): Persisted {
     machines = [{
       id: uid(), name: "Office Mac",
       mobdUrl: legacy("mob.mobdUrl") || defaultMobdUrl(),
-      vncWsUrl: legacy("mob.vncWsUrl") || defaultVncUrl(),
     }];
   }
   let active: string | null = null;
@@ -124,7 +120,7 @@ export const useApp = create<AppState>()(
       saveMachine: (m) => {
         const id = m.id || uid();
         const machine: Machine = {
-          id, name: m.name.trim(), mobdUrl: m.mobdUrl.trim(), vncWsUrl: m.vncWsUrl.trim(),
+          id, name: m.name.trim(), mobdUrl: m.mobdUrl.trim(),
           vncUsername: m.vncUsername?.trim() || undefined, vncPassword: m.vncPassword || undefined,
         };
         const machines = get().machines.some((x) => x.id === id)
@@ -151,7 +147,15 @@ export const useApp = create<AppState>()(
     }),
     {
       name: "mob.app",
-      version: 1,
+      version: 2,
+      // v2 drops the custom VNC WebSocket URL: the live view always goes through mobd.
+      migrate: (state, version) => {
+        const s = state as Persisted;
+        if (version < 2 && Array.isArray(s.machines)) {
+          s.machines = s.machines.map(({ vncWsUrl: _, ...m }: Machine & { vncWsUrl?: string }) => m);
+        }
+        return s;
+      },
       storage: createJSONStorage(() => localStorage),
       partialize: (s): Persisted => ({
         machines: s.machines, activeMachineId: s.activeMachineId, savedSessions: s.savedSessions,
@@ -170,9 +174,7 @@ export function baseUrl(m: Machine | null | undefined): string {
   return (m?.mobdUrl ?? "").trim().replace(/\/$/, "");
 }
 
-/** VNC WebSocket for the live view: the override, else mobd's relay (http→ws, https→wss). */
-export function vncUrl(m: Pick<Machine, "mobdUrl" | "vncWsUrl"> | null | undefined): string {
-  const override = (m?.vncWsUrl ?? "").trim();
-  if (override) return override;
+/** VNC WebSocket for the live view: mobd's relay at <mobdUrl>/vnc (http→ws, https→wss). */
+export function vncUrl(m: Pick<Machine, "mobdUrl"> | null | undefined): string {
   return relayUrl(m?.mobdUrl ?? "");
 }

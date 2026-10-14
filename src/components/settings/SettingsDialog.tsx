@@ -9,7 +9,7 @@ import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/compone
 import { Input, Label } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
-import { defaultMobdUrl, defaultVncUrl, useApp, vncUrl, type Theme } from "@/store/app";
+import { defaultMobdUrl, useApp, type Theme } from "@/store/app";
 import { useLog } from "@/store/log";
 
 const CHECK_LABELS: Record<string, string> = {
@@ -47,13 +47,13 @@ export function ChecksList({ checks }: { checks?: Record<string, Check> }) {
 function MachinesTab() {
   const { machines, editMachineId, saveMachine, deleteMachine, selectMachine, set } = useApp();
   const editing = machines.find((m) => m.id === editMachineId);
-  const blank = useMemo(() => ({ name: "", mobdUrl: defaultMobdUrl(), vncWsUrl: defaultVncUrl(), vncUsername: "", vncPassword: "" }), []);
+  const blank = useMemo(() => ({ name: "", mobdUrl: defaultMobdUrl(), vncUsername: "", vncPassword: "" }), []);
   const [form, setForm] = useState(blank);
   const [test, setTest] = useState<{ state: "idle" | "testing" | "ok" | "error"; health?: Health; error?: string }>({ state: "idle" });
   const [saved, setSaved] = useState(false);
 
   useEffect(() => {
-    setForm(editing ? { name: editing.name, mobdUrl: editing.mobdUrl, vncWsUrl: editing.vncWsUrl, vncUsername: editing.vncUsername ?? "", vncPassword: editing.vncPassword ?? "" } : blank);
+    setForm(editing ? { name: editing.name, mobdUrl: editing.mobdUrl, vncUsername: editing.vncUsername ?? "", vncPassword: editing.vncPassword ?? "" } : blank);
     setTest({ state: "idle" });
     setSaved(false);
   }, [editMachineId]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -97,14 +97,6 @@ function MachinesTab() {
         <h3 className="text-[13px] font-semibold">{editing ? "Edit machine" : "New machine"}</h3>
         <Label>Display name<Input value={form.name} placeholder="Office Mac" onChange={(e) => setForm({ ...form, name: e.target.value })} required /></Label>
         <Label>mobd URL<Input value={form.mobdUrl} placeholder="http://192.168.x.x:8080" onChange={(e) => setForm({ ...form, mobdUrl: e.target.value })} required /></Label>
-        <Label>
-          <span>VNC WebSocket URL <span className="font-normal text-muted-foreground/70">(optional)</span></span>
-          <Input value={form.vncWsUrl} placeholder={`Automatic: ${vncUrl({ mobdUrl: form.mobdUrl, vncWsUrl: "" }) || "<mobd URL>/vnc"}`}
-            onChange={(e) => setForm({ ...form, vncWsUrl: e.target.value })} />
-        </Label>
-        <p className="-mt-1.5 text-[11px] text-muted-foreground">
-          Leave empty to stream the desktop through mobd. Set it only to use your own websockify.
-        </p>
         <div className="grid grid-cols-2 gap-3">
           <Label>macOS user name<Input autoComplete="off" value={form.vncUsername} placeholder="Office Mac account" onChange={(e) => setForm({ ...form, vncUsername: e.target.value })} /></Label>
           <Label>Password<Input type="password" autoComplete="off" value={form.vncPassword} placeholder="Account or VNC password" onChange={(e) => setForm({ ...form, vncPassword: e.target.value })} /></Label>

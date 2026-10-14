@@ -41,7 +41,7 @@ class VncController {
 
   async connect(host: HTMLElement, url: string, password: string | undefined, username?: string): Promise<void> {
     if (!url) {
-      this.update({ status: "error", detail: "Set the VNC WebSocket URL in Settings" });
+      this.update({ status: "error", detail: "Set the mobd URL in Settings" });
       return;
     }
     this.disconnect();
