@@ -229,6 +229,7 @@ export function SettingsDialog() {
             <TabsContent value="log" className="h-full"><LogTab /></TabsContent>
             <TabsContent value="about">
               <div className="grid gap-1 text-[13px]">
+                <img src="/logo.svg" alt="mob Screen Buddy" className="mb-2 size-20" />
                 <p className="font-semibold">mob</p>
                 <p className="text-muted-foreground">Home client for the MOB office agent</p>
                 <p className="text-muted-foreground">Desktop view by svnc · MIT</p>

@@ -1,5 +1,4 @@
 import { UpdateNotice } from "@/components/UpdateNotice";
-import { Monitor } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Toaster } from "sonner";
 import { supports } from "@/api/client";
@@ -41,9 +40,7 @@ function NoMachine() {
   return (
     <div className="flex flex-1 items-center justify-center bg-background">
       <div className="w-[380px] rounded-2xl border bg-background p-6 text-center shadow-panel">
-        <div className="mx-auto flex size-10 items-center justify-center rounded-xl bg-accent-soft text-accent">
-          <Monitor className="size-5" />
-        </div>
+        <img src="/logo.svg" alt="mob Screen Buddy" className="mx-auto size-20" />
         <h2 className="mt-3 text-base font-semibold">Connect your office Mac</h2>
         <p className="mt-1 text-[13px] text-muted-foreground">
           Paste the mobd URL of the office Mac. The live view goes through mobd too. You can test the connection before saving.

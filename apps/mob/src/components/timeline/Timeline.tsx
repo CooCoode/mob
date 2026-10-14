@@ -1,4 +1,4 @@
-import { ArrowDown, Check, CircleHelp, Copy, RotateCcw, Sparkles } from "lucide-react";
+import { ArrowDown, Check, CircleHelp, Copy, RotateCcw } from "lucide-react";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { artifactUrl } from "@/api/client";
 import type { ChatMessage, Task } from "@/api/types";
@@ -43,9 +43,7 @@ function AssistantMessage({ message }: { message: ChatMessage }) {
   const [copied, setCopied] = useState(false);
   return (
     <div className="group flex gap-3">
-      <div className="mt-0.5 flex size-6 shrink-0 items-center justify-center rounded-full bg-accent text-accent-foreground">
-        <Sparkles className="size-3.5" />
-      </div>
+      <img src="/logo.svg" alt="" className="mt-0.5 size-6 shrink-0" />
       <div className="min-w-0 flex-1">
         <div className="mb-1 flex items-center gap-2 text-xs text-muted-foreground">
           <span className="font-medium text-foreground/80">mob</span>
@@ -157,9 +155,7 @@ function EmptyState({ machineName }: { machineName: string }) {
   const fill = useComposer((s) => s.fill);
   return (
     <div className="mx-auto flex h-full max-w-[640px] flex-col justify-center px-6 pb-10">
-      <div className="mb-1 flex size-9 items-center justify-center rounded-xl bg-accent text-accent-foreground">
-        <Sparkles className="size-4.5" />
-      </div>
+      <img src="/logo.svg" alt="mob Screen Buddy" className="mb-1 size-20" />
       <h2 className="mt-3 text-xl font-semibold tracking-tight">What should mob do on {machineName}?</h2>
       <p className="mt-1 text-[13px] text-muted-foreground">The agent works on the office desktop. Watch it live on the right.</p>
       <div className="mt-6 grid grid-cols-2 gap-2">

@@ -1,5 +1,7 @@
 # MOB
 
+<img src="apps/mob/public/logo.svg" alt="mob Screen Buddy" width="112" />
+
 Intranet-deployable remote office agent: an AI agent runs on an **office Mac**, while a **home Mac** and **iPhone** act as a task dispatcher and view-only monitor.
 
 MOB is a private alternative shape to cloud desktop agents (e.g. Manus, Grok Bot). The desktop stays in the office; clients do not host the agent runtime.
@@ -74,6 +76,7 @@ The shell must export the variables before running `make start` or `make serve`.
 
 ## Docs
 
+- [Screen Buddy logo and app icons](docs/brand/README.md)
 - [Architecture](docs/architecture.md)
 - [Computer-use research](docs/research-computer-use.md)
 - [Phase 1 implementation plan](docs/implementation-phase1.md)

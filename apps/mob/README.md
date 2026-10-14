@@ -4,6 +4,8 @@ Home Mac **mob** client: dispatch tasks to the office agent, follow what it does
 
 Design: [docs/apps-mob-ui.md](../../docs/apps-mob-ui.md) · Stack decision: [ADR 0009](../../docs/adr/0009-app-frontend-react.md) · API: [docs/mobd-v3.md](../../docs/mobd-v3.md)
 
+Logo: **Screen Buddy** — editable SVG sources, app icons and regeneration commands are in the [brand guide](../../docs/brand/README.md).
+
 ## Stack
 
 - **Tauri 2** shell (`src-tauri/`): overlay title bar, sidebar vibrancy
