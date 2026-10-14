@@ -193,4 +193,4 @@ Update this doc when the IA changes.
 
 ## References
 
-- [mobd-v3.md](https://github.com/xrdavies/mobd/blob/main/docs/mobd-v3.md) · [ADR 0009](adr/0009-app-frontend-react.md) · [client-phase2-lite.md](https://github.com/xrdavies/mobd/blob/main/docs/client-phase2-lite.md) · [vnc-svnc-setup.md](https://github.com/xrdavies/mobd/blob/main/docs/vnc-svnc-setup.md) · [Desktop README](../README.md)
+- [mobd API](https://github.com/xrdavies/mobd/blob/main/docs/mobd-v3.md) · [ADR 0009](adr/0009-app-frontend-react.md) · [vnc-svnc-setup.md](https://github.com/xrdavies/mobd/blob/main/docs/vnc-svnc-setup.md) · [Desktop README](../README.md)
