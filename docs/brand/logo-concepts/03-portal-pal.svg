@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" fill="none" role="img" aria-labelledby="title description">
+  <title id="title">mob 传送门小精灵</title>
+  <desc id="description">薄荷色的小精灵从紫色桌面窗口中探出，尾巴化成鼠标指针，表达通过远程窗口查看并操作另一台电脑。</desc>
+  <g stroke="#282347" stroke-width="11" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M165 379L151 409H359L345 379" fill="#6559E8"/>
+    <path d="M177 102H333C367 102 391 127 391 160V335C391 361 370 382 344 382H166C140 382 119 361 119 335V160C119 127 143 102 177 102Z" fill="#8B85FF"/>
+    <path d="M176 125H334C353 125 368 140 368 160V331C368 347 355 359 339 359H171C155 359 142 347 142 331V160C142 140 157 125 176 125Z" fill="#3C327D"/>
+    <path d="M175 147H233" stroke="#8B85FF" stroke-width="8"/>
+    <circle cx="340" cy="147" r="5" fill="#B8ECCC" stroke="none"/>
+    <path d="M329 230C369 217 414 238 411 267C409 288 389 296 377 282" stroke-width="36"/>
+    <path d="M329 230C369 217 414 238 411 267C409 288 389 296 377 282" stroke="#B8ECCC" stroke-width="23"/>
+    <path d="M316 295C338 316 367 328 393 327L378 304L440 322L403 366L405 345C365 356 327 343 300 324" fill="#B8ECCC"/>
+    <path d="M181 288V237C181 193 211 166 250 166C291 166 325 198 325 242V296C325 325 312 349 290 349C277 349 272 339 268 331C264 345 254 354 242 351C229 348 226 337 225 330C214 346 194 341 188 329C184 321 181 309 181 288Z" fill="#B8ECCC"/>
+    <path d="M202 204C211 193 222 188 234 188" stroke="#E9F9E9" stroke-width="10"/>
+    <path d="M226 230V248M283 230V248" stroke-width="15"/>
+    <path d="M242 272Q254 285 266 272" stroke-width="8"/>
+    <path d="M186 262C155 257 135 270 137 290C139 306 154 310 163 301" stroke-width="36"/>
+    <path d="M186 262C155 257 135 270 137 290C139 306 154 310 163 301" stroke="#B8ECCC" stroke-width="23"/>
+  </g>
+</svg>

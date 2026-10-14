@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>mob · 三个卡通 Logo 方案</title>
+  <style>
+    :root { color-scheme: light; --ink: #282347; --purple: #6559e8; --paper: #f7f5f0; }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: var(--paper); color: var(--ink); font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", sans-serif; }
+    main { max-width: 1640px; padding: 58px 64px 38px; margin: auto; }
+    .topline, header, .card-top, .samples, footer { display: flex; align-items: center; justify-content: space-between; }
+    .topline { padding-bottom: 32px; border-bottom: 1px solid #28234720; }
+    .wordmark { font-size: 36px; font-weight: 800; letter-spacing: -2px; line-height: 1; }
+    .eyebrow { font-size: 11px; font-weight: 600; letter-spacing: 2px; }
+    header { padding: 35px 0 33px; gap: 32px; align-items: flex-end; }
+    h1 { margin: 0 0 13px; font-size: 38px; font-weight: 650; letter-spacing: -1px; }
+    header p { margin: 0; color: #736d81; font-size: 15px; line-height: 1.8; }
+    .descriptor { display: flex; gap: 8px; flex-wrap: wrap; }
+    .descriptor span { border: 1px solid #28234724; border-radius: 100px; padding: 8px 13px; font-size: 11px; white-space: nowrap; }
+    .grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 22px; }
+    article { min-width: 0; }
+    .visual { background: #efecfb; border: 1px solid #2823470c; border-radius: 24px; padding: 22px 24px 30px; }
+    article:nth-child(2) .visual { background: #eeeaf6; }
+    article:nth-child(3) .visual { background: #e8f2ec; }
+    .card-top { color: #827891; font-size: 10px; font-weight: 600; letter-spacing: 1.4px; }
+    .number { color: var(--ink); font-size: 12px; letter-spacing: 0; }
+    .main-logo { display: block; width: 100%; max-height: 300px; aspect-ratio: 1; margin: 7px auto 0; }
+    .lockup { text-align: center; }
+    .lockup .wordmark { font-size: 46px; letter-spacing: -3px; }
+    .lockup p { margin: 12px 0 0; font-size: 10px; letter-spacing: 2.4px; color: #80758e; }
+    .caption { padding: 23px 3px 21px; }
+    h2 { font-size: 20px; font-weight: 650; margin: 0 0 10px; letter-spacing: -.3px; }
+    .caption p { margin: 0; color: #777080; font-size: 13px; line-height: 1.85; min-height: 49px; }
+    .tags { display: flex; gap: 7px; margin-top: 15px; }
+    .tags span { color: #665987; background: #eae5f1; border-radius: 6px; padding: 5px 8px; font-size: 10px; }
+    .samples { background: #ffffff85; padding: 17px 18px; border-radius: 15px; border: 1px solid #2823470c; gap: 14px; }
+    .sample { display: flex; align-items: center; gap: 9px; }
+    .sample small { color: #88818d; font-size: 10px; }
+    .dock { width: 72px; height: 72px; border-radius: 18px; background: linear-gradient(150deg, #fffdfa, #e5e0f5); border: 1px solid #fff; box-shadow: 0 4px 6px #28234712, inset 0 -2px 0 #28234708; }
+    .dark { width: 66px; height: 66px; padding: 2px; border-radius: 14px; background: #282347; }
+    .native { width: 32px; height: 32px; }
+    .sample-label { margin: 9px 4px 0; font-size: 10px; color: #938a9b; letter-spacing: .3px; }
+    .note { margin: 29px 0 0; border-left: 3px solid #6559e8; padding-left: 16px; display: flex; gap: 18px; align-items: baseline; }
+    .note strong { font-size: 12px; white-space: nowrap; }
+    .note p { margin: 0; font-size: 12px; line-height: 1.8; color: #777080; }
+    footer { margin-top: 31px; border-top: 1px solid #28234720; padding-top: 18px; color: #918998; font-size: 10px; letter-spacing: .8px; }
+    a { color: inherit; text-decoration-thickness: 1px; text-underline-offset: 4px; }
+    a:focus-visible { outline: 3px solid #6559e8; outline-offset: 5px; border-radius: 4px; }
+    @media (max-width: 1000px) {
+      main { padding: 30px 24px; }
+      header { display: block; }
+      .descriptor { margin-top: 20px; }
+      .grid { grid-template-columns: 1fr; max-width: 500px; margin: auto; gap: 38px; }
+      .main-logo { max-height: 320px; }
+      h1 { font-size: 29px; }
+      .note { display: block; }
+      .note p { margin-top: 8px; }
+    }
+    @media print { main { padding: 22px; } .grid { grid-template-columns: repeat(3, 1fr); max-width: none; } body { print-color-adjust: exact; -webkit-print-color-adjust: exact; } }
+  </style>
+</head>
+<body>
+<main>
+  <div class="topline"><span class="wordmark">mob</span><span class="eyebrow">MASCOT EXPLORATIONS / 01—03</span></div>
+  <header>
+    <div><h1>把远程工作，交给一个小搭档。</h1><p>三个卡通 Logo 方向 · 让「看见桌面、执行任务、连接远方」变得有形。</p></div>
+    <div class="descriptor"><span>紫色品牌基调</span><span>透明底 SVG</span><span>macOS 图标预览</span></div>
+  </header>
+  <section class="grid" aria-label="三个 Logo 方案对比">
+    <article>
+      <div class="visual">
+        <div class="card-top"><span class="number">01</span><span>SCREEN BUDDY</span></div>
+        <img class="main-logo" src="01-screen-buddy.svg" alt="手持指针、带着笑脸的卡通电脑助手">
+        <div class="lockup"><span class="wordmark">mob</span><p>YOUR DESKTOP SIDEKICK</p></div>
+      </div>
+      <div class="caption"><h2>屏幕小搭档</h2><p>屏幕就是它的脸，指针就是它的手。<br>把远程桌面变成一个能看、能动的小助手。</p><div class="tags"><span>远程桌面</span><span>可视操作</span><span>亲切可靠</span></div></div>
+      <div class="samples"><div class="sample"><img class="dock" src="01-screen-buddy.svg" alt="屏幕小搭档的 Dock 图标预览"><small>Dock</small></div><div class="sample"><img class="native" src="01-screen-buddy.svg" alt="32 像素缩略图"><small>32px</small></div><img class="dark" src="01-screen-buddy.svg" alt="深色背景预览"></div>
+      <p class="sample-label"><a href="01-screen-buddy.svg" download>下载 SVG</a> · 建议优先考虑：产品能力表达最直接</p>
+    </article>
+    <article>
+      <div class="visual">
+        <div class="card-top"><span class="number">02</span><span>OCTO OPERATOR</span></div>
+        <img class="main-logo" src="02-octo-operator.svg" alt="用触手拿着任务卡和鼠标指针的紫色卡通章鱼">
+        <div class="lockup"><span class="wordmark">mob</span><p>MANY TOOLS. ONE LITTLE HELPER.</p></div>
+      </div>
+      <div class="caption"><h2>多手小章鱼</h2><p>一只手接任务，一只手操作，完成后打勾。<br>让 AI 调用工具、执行工作有一个可爱的形象。</p><div class="tags"><span>工具协作</span><span>任务执行</span><span>活泼能干</span></div></div>
+      <div class="samples"><div class="sample"><img class="dock" src="02-octo-operator.svg" alt="多手小章鱼的 Dock 图标预览"><small>Dock</small></div><div class="sample"><img class="native" src="02-octo-operator.svg" alt="32 像素缩略图"><small>32px</small></div><img class="dark" src="02-octo-operator.svg" alt="深色背景预览"></div>
+      <p class="sample-label"><a href="02-octo-operator.svg" download>下载 SVG</a> · 适合延展：运行、等待、完成等状态表情</p>
+    </article>
+    <article>
+      <div class="visual">
+        <div class="card-top"><span class="number">03</span><span>PORTAL PAL</span></div>
+        <img class="main-logo" src="03-portal-pal.svg" alt="从桌面传送门探出、尾巴化成指针的薄荷色小精灵">
+        <div class="lockup"><span class="wordmark">mob</span><p>YOUR OFFICE, WITHIN REACH.</p></div>
+      </div>
+      <div class="caption"><h2>传送门小精灵</h2><p>从窗口探出身子，把指针伸向另一端。<br>无论身在何处，都能连接办公室里的电脑。</p><div class="tags"><span>跨设备连接</span><span>远程临场</span><span>轻盈灵动</span></div></div>
+      <div class="samples"><div class="sample"><img class="dock" src="03-portal-pal.svg" alt="传送门小精灵的 Dock 图标预览"><small>Dock</small></div><div class="sample"><img class="native" src="03-portal-pal.svg" alt="32 像素缩略图"><small>32px</small></div><img class="dark" src="03-portal-pal.svg" alt="深色背景预览"></div>
+      <p class="sample-label"><a href="03-portal-pal.svg" download>下载 SVG</a> · 适合强调：远程连接与随时在场的陪伴感</p>
+    </article>
+  </section>
+  <div class="note"><strong>设计取舍</strong><p>沿用 mob 界面的紫色，搭配奶白与薄荷绿。轮廓采用圆角和粗线条；大图表达角色，小图保留辨识度。当前为候选方案，选定后再制作正式 App 图标。</p></div>
+  <footer><span>MOB / CARTOON BRAND STUDY</span><span>SVG 原创绘制 · 2026.10</span></footer>
+</main>
+</body>
+</html>

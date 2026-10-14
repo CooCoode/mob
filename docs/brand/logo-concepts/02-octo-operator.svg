@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" fill="none" role="img" aria-labelledby="title description">
+  <title id="title">mob 多手小章鱼</title>
+  <desc id="description">紫色卡通章鱼用卷曲触手连接任务卡与鼠标指针，表达 AI 调用工具、执行任务和反馈完成状态。</desc>
+  <g stroke="#282347" stroke-width="11" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M154 253C125 257 111 239 109 218M357 253C383 256 393 245 397 223" stroke-width="38"/>
+    <path d="M154 253C125 257 111 239 109 218M357 253C383 256 393 245 397 223" stroke="#8B85FF" stroke-width="24"/>
+    <g transform="rotate(-14 105 188)">
+      <rect x="71" y="143" width="71" height="89" rx="19" fill="#F9F4E9"/>
+      <path d="M88 185L101 198L125 171" stroke="#4F46E5" stroke-width="10"/>
+    </g>
+    <path d="M383 158L440 200L414 207L402 234Z" fill="#B8ECCC"/>
+    <path d="M160 298C139 312 119 329 111 347C95 383 126 406 151 394C170 385 169 369 157 363" stroke-width="43"/>
+    <path d="M160 298C139 312 119 329 111 347C95 383 126 406 151 394C170 385 169 369 157 363" stroke="#8B85FF" stroke-width="29"/>
+    <path d="M215 320C209 341 189 373 207 393C219 407 244 401 244 379" stroke-width="43"/>
+    <path d="M215 320C209 341 189 373 207 393C219 407 244 401 244 379" stroke="#8B85FF" stroke-width="29"/>
+    <path d="M299 320C304 342 327 373 309 393C297 407 272 401 272 379" stroke-width="43"/>
+    <path d="M299 320C304 342 327 373 309 393C297 407 272 401 272 379" stroke="#8B85FF" stroke-width="29"/>
+    <path d="M352 298C373 312 393 329 401 347C417 383 386 406 361 394C342 385 343 369 355 363" stroke-width="43"/>
+    <path d="M352 298C373 312 393 329 401 347C417 383 386 406 361 394C342 385 343 369 355 363" stroke="#8B85FF" stroke-width="29"/>
+    <path d="M132 255C132 167 174 103 250 103C328 103 380 167 380 255C380 308 324 337 256 337C188 337 132 308 132 255Z" fill="#8B85FF"/>
+    <path d="M158 268C184 304 314 320 356 274C343 319 306 337 256 337C207 337 174 320 158 294Z" fill="#6B5DE6" stroke="none"/>
+    <path d="M178 164C190 145 205 136 224 134" stroke="#B7B1FF" stroke-width="13"/>
+    <path d="M210 216V239M302 216V239" stroke-width="19"/>
+    <ellipse cx="178" cy="258" rx="15" ry="9" fill="#F6BAB4" stroke="none"/>
+    <ellipse cx="332" cy="258" rx="15" ry="9" fill="#F6BAB4" stroke="none"/>
+    <path d="M236 264Q256 286 276 264" stroke-width="9"/>
+  </g>
+</svg>
