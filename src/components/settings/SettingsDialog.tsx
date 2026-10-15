@@ -121,8 +121,8 @@ function PairForm({ machine, onPaired }: { machine?: Machine; onPaired: (id: str
       )}
       {parsed.error && <p className="-mt-1.5 text-xs text-danger">{parsed.error}</p>}
       {target && (
-        <div className="grid gap-2 rounded-lg border bg-panel p-3">
-          <p className="text-xs"><span className="text-muted-foreground">Pair with </span><span className="font-mono font-medium">{target.origin}</span></p>
+        <div className="grid grid-cols-1 gap-2 rounded-lg border bg-panel p-3">
+          <p className="text-xs"><span className="text-muted-foreground">Pair with </span><span className="break-all font-mono font-medium">{target.origin}</span></p>
           {target.insecure && <InsecureWarning />}
           {otherOffice && (
             <p className="text-[11.5px] text-warning">This link belongs to a different office than the one saved for this machine.</p>
@@ -130,7 +130,7 @@ function PairForm({ machine, onPaired }: { machine?: Machine; onPaired: (id: str
           {moved && (
             <label className="flex items-start gap-2 text-[11.5px]">
               <input type="checkbox" className="mt-0.5" checked={confirmed} onChange={(e) => setConfirmed(e.target.checked)} />
-              <span>The address changes from <span className="font-mono">{machine?.mobdUrl}</span>. I trust the new address.</span>
+              <span>The address changes from <span className="break-all font-mono">{machine?.mobdUrl}</span>. I trust the new address.</span>
             </label>
           )}
         </div>
@@ -179,7 +179,7 @@ function MachineForm({ machine }: { machine: Machine }) {
 
   return (
     <form
-      className="grid min-w-0 flex-1 content-start gap-3"
+      className="grid min-w-0 flex-1 grid-cols-1 content-start gap-3"
       onSubmit={(e) => {
         e.preventDefault();
         if (!form.name.trim()) return;
@@ -191,13 +191,13 @@ function MachineForm({ machine }: { machine: Machine }) {
     >
       <h3 className="text-[13px] font-semibold">Edit machine</h3>
       <Label>Display name<Input value={form.name} placeholder="Office Mac" onChange={(e) => setForm({ ...form, name: e.target.value })} required /></Label>
-      <div className="grid gap-2 rounded-lg border bg-panel p-3">
-        <div className="flex items-center gap-2 text-xs">
-          <span className={cn("size-2 rounded-full", machine.needsPairing ? "bg-warning" : "bg-success")} />
-          <span className="font-medium">{machine.needsPairing ? "Needs pairing" : "Paired"}</span>
-          <span className="min-w-0 flex-1 truncate font-mono text-muted-foreground">{machine.mobdUrl}</span>
+      <div className="grid grid-cols-1 gap-2 rounded-lg border bg-panel p-3">
+        <div className="flex items-start gap-2 text-xs">
+          <span className={cn("mt-1 size-2 shrink-0 rounded-full", machine.needsPairing ? "bg-warning" : "bg-success")} />
+          <span className="shrink-0 font-medium">{machine.needsPairing ? "Needs pairing" : "Paired"}</span>
+          <span className="min-w-0 flex-1 break-all font-mono text-muted-foreground">{machine.mobdUrl}</span>
           {!machine.needsPairing && !repair && (
-            <Button variant="ghost" size="sm" onClick={() => setRepair(true)}>Pair again</Button>
+            <Button variant="ghost" size="sm" className="-my-1 shrink-0" onClick={() => setRepair(true)}>Pair again</Button>
           )}
         </div>
         {!machine.needsPairing && machine.mobdUrl.startsWith("http:") && <InsecureWarning />}
@@ -264,7 +264,7 @@ function MachinesTab() {
         </Button>
       </div>
       {editing ? <MachineForm machine={editing} /> : (
-        <div className="grid min-w-0 flex-1 content-start gap-3">
+        <div className="grid min-w-0 flex-1 grid-cols-1 content-start gap-3">
           <h3 className="text-[13px] font-semibold">Add machine</h3>
           <PairForm onPaired={(id) => { set({ editMachineId: id }); selectMachine(id); }} />
         </div>
