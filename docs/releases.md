@@ -80,7 +80,8 @@ Tauri 原生更新请求及 curl 不依赖浏览器 CORS，官网获取发布清
 
 `TAURI_UPDATER_PUBLIC_KEY` 和 `DOWNLOAD_BASE_URL` 是公开配置，也支持存为同名
 Secret，与 mobd 的下载域名读取方式一致。构建和 R2 发布均优先读取 Variable，
-为空时读取 Secret；只需配置一处。mobd 仓库的配置不会自动继承到 mob 仓库。
+为空时读取 Secret；只需配置一处。R2 发布对 `R2_ACCOUNT_ID` 和 `R2_BUCKET` 也支持
+同名 Secret。mobd 仓库的配置不会自动继承到 mob 仓库。
 
 Apple 证书与 Tauri 更新密钥是独立的。导出证书并生成更新密钥：
 

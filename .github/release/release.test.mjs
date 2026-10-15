@@ -21,6 +21,7 @@ test('release config uses the public R2 updater and rejects unsafe origins', () 
   const config = updaterConfig('1.2.3', 'https://download.example.com/', ' public key\n');
   assert.deepEqual(config.plugins.updater, { pubkey: 'public key', endpoints: ['https://download.example.com/mob/latest.json'] });
   assert.equal(config.bundle.createUpdaterArtifacts, true);
+  assert.throws(() => baseURL(''), /Missing DOWNLOAD_BASE_URL/);
   for (const base of ['http://download.example.com', 'https://user:pass@example.com', 'https://example.com/path', 'https://example.com/?token=x', "https://bad'host.example.com", 'https://pub-123.r2.dev']) {
     assert.throws(() => baseURL(base));
   }
