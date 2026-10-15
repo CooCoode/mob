@@ -25,7 +25,9 @@ export function extractSecrets<M extends StoredMachine>(machines: M[], legacySec
 }
 
 export function migrateApp(state: unknown, version: number): unknown {
-  const s = (state ?? {}) as { machines?: StoredMachine[]; legacySecrets?: Record<string, string> };
+  const s = (state ?? {}) as { machines?: StoredMachine[]; legacySecrets?: Record<string, string>; previewOpen?: boolean };
+  // v4 hides the desktop panel until the user opens it; it used to be open by default.
+  if (version < 4) s.previewOpen = false;
   if (!Array.isArray(s.machines)) return s;
   // v2 drops the custom VNC WebSocket URL: the live view always goes through mobd.
   if (version < 2) s.machines = s.machines.map(({ vncWsUrl: _, ...m }) => m);

@@ -168,7 +168,7 @@ function QueueList({ queue }: { queue?: Queue }) {
   );
 }
 
-export function PreviewPanel({ machine, health, queue, hidden }: { machine: Machine; health?: Health; queue?: Queue; hidden: boolean }) {
+export function PreviewPanel({ machine, health, queue }: { machine: Machine; health?: Health; queue?: Queue }) {
   const host = useRef<HTMLDivElement>(null);
   const stage = useRef<HTMLDivElement>(null);
   const state = useVnc();
@@ -205,7 +205,7 @@ export function PreviewPanel({ machine, health, queue, hidden }: { machine: Mach
 
   return (
     <aside
-      className={cn("flex h-full w-[360px] shrink-0 flex-col border-l bg-panel", hidden && "hidden")}
+      className="flex h-full w-[360px] shrink-0 flex-col border-l bg-panel"
       aria-label="Office desktop"
     >
       <div

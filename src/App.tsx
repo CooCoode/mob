@@ -73,7 +73,7 @@ function NeedsPairing({ machine }: { machine: Machine }) {
 
 export default function App() {
   const machine = useActiveMachine();
-  const { sidebarOpen, previewOpen, fullscreen, savedSessions, rememberSession, set } = useApp();
+  const { sidebarOpen, previewOpen, savedSessions, rememberSession, set, togglePreview } = useApp();
   const chatState = useChat();
   const base = baseUrl(machine);
   const health = useHealth(machine);
@@ -98,11 +98,19 @@ export default function App() {
     }
   }, [chatState.sessionId, chatState.ready]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const connectVnc = () => {
+  // The live view needs the panel's host element, so connecting from the palette opens the panel first.
+  const [connectRequested, setConnectRequested] = useState(false);
+  useEffect(() => {
+    if (!connectRequested || !previewOpen) return;
+    setConnectRequested(false);
     const host = document.querySelector<HTMLElement>(".vnc-host");
     if (machine && host) {
       void vnc.connect(host, { base, url: vncUrl(machine), health: health.data, password: vncPassword(machine), username: machine.vncUsername });
     }
+  }, [connectRequested, previewOpen]); // eslint-disable-line react-hooks/exhaustive-deps
+  const connectVnc = () => {
+    togglePreview(true);
+    setConnectRequested(true);
   };
 
   useEffect(() => {
@@ -121,7 +129,8 @@ export default function App() {
         useComposer.getState().focus();
       } else if (mod && e.key.toLowerCase() === "b") {
         e.preventDefault();
-        set(e.shiftKey ? { previewOpen: !st.previewOpen } : { sidebarOpen: !st.sidebarOpen });
+        if (e.shiftKey) st.togglePreview();
+        else set({ sidebarOpen: !st.sidebarOpen });
       } else if (mod && e.key === ",") {
         e.preventDefault();
         st.openSettings();
@@ -160,7 +169,8 @@ export default function App() {
           ) : (
             <NoMachine />
           )}
-          {machine && <PreviewPanel machine={machine} health={health.data} queue={queue} hidden={!previewOpen && !fullscreen} />}
+          {/* Closed means unmounted: no snapshots and no live view connection, as in the mobile apps. */}
+          {machine && previewOpen && <PreviewPanel machine={machine} health={health.data} queue={queue} />}
         </div>
       </div>
       <SettingsDialog />

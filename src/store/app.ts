@@ -62,6 +62,8 @@ interface Ephemeral {
 interface Actions {
   set: (patch: Partial<Persisted & Ephemeral>) => void;
   selectMachine: (id: string) => void;
+  /** Shows or hides the desktop panel; hiding it also leaves full screen. */
+  togglePreview: (open?: boolean) => void;
   /** Updates the name and Desktop sign-in user of a paired machine. */
   saveMachine: (m: { id: string; name: string; vncUsername?: string }) => void;
   /** Stores the new credential, then creates or updates the machine with the paired address. */
@@ -119,7 +121,7 @@ function initial(): Persisted {
     savedSessions: saved && typeof saved === "object" && !Array.isArray(saved) ? saved : {},
     collapsed: {},
     sidebarOpen: true,
-    previewOpen: true,
+    previewOpen: false,
     theme: "system",
     turnPrefs: {},
   };
@@ -136,6 +138,7 @@ export const useApp = create<AppState>()(
       fullscreen: false,
       set: (patch) => set(patch),
       selectMachine: (id) => set({ activeMachineId: id, fullscreen: false }),
+      togglePreview: (open = !get().previewOpen) => set(open ? { previewOpen: true } : { previewOpen: false, fullscreen: false }),
       saveMachine: (m) =>
         set({
           machines: get().machines.map((x) =>
@@ -182,7 +185,7 @@ export const useApp = create<AppState>()(
     }),
     {
       name: "mob.app",
-      version: 3,
+      version: 4,
       migrate: (state, version) => migrateApp(state, version) as Persisted,
       storage: createJSONStorage(() => localStorage),
       partialize: (s): Persisted => ({

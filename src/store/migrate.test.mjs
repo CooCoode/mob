@@ -28,7 +28,12 @@ test("v1 also drops the custom VNC URL", () => {
   assert.deepEqual(s.machines, [{ id: "a", name: "O", mobdUrl: "http://o", needsPairing: true }]);
 });
 
-test("v3 state is unchanged", () => {
-  const v3 = { machines: [{ id: "a", name: "O", mobdUrl: "http://o", needsPairing: false }], legacySecrets: {} };
-  assert.deepEqual(migrateApp(structuredClone(v3), 3), v3);
+test("v3 → v4 only closes the desktop panel", () => {
+  const v3 = { machines: [{ id: "a", name: "O", mobdUrl: "http://o", needsPairing: false }], legacySecrets: {}, previewOpen: true };
+  assert.deepEqual(migrateApp(structuredClone(v3), 3), { ...v3, previewOpen: false });
+});
+
+test("v4 state is unchanged, including an open panel", () => {
+  const v4 = { machines: [], legacySecrets: {}, previewOpen: true };
+  assert.deepEqual(migrateApp(structuredClone(v4), 4), v4);
 });

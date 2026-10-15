@@ -1,4 +1,4 @@
-import { Moon, PanelLeft, PanelRight, RefreshCw, Search, Settings, Sun } from "lucide-react";
+import { Monitor, Moon, PanelLeft, RefreshCw, Search, Settings, Sun } from "lucide-react";
 import type { Health, Queue } from "@/api/types";
 import { ChecksList } from "@/components/settings/SettingsDialog";
 import { Button } from "@/components/ui/button";
@@ -66,7 +66,7 @@ export function TitleBar(props: {
   refetchHealth: () => void;
   dark: boolean;
 }) {
-  const { sidebarOpen, previewOpen, theme, set, openSettings } = useApp();
+  const { sidebarOpen, previewOpen, theme, set, openSettings, togglePreview } = useApp();
   return (
     <header
       data-tauri-drag-region
@@ -95,9 +95,14 @@ export function TitleBar(props: {
           {props.dark ? <Sun /> : <Moon />}
         </Button>
       </Tooltip>
-      <Tooltip content="Toggle live view (⌘⇧B)">
-        <Button variant="ghost" size="icon-sm" aria-label="Toggle live view" onClick={() => set({ previewOpen: !previewOpen })}><PanelRight /></Button>
-      </Tooltip>
+      {props.machine && (
+        <Tooltip content={`${previewOpen ? "Hide" : "Show"} the office desktop (⌘⇧B)`}>
+          <Button variant="ghost" size="sm" aria-pressed={previewOpen} onClick={() => togglePreview()}
+            className={cn("h-7 gap-1.5 px-2.5", previewOpen && "bg-muted text-foreground")}>
+            <Monitor className="size-3.5" /> Desktop
+          </Button>
+        </Tooltip>
+      )}
       <Tooltip content="Settings (⌘,)">
         <Button variant="ghost" size="icon-sm" aria-label="Settings" onClick={() => openSettings()}><Settings /></Button>
       </Tooltip>
