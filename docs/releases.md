@@ -78,6 +78,10 @@ Tauri 原生更新请求及 curl 不依赖浏览器 CORS，官网获取发布清
 | `R2_ACCOUNT_ID` | Cloudflare 的 32 位账户 ID |
 | `R2_BUCKET` | 发布桶名称，如 `mob-releases` |
 
+`TAURI_UPDATER_PUBLIC_KEY` 和 `DOWNLOAD_BASE_URL` 是公开配置，也支持存为同名
+Secret，与 mobd 的下载域名读取方式一致。构建和 R2 发布均优先读取 Variable，
+为空时读取 Secret；只需配置一处。mobd 仓库的配置不会自动继承到 mob 仓库。
+
 Apple 证书与 Tauri 更新密钥是独立的。导出证书并生成更新密钥：
 
 ```bash
@@ -254,7 +258,7 @@ Settings → Domains & Routes 添加官网自定义域名。没有版本时显�
 
 - [ ] R2 下载域名已生效；可公开访问，不触发登录/浏览器挑战。
 - [ ] CORS 允许官网，缓存规则区分版本文件和动态入口。
-- [ ] `release` 环境的 10 个 Secrets、4 个 Variables 完整。
+- [ ] `release` 环境的 10 个 Secrets、4 项公开配置完整（公钥和下载域名可存为同名 Secret）。
 - [ ] 生成并备份 Tauri 密钥，Apple 签名/公证检查通过。
 - [ ] 在其他 Apple Silicon Mac 上试装草稿中的 DMG。
 - [ ] 发布 GitHub 稳定 Release，确认 R2 工作流完成。
