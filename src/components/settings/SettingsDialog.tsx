@@ -1,5 +1,7 @@
 import { UpdateSettings } from "@/components/UpdateNotice";
-import { CheckCircle2, CircleHelp, Info, Monitor, Moon, Palette, Plus, ScrollText, Sun, SunMoon, Trash2, XCircle } from "lucide-react";
+import {
+  CheckCircle2, CircleHelp, Info, Monitor, Moon, Palette, Plus, ScrollText, Sun, SunMoon, Trash2, TriangleAlert, XCircle,
+} from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { fetchHealth } from "@/api/client";
 import type { Check, Health } from "@/api/types";
@@ -8,8 +10,11 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { Input, Label } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { UnauthorizedError } from "@/lib/auth";
+import { deviceNameError, pair, parsePairLink } from "@/lib/pairing";
+import { setSecret, vncPasswordAccount } from "@/lib/secrets";
 import { cn } from "@/lib/utils";
-import { defaultMobdUrl, useApp, type Theme } from "@/store/app";
+import { baseUrl, useApp, vncPassword, type Machine, type Theme } from "@/store/app";
 import { useLog } from "@/store/log";
 
 const CHECK_LABELS: Record<string, string> = {
@@ -44,31 +49,204 @@ export function ChecksList({ checks }: { checks?: Record<string, Check> }) {
   );
 }
 
-function MachinesTab() {
-  const { machines, editMachineId, saveMachine, deleteMachine, selectMachine, set } = useApp();
-  const editing = machines.find((m) => m.id === editMachineId);
-  const blank = useMemo(() => ({ name: "", mobdUrl: defaultMobdUrl(), vncUsername: "", vncPassword: "" }), []);
-  const [form, setForm] = useState(blank);
-  const [test, setTest] = useState<{ state: "idle" | "testing" | "ok" | "error"; health?: Health; error?: string }>({ state: "idle" });
-  const [saved, setSaved] = useState(false);
+const defaultDeviceName = () => `mob on ${/Mac/i.test(navigator.userAgent) ? "Mac" : "desktop"}`;
 
-  useEffect(() => {
-    setForm(editing ? { name: editing.name, mobdUrl: editing.mobdUrl, vncUsername: editing.vncUsername ?? "", vncPassword: editing.vncPassword ?? "" } : blank);
-    setTest({ state: "idle" });
-    setSaved(false);
-  }, [editMachineId]); // eslint-disable-line react-hooks/exhaustive-deps
+function InsecureWarning() {
+  return (
+    <p className="flex gap-1.5 rounded-md bg-warning/10 px-2.5 py-1.5 text-[11.5px] text-foreground">
+      <TriangleAlert className="mt-px size-3.5 shrink-0 text-warning" />
+      HTTP link: traffic including the credential is not encrypted. Use it only on a trusted network or a Tailscale/VPN address.
+    </p>
+  );
+}
 
-  const valid = form.name.trim() && form.mobdUrl.trim();
-  const runTest = async () => {
-    setTest({ state: "testing" });
+/** Paste a `mobd link` URL, confirm the target, redeem the invite. Never sends an existing credential. */
+function PairForm({ machine, onPaired }: { machine?: Machine; onPaired: (id: string) => void }) {
+  const completePairing = useApp((s) => s.completePairing);
+  const [link, setLink] = useState("");
+  const [officeName, setOfficeName] = useState("Office Mac");
+  const [deviceName, setDeviceName] = useState(defaultDeviceName);
+  const [confirmed, setConfirmed] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const parsed = useMemo(() => {
+    if (!link.trim()) return { error: "" };
     try {
-      const health = await fetchHealth(form.mobdUrl.trim().replace(/\/$/, ""));
-      setTest({ state: health.ok ? "ok" : "error", health });
+      return { link: parsePairLink(link) };
     } catch (err) {
-      setTest({ state: "error", error: `${err instanceof Error ? err.message : String(err)} — check the URL, network and MOBD_CORS_ORIGINS` });
+      return { error: err instanceof Error ? err.message : String(err) };
+    }
+  }, [link]);
+  const target = parsed.link;
+  const moved = !!machine && !!target && target.origin !== baseUrl(machine);
+  const otherOffice = !!machine?.serverId && !!target && target.serverId !== machine.serverId;
+  const nameError = deviceNameError(deviceName);
+  const ready = !!target && !nameError && (!machine ? !!officeName.trim() : true) && (!moved || confirmed) && !busy;
+
+  useEffect(() => setConfirmed(false), [target?.origin]);
+
+  const submit = async () => {
+    if (!target || !ready) return;
+    setBusy(true);
+    setError("");
+    try {
+      const paired = await pair(target, deviceName);
+      const id = await completePairing({
+        id: machine?.id, name: machine?.name ?? officeName, mobdUrl: target.origin, ...paired,
+      });
+      setLink("");
+      onPaired(id);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setBusy(false);
     }
   };
 
+  return (
+    <div className="grid gap-3">
+      {!machine && (
+        <Label>Display name<Input value={officeName} placeholder="Office Mac" onChange={(e) => setOfficeName(e.target.value)} /></Label>
+      )}
+      <Label>
+        Pairing link
+        <Input value={link} autoComplete="off" spellCheck={false} placeholder="https://office.example.com/pair#v=1&serverId=…&invite=…"
+          onChange={(e) => { setLink(e.target.value); setError(""); }} />
+      </Label>
+      {!target && (
+        <p className="-mt-1.5 text-[11px] text-muted-foreground">
+          Run <code className="font-mono">mobd link --url URL</code> on the office Mac and paste the link it prints. A private network,
+          VPN or Tailscale address and a self-hosted Tailscale Funnel HTTPS address both work the same way. MOB relay — coming soon.
+        </p>
+      )}
+      {parsed.error && <p className="-mt-1.5 text-xs text-danger">{parsed.error}</p>}
+      {target && (
+        <div className="grid gap-2 rounded-lg border bg-panel p-3">
+          <p className="text-xs"><span className="text-muted-foreground">Pair with </span><span className="font-mono font-medium">{target.origin}</span></p>
+          {target.insecure && <InsecureWarning />}
+          {otherOffice && (
+            <p className="text-[11.5px] text-warning">This link belongs to a different office than the one saved for this machine.</p>
+          )}
+          {moved && (
+            <label className="flex items-start gap-2 text-[11.5px]">
+              <input type="checkbox" className="mt-0.5" checked={confirmed} onChange={(e) => setConfirmed(e.target.checked)} />
+              <span>The address changes from <span className="font-mono">{machine?.mobdUrl}</span>. I trust the new address.</span>
+            </label>
+          )}
+        </div>
+      )}
+      <Label>
+        Name of this device
+        <Input value={deviceName} maxLength={128} onChange={(e) => setDeviceName(e.target.value)} />
+      </Label>
+      <p className="-mt-1.5 text-[11px] text-muted-foreground">Shown in the office Mac's list of paired devices.</p>
+      <div className="flex items-center gap-2">
+        <Button disabled={!ready} onClick={() => void submit()}>{busy && <Spinner />} Pair</Button>
+        {target && nameError && <span className="text-xs text-danger">{nameError}</span>}
+      </div>
+      {error && <p className="text-xs text-danger">{error}</p>}
+    </div>
+  );
+}
+
+function MachineForm({ machine }: { machine: Machine }) {
+  const { saveMachine, deleteMachine, set } = useApp();
+  const [form, setForm] = useState({ name: "", vncUsername: "", vncPassword: "" });
+  const [test, setTest] = useState<{ state: "idle" | "testing" | "ok" | "error"; health?: Health; error?: string }>({ state: "idle" });
+  const [saved, setSaved] = useState("");
+  const [repair, setRepair] = useState(false);
+
+  useEffect(() => {
+    setForm({ name: machine.name, vncUsername: machine.vncUsername ?? "", vncPassword: vncPassword(machine) ?? "" });
+    setTest({ state: "idle" });
+    setSaved("");
+    setRepair(false);
+  }, [machine.id]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const runTest = async () => {
+    setTest({ state: "testing" });
+    try {
+      const health = await fetchHealth(baseUrl(machine));
+      setTest({ state: health.ok ? "ok" : "error", health });
+    } catch (err) {
+      setTest({
+        state: "error",
+        error: err instanceof UnauthorizedError ? err.message
+          : `${err instanceof Error ? err.message : String(err)} — check the network/VPN and that mobd is running`,
+      });
+    }
+  };
+
+  return (
+    <form
+      className="grid min-w-0 flex-1 content-start gap-3"
+      onSubmit={(e) => {
+        e.preventDefault();
+        if (!form.name.trim()) return;
+        saveMachine({ id: machine.id, name: form.name, vncUsername: form.vncUsername });
+        setSecret(vncPasswordAccount(machine.id), form.vncPassword)
+          .then(() => setSaved("Saved"))
+          .catch((err) => setSaved(`Could not save the password to the Keychain: ${String(err)}`));
+      }}
+    >
+      <h3 className="text-[13px] font-semibold">Edit machine</h3>
+      <Label>Display name<Input value={form.name} placeholder="Office Mac" onChange={(e) => setForm({ ...form, name: e.target.value })} required /></Label>
+      <div className="grid gap-2 rounded-lg border bg-panel p-3">
+        <div className="flex items-center gap-2 text-xs">
+          <span className={cn("size-2 rounded-full", machine.needsPairing ? "bg-warning" : "bg-success")} />
+          <span className="font-medium">{machine.needsPairing ? "Needs pairing" : "Paired"}</span>
+          <span className="min-w-0 flex-1 truncate font-mono text-muted-foreground">{machine.mobdUrl}</span>
+          {!machine.needsPairing && !repair && (
+            <Button variant="ghost" size="sm" onClick={() => setRepair(true)}>Pair again</Button>
+          )}
+        </div>
+        {!machine.needsPairing && machine.mobdUrl.startsWith("http:") && <InsecureWarning />}
+        {(machine.needsPairing || repair) && (
+          <>
+            {machine.needsPairing && (
+              <p className="text-[11.5px] text-muted-foreground">
+                This device has no valid credential for this office Mac. Run <code className="font-mono">mobd link</code> there and paste the new link.
+              </p>
+            )}
+            <PairForm machine={machine} onPaired={() => { setRepair(false); setTest({ state: "idle" }); }} />
+          </>
+        )}
+      </div>
+      <div className="grid grid-cols-2 gap-3">
+        <Label>macOS user name<Input autoComplete="off" value={form.vncUsername} placeholder="Office Mac account" onChange={(e) => setForm({ ...form, vncUsername: e.target.value })} /></Label>
+        <Label>Password<Input type="password" autoComplete="off" value={form.vncPassword} placeholder="Account or VNC password" onChange={(e) => setForm({ ...form, vncPassword: e.target.value })} /></Label>
+      </div>
+      <p className="-mt-1.5 text-[11px] text-muted-foreground">
+        With a user name, the live view signs in to that account like Apple's Screen Sharing and can be controlled. Without it, the
+        password is used as a VNC password, which macOS answers with its login window. The password is kept in the Keychain.
+      </p>
+      <div className="flex items-center gap-2 pt-1">
+        <Button type="submit" disabled={!form.name.trim()}>Save</Button>
+        <Button variant="secondary" disabled={machine.needsPairing || test.state === "testing"} onClick={() => void runTest()}>
+          {test.state === "testing" && <Spinner />} Test connection
+        </Button>
+        {saved && <span className={cn("text-xs", saved === "Saved" ? "text-success" : "text-danger")}>{saved}</span>}
+        <div className="flex-1" />
+        <Button variant="ghost" className="text-danger hover:text-danger" onClick={() => { deleteMachine(machine.id); set({ editMachineId: "" }); }}>
+          <Trash2 className="size-3.5" /> Remove
+        </Button>
+      </div>
+      {test.state === "error" && test.error && <p className="text-xs text-danger">{test.error}</p>}
+      {test.health && (
+        <div className="rounded-lg border bg-panel p-3">
+          <p className="mb-2 text-xs text-muted-foreground">
+            mobd API v{test.health.apiVersion}{test.health.apiVersion < 3 && " — update the office daemon for activities, queue and uploads"}
+          </p>
+          <ChecksList checks={test.health.checks} />
+        </div>
+      )}
+    </form>
+  );
+}
+
+function MachinesTab() {
+  const { machines, editMachineId, selectMachine, set } = useApp();
+  const editing = machines.find((m) => m.id === editMachineId);
   return (
     <div className="flex h-full gap-4">
       <div className="flex w-44 shrink-0 flex-col gap-1">
@@ -76,58 +254,21 @@ function MachinesTab() {
           <button key={m.id} type="button" onClick={() => set({ editMachineId: m.id })}
             className={cn("rounded-md px-2.5 py-1.5 text-left hover:bg-muted", m.id === editMachineId && "bg-muted")}>
             <p className="truncate text-[13px] font-medium">{m.name}</p>
-            <p className="truncate text-[11px] text-muted-foreground">{m.mobdUrl}</p>
+            <p className={cn("truncate text-[11px]", m.needsPairing ? "text-warning" : "text-muted-foreground")}>
+              {m.needsPairing ? "Needs pairing" : m.mobdUrl}
+            </p>
           </button>
         ))}
         <Button variant="ghost" size="sm" className="justify-start" onClick={() => set({ editMachineId: "" })}>
           <Plus className="size-3.5" /> Add machine
         </Button>
       </div>
-      <form
-        className="grid min-w-0 flex-1 content-start gap-3"
-        onSubmit={(e) => {
-          e.preventDefault();
-          if (!valid) return;
-          const id = saveMachine({ id: editing?.id, ...form });
-          set({ editMachineId: id });
-          if (!editing) selectMachine(id);
-          setSaved(true);
-        }}
-      >
-        <h3 className="text-[13px] font-semibold">{editing ? "Edit machine" : "New machine"}</h3>
-        <Label>Display name<Input value={form.name} placeholder="Office Mac" onChange={(e) => setForm({ ...form, name: e.target.value })} required /></Label>
-        <Label>mobd URL<Input value={form.mobdUrl} placeholder="http://192.168.x.x:8080" onChange={(e) => setForm({ ...form, mobdUrl: e.target.value })} required /></Label>
-        <div className="grid grid-cols-2 gap-3">
-          <Label>macOS user name<Input autoComplete="off" value={form.vncUsername} placeholder="Office Mac account" onChange={(e) => setForm({ ...form, vncUsername: e.target.value })} /></Label>
-          <Label>Password<Input type="password" autoComplete="off" value={form.vncPassword} placeholder="Account or VNC password" onChange={(e) => setForm({ ...form, vncPassword: e.target.value })} /></Label>
+      {editing ? <MachineForm machine={editing} /> : (
+        <div className="grid min-w-0 flex-1 content-start gap-3">
+          <h3 className="text-[13px] font-semibold">Add machine</h3>
+          <PairForm onPaired={(id) => { set({ editMachineId: id }); selectMachine(id); }} />
         </div>
-        <p className="-mt-1.5 text-[11px] text-muted-foreground">
-          With a user name, the live view signs in to that account like Apple's Screen Sharing and can be controlled. Without it, the
-          password is used as a VNC password, which macOS answers with its login window.
-        </p>
-        <div className="flex items-center gap-2 pt-1">
-          <Button type="submit" disabled={!valid}>{editing ? "Save" : "Add machine"}</Button>
-          <Button variant="secondary" disabled={!form.mobdUrl.trim() || test.state === "testing"} onClick={() => void runTest()}>
-            {test.state === "testing" && <Spinner />} Test connection
-          </Button>
-          {saved && <span className="text-xs text-success">Saved</span>}
-          <div className="flex-1" />
-          {editing && (
-            <Button variant="ghost" className="text-danger hover:text-danger" onClick={() => { deleteMachine(editing.id); set({ editMachineId: "" }); }}>
-              <Trash2 className="size-3.5" /> Remove
-            </Button>
-          )}
-        </div>
-        {test.state === "error" && test.error && <p className="text-xs text-danger">{test.error}</p>}
-        {test.health && (
-          <div className="rounded-lg border bg-panel p-3">
-            <p className="mb-2 text-xs text-muted-foreground">
-              mobd API v{test.health.apiVersion}{test.health.apiVersion < 3 && " — update the office daemon for activities, queue and uploads"}
-            </p>
-            <ChecksList checks={test.health.checks} />
-          </div>
-        )}
-      </form>
+      )}
     </div>
   );
 }

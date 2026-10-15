@@ -151,16 +151,16 @@ function ArchivedGroup({ base, admin, onAction }: { base: string; admin: boolean
 
 function MachineGroup({ machine, active }: { machine: Machine; active: boolean }) {
   const chatState = useChat();
-  const { selectMachine, collapsed, set } = useApp();
+  const { selectMachine, collapsed, set, openSettings } = useApp();
   const base = baseUrl(machine);
-  const { data: health, isError } = useHealth(base);
+  const { data: health, isError } = useHealth(machine);
   const admin = supports(health, "sessionAdmin");
   const { data: queue } = useQueue(base, active && supports(health, "queue"));
   const positionOf = (sessionId: string) => queue?.queued.find((t) => t.sessionId === sessionId)?.queuePosition;
   const [confirm, setConfirm] = useState<Session | null>(null);
   const isCollapsed = !!collapsed[machine.id] && active;
   const checksBad = health && Object.values(health.checks ?? {}).some((c) => !c.ok && !c.unknown);
-  const dot = isError ? "bg-muted-foreground/40" : !health ? "bg-muted-foreground/30" : checksBad ? "bg-warning" : "bg-success";
+  const dot = machine.needsPairing ? "bg-warning" : isError ? "bg-muted-foreground/40" : !health ? "bg-muted-foreground/30" : checksBad ? "bg-warning" : "bg-success";
 
   const onAction = (s: Session, a: Action) => {
     if (a === "pin") void chat.patchSession(s.id, { pinned: !s.pinned });
@@ -178,10 +178,17 @@ function MachineGroup({ machine, active }: { machine: Machine; active: boolean }
       >
         <Monitor className="size-3.5" />
         <span className="min-w-0 flex-1 truncate">{machine.name}</span>
+        {machine.needsPairing && <span className="text-[10.5px] font-normal text-warning">Needs pairing</span>}
         <span className={cn("size-1.5 rounded-full", dot)} />
         {active && <ChevronRight className={cn("size-3 transition-transform", !isCollapsed && "rotate-90")} />}
       </button>
-      {active && !isCollapsed && (
+      {active && machine.needsPairing && (
+        <button type="button" onClick={() => openSettings("machines", machine.id)}
+          className="px-7 text-left text-[11px] text-muted-foreground/80 hover:text-foreground">
+          Pair again in Settings
+        </button>
+      )}
+      {active && !isCollapsed && !machine.needsPairing && (
         <div className="mt-0.5 grid grid-cols-[minmax(0,1fr)] gap-px">
           {chatState.loading && !chatState.sessions.length && (
             <div className="grid gap-1.5 px-2.5 py-1">

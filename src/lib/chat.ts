@@ -1,10 +1,21 @@
 import type {
   Activity, ChatMessage, Queue, Question, Session, SessionDetail, Task, TaskEvent, TaskStatus, TurnOptions,
 } from "../api/types.ts";
+import { authFetch, streamAuth, UnauthorizedError } from "./auth.ts";
+import { EventStream, type StreamEvent, type StreamOptions } from "./sse.ts";
 
 export type { Activity, ChatMessage, Question, Session, Task, TaskStatus };
 
 const EVENT_TYPES = ["status", "message", "resume", "activity", "question", "usage", "log", "progress", "error"];
+
+/** The part of EventStream the chat uses; tests substitute a fake. */
+export interface ChatStream {
+  addEventListener(type: string, listener: (ev: StreamEvent) => void): void;
+  onerror: ((err?: unknown) => void) | null;
+  close(): void;
+}
+
+export type StreamFactory = (url: string, options: StreamOptions) => ChatStream;
 
 export function terminal(status: TaskStatus): boolean {
   return status === "succeeded" || status === "failed" || status === "cancelled";
@@ -27,15 +38,17 @@ export class Chat {
 
   private url = "";
   private revision = 0;
-  private source: EventSource | null = null;
+  private source: ChatStream | null = null;
   private cursor = 0;
   private recovering: number | null = null;
   private changed: () => void;
   private log: (line: string) => void;
+  private stream: StreamFactory;
 
-  constructor(changed: () => void, log: (line: string) => void) {
+  constructor(changed: () => void, log: (line: string) => void, stream: StreamFactory = (url, o) => new EventStream(url, o)) {
     this.changed = changed;
     this.log = log;
+    this.stream = stream;
   }
 
   get baseUrl(): string {
@@ -78,6 +91,15 @@ export class Chat {
         this.fail(err);
       }
     }
+  }
+
+  /** Leaves the machine: no requests until setMachine (e.g. while it needs pairing). */
+  detach(): void {
+    this.machineId = "";
+    this.url = "";
+    this.sessions = [];
+    this.ready = false;
+    this.newChat();
   }
 
   newChat(): void {
@@ -304,7 +326,7 @@ export class Chat {
   }
 
   private async request<T>(url: string, init?: RequestInit): Promise<T> {
-    const res = await fetch(url, init);
+    const res = await authFetch(this.url, url, init);
     if (res.status === 404 && url.endsWith("/sessions")) {
       throw new Error("Update office mobd to support chat sessions.");
     }
@@ -345,13 +367,24 @@ export class Chat {
     if (!t || terminal(t.status)) return;
     this.stop();
     const revision = this.revision;
-    const es = new EventSource(`${this.url}/tasks/${t.id}/events?after=${this.cursor}`);
+    const auth = streamAuth(this.url);
+    const es = this.stream(`${this.url}/tasks/${t.id}/events?after=${this.cursor}`, {
+      ...auth,
+      // The reconnect resumes after the last event ID, like Last-Event-ID.
+      resumeParam: "after",
+      onUnauthorized: () => {
+        auth.onUnauthorized();
+        if (current()) {
+          this.stop();
+          this.fail(new UnauthorizedError());
+        }
+      },
+    });
     this.source = es;
     const current = () => this.source === es && this.revision === revision;
     for (const type of EVENT_TYPES) {
-      es.addEventListener(type, (raw) => {
+      es.addEventListener(type, (ev) => {
         if (!current()) return;
-        const ev = raw as MessageEvent<string>;
         if (!ev.data) return;
         try {
           const data = JSON.parse(ev.data) as TaskEvent;
@@ -412,9 +445,9 @@ export class Chat {
     }
     es.onerror = (raw) => {
       if (!current()) return;
-      if ("data" in (raw ?? {})) return;
+      if (raw && typeof raw === "object" && "data" in raw) return;
       this.log("SSE interrupted; reconnecting and restoring history");
-      // Native EventSource retries with Last-Event-ID. A snapshot also recovers daemon restarts.
+      // The stream reconnects after its last event ID. A snapshot also recovers daemon restarts.
       void this.recover(revision);
     };
   }
@@ -440,6 +473,11 @@ export class Chat {
       await this.list(revision);
     } catch (err) {
       this.log(`history recovery failed: ${String(err)}`);
+      // A revoked credential ends the conversation view; reconnects would only repeat the 401.
+      if (err instanceof UnauthorizedError && revision === this.revision) {
+        this.stop();
+        this.fail(err);
+      }
     } finally {
       if (this.recovering === revision) this.recovering = null;
     }

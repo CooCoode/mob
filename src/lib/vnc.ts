@@ -1,5 +1,30 @@
 import { useSyncExternalStore } from "react";
+import { supports } from "@/api/client";
+import type { Health } from "@/api/types";
+import { authFetch } from "@/lib/auth";
 import { log } from "@/store/log";
+
+const UPDATE_MOBD = "Update mobd on the office Mac to use the live desktop";
+
+export interface VncTarget {
+  /** mobd base URL: the ticket request carries its credential. */
+  base: string;
+  /** mobd's /vnc relay WebSocket. */
+  url: string;
+  health?: Health;
+  password?: string;
+  username?: string;
+}
+
+// WebView WebSockets cannot send Authorization, so /vnc takes a single-use 30 s ticket.
+async function vncTicket(base: string): Promise<string> {
+  const res = await authFetch(base, `${base}/vnc/ticket`, { method: "POST" });
+  if (res.status === 404 || res.status === 405) throw new Error(UPDATE_MOBD);
+  const data = (await res.json().catch(() => ({}))) as { ticket?: unknown; error?: string };
+  if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+  if (typeof data.ticket !== "string" || !data.ticket) throw new Error("Invalid live desktop ticket from mobd.");
+  return data.ticket;
+}
 
 type SvncClient = {
   disconnect: () => void;
@@ -39,9 +64,14 @@ class VncController {
     for (const l of this.listeners) l();
   }
 
-  async connect(host: HTMLElement, url: string, password: string | undefined, username?: string): Promise<void> {
+  async connect(host: HTMLElement, target: VncTarget): Promise<void> {
+    const { url, password, username } = target;
     if (!url) {
-      this.update({ status: "error", detail: "Set the mobd URL in Settings" });
+      this.update({ status: "error", detail: "Pair this machine in Settings" });
+      return;
+    }
+    if (target.health && !supports(target.health, "vncTicket")) {
+      this.update({ status: "error", detail: UPDATE_MOBD });
       return;
     }
     this.disconnect();
@@ -49,10 +79,11 @@ class VncController {
     this.update({ status: "connecting", detail: "Connecting…" });
     host.replaceChildren();
     try {
-      const mod = await import("@xrdavies/svnc");
+      const [mod, ticket] = await Promise.all([import("@xrdavies/svnc"), vncTicket(target.base)]);
+      if (attempt !== this.attempt) return;
       const client = (await mod.SVNCClient.connect(host, {
         // With a user name, macOS Screen Sharing signs in as that user (ARD) instead of showing the login window.
-        url, credentials: password ? { username: username || undefined, password } : undefined, viewOnly: false, inputMode: "script",
+        url: `${url}?ticket=${encodeURIComponent(ticket)}`, credentials: password ? { username: username || undefined, password } : undefined, viewOnly: false, inputMode: "script",
       })) as unknown as SvncClient;
       if (attempt !== this.attempt) {
         client.disconnect();

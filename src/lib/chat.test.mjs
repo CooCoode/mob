@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { setImmediate } from "node:timers/promises";
 // Node runs the erasable TypeScript module directly (type stripping).
 import { Chat } from "./chat.ts";
+import { configureAuth } from "./auth.ts";
 
 function deferred() {
   let resolve;
@@ -34,15 +35,13 @@ function harness(t, handler) {
   class Source {
     listeners = new Map();
     closed = false;
-    constructor(url) { this.url = url; sources.push(this); }
+    onerror = null;
+    constructor(url, options) { this.url = url; this.options = options; sources.push(this); }
     addEventListener(type, listener) { this.listeners.set(type, listener); }
     close() { this.closed = true; }
-    emit(type, data) { this.listeners.get(type)?.({ data: JSON.stringify({ type, timestamp: "now", ...data }) }); }
+    emit(type, data) { this.listeners.get(type)?.({ type, data: JSON.stringify({ type, timestamp: "now", ...data }) }); }
   }
-  const previous = globalThis.EventSource;
-  globalThis.EventSource = Source;
-  t.after(() => { globalThis.EventSource = previous; });
-  const chat = new Chat(() => {}, () => {});
+  const chat = new Chat(() => {}, () => {}, (url, options) => new Source(url, options));
   t.after(() => chat.newChat());
   return { chat, sources, calls };
 }
@@ -247,4 +246,32 @@ test("a named runner error is not treated as a transport reconnect", async (t) =
   await settle();
   assert.match(chat.error, /disk full/);
   assert.equal(calls.length, before);
+});
+
+test("requests carry the credential; a 401 stops and asks for pairing", async (t) => {
+  const rejected = [];
+  configureAuth({ token: (base) => (base === "http://office" ? "secret" : undefined), unauthorized: (base) => rejected.push(base) });
+  t.after(() => configureAuth({ token: () => undefined, unauthorized: () => {} }));
+  const server = detail("one");
+  let status = 200;
+  const { chat, calls, sources } = harness(t, (url) => {
+    if (status === 401) return { statusCode: 401, body: { error: "unauthorized" } };
+    return url.endsWith("/sessions") ? { sessions: [server.session] } : server;
+  });
+  await chat.setMachine("office", "http://office/");
+  assert.ok(calls.length > 0);
+  for (const c of calls) {
+    assert.equal(c.init.headers.get("Authorization"), "Bearer secret");
+    assert.equal(c.init.redirect, "error");
+  }
+  assert.equal(sources[0].options.headers().get("Authorization"), "Bearer secret");
+  assert.equal(sources[0].options.resumeParam, "after");
+  status = 401;
+  const before = calls.length;
+  await chat.refresh();
+  assert.match(chat.error, /paired again/);
+  assert.deepEqual(rejected, ["http://office"]);
+  assert.equal(calls.length, before + 1, "no retry after 401");
+  sources[0].options.onUnauthorized();
+  assert.equal(sources[0].closed, true);
 });

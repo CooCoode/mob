@@ -15,7 +15,7 @@ import { chat, useChat } from "@/hooks/useChat";
 import { useHealth, useMachineEvents, useQueue } from "@/hooks/useMachine";
 import { useQuestionAlerts } from "@/hooks/useQuestionAlerts";
 import { vnc } from "@/lib/vnc";
-import { baseUrl, useActiveMachine, useApp, vncUrl } from "@/store/app";
+import { baseUrl, useActiveMachine, useApp, vncPassword, vncUrl, type Machine } from "@/store/app";
 import { useComposer } from "@/store/composer";
 import { log } from "@/store/log";
 
@@ -43,7 +43,7 @@ function NoMachine() {
         <img src="/logo.svg" alt="mob Screen Buddy" className="mx-auto size-20" />
         <h2 className="mt-3 text-base font-semibold">Connect your office Mac</h2>
         <p className="mt-1 text-[13px] text-muted-foreground">
-          Paste the mobd URL of the office Mac. The live view goes through mobd too. You can test the connection before saving.
+          Run <code className="font-mono">mobd link</code> on the office Mac and paste the pairing link it prints. The live view goes through mobd too.
         </p>
         <Button className="mt-4" onClick={() => useApp.setState({ settingsOpen: true, settingsTab: "machines", editMachineId: "" })}>
           Add machine
@@ -54,26 +54,43 @@ function NoMachine() {
   );
 }
 
+function NeedsPairing({ machine }: { machine: Machine }) {
+  const openSettings = useApp((s) => s.openSettings);
+  return (
+    <div className="flex flex-1 items-center justify-center bg-background">
+      <div className="w-[380px] rounded-2xl border bg-background p-6 text-center shadow-panel">
+        <img src="/logo.svg" alt="mob Screen Buddy" className="mx-auto size-20" />
+        <h2 className="mt-3 text-base font-semibold">{machine.name} needs pairing</h2>
+        <p className="mt-1 text-[13px] text-muted-foreground">
+          This device has no valid credential for the office Mac. Run <code className="font-mono">mobd link</code> there and paste
+          the new link. Your conversations stay on the office Mac.
+        </p>
+        <Button className="mt-4" onClick={() => openSettings("machines", machine.id)}>Pair again</Button>
+      </div>
+    </div>
+  );
+}
+
 export default function App() {
   const machine = useActiveMachine();
   const { sidebarOpen, previewOpen, fullscreen, savedSessions, rememberSession, set } = useApp();
   const chatState = useChat();
   const base = baseUrl(machine);
-  const health = useHealth(base);
+  const health = useHealth(machine);
   const { data: queue } = useQueue(base, supports(health.data, "queue"));
   const dark = useDarkMode();
-  useMachineEvents(base);
+  useMachineEvents(machine);
   useQuestionAlerts(chatState);
 
   // Load the selected machine's conversations; restore its last session.
   useEffect(() => {
-    if (!machine) {
-      chat.newChat();
+    if (!machine || machine.needsPairing) {
+      chat.detach();
       return;
     }
     log(`selected machine: ${machine.name}`, "info");
     void chat.setMachine(machine.id, base, useApp.getState().savedSessions[machine.id]);
-  }, [machine?.id, base]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [machine?.id, base, machine?.needsPairing]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (machine && chatState.ready && chatState.machineId === machine.id && savedSessions[machine.id] !== chatState.sessionId) {
@@ -83,7 +100,9 @@ export default function App() {
 
   const connectVnc = () => {
     const host = document.querySelector<HTMLElement>(".vnc-host");
-    if (machine && host) void vnc.connect(host, vncUrl(machine), machine.vncPassword, machine.vncUsername);
+    if (machine && host) {
+      void vnc.connect(host, { base, url: vncUrl(machine), health: health.data, password: vncPassword(machine), username: machine.vncUsername });
+    }
   };
 
   useEffect(() => {
@@ -126,7 +145,9 @@ export default function App() {
           refetchHealth={() => void health.refetch()} dark={dark} />
         <div className="flex min-h-0 flex-1">
           {sidebarOpen && <Sidebar />}
-          {machine ? (
+          {machine?.needsPairing ? (
+            <NeedsPairing machine={machine} />
+          ) : machine ? (
             <main className="flex min-w-0 flex-1 flex-col bg-background">
               <div className="flex h-10 shrink-0 items-center border-b px-4">
                 <h1 className="min-w-0 truncate text-[13px] font-medium">

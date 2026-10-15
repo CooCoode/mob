@@ -2,6 +2,7 @@ import { ArrowDown, Check, CircleHelp, Copy, RotateCcw } from "lucide-react";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { artifactUrl } from "@/api/client";
 import type { ChatMessage, Task } from "@/api/types";
+import { AuthImage } from "@/components/AuthImage";
 import { Spinner, StatusIcon } from "@/components/StatusIcon";
 import { Button } from "@/components/ui/button";
 import { useChat } from "@/hooks/useChat";
@@ -25,7 +26,7 @@ function UserMessage({ message, task, base }: { message: ChatMessage; task?: Tas
       {!!task?.attachments?.length && (
         <div className="flex flex-wrap justify-end gap-1.5">
           {task.attachments.map((id) => (
-            <img key={id} src={artifactUrl(base, id)} alt="Attachment" className="size-16 rounded-lg border object-cover" />
+            <AuthImage key={id} base={base} url={artifactUrl(base, id)} alt="Attachment" className="size-16 rounded-lg border object-cover" />
           ))}
         </div>
       )}

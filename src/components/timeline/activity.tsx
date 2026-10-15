@@ -5,6 +5,7 @@ import {
 import { useState } from "react";
 import { artifactUrl } from "@/api/client";
 import type { Activity } from "@/api/types";
+import { AuthImage } from "@/components/AuthImage";
 import { Spinner } from "@/components/StatusIcon";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { cn, duration } from "@/lib/utils";
@@ -77,7 +78,7 @@ function Details({ a, base }: { a: Activity; base: string }) {
       {a.kind === "command" && a.command && <Mono>{`$ ${a.command}`}</Mono>}
       {a.images?.map((id) => (
         <button key={id} type="button" onClick={() => setZoom(id)} className="w-fit overflow-hidden rounded-md border">
-          <img src={artifactUrl(base, id)} alt="Screenshot" loading="lazy" className="max-h-56 w-auto" />
+          <AuthImage base={base} url={artifactUrl(base, id)} alt="Screenshot" className="max-h-56 w-auto" />
         </button>
       ))}
       {a.kind === "plan" && a.items && (
@@ -114,7 +115,7 @@ function Details({ a, base }: { a: Activity; base: string }) {
       <Dialog open={!!zoom} onOpenChange={(o) => !o && setZoom(null)}>
         <DialogContent className="max-h-[92vh] max-w-[92vw] overflow-hidden p-2">
           <DialogTitle className="sr-only">Screenshot</DialogTitle>
-          {zoom && <img src={artifactUrl(base, zoom)} alt="Screenshot" className="max-h-[88vh] max-w-full object-contain" />}
+          {zoom && <AuthImage base={base} url={artifactUrl(base, zoom)} alt="Screenshot" className="max-h-[88vh] max-w-full object-contain" />}
         </DialogContent>
       </Dialog>
     </div>

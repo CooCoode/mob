@@ -7,11 +7,12 @@ import { Spinner, StatusIcon } from "@/components/StatusIcon";
 import { Button } from "@/components/ui/button";
 import { Kbd } from "@/components/ui/kbd";
 import { Tooltip } from "@/components/ui/tooltip";
+import { useAuthedImage } from "@/hooks/useAuthedImage";
 import { chat, useChat } from "@/hooks/useChat";
 import { latestClick, screenGeometry } from "@/lib/timeline";
 import { cn } from "@/lib/utils";
 import { useVnc, vnc } from "@/lib/vnc";
-import { useApp, vncUrl, type Machine } from "@/store/app";
+import { baseUrl, useApp, vncPassword, vncUrl, type Machine } from "@/store/app";
 
 /** Content box of an object-fit: contain child inside a container. */
 function fitRect(box: DOMRect, ratio: number) {
@@ -48,6 +49,10 @@ function ClickMarker({ stage, ratio }: { stage: HTMLElement | null; ratio: numbe
 function Snapshot({ base, active, onRatio }: { base: string; active: boolean; onRatio: (r: number) => void }) {
   const [nonce, setNonce] = useState(() => Date.now());
   const [state, setState] = useState<"loading" | "ok" | "error">("loading");
+  const image = useAuthedImage(base, screenUrl(base, 1280, nonce));
+  useEffect(() => {
+    if (image.error) setState("error");
+  }, [image.error]);
   const [at, setAt] = useState("");
   useEffect(() => {
     // Refresh quickly while the agent works, slowly otherwise; pause when hidden.
@@ -58,7 +63,7 @@ function Snapshot({ base, active, onRatio }: { base: string; active: boolean; on
   return (
     <>
       <img
-        src={screenUrl(base, 1280, nonce)}
+        src={image.src}
         alt="Office desktop snapshot"
         className={cn("absolute inset-0 size-full object-contain", state === "error" && "invisible")}
         onLoad={(e) => {
@@ -192,7 +197,9 @@ export function PreviewPanel({ machine, health, queue, hidden }: { machine: Mach
     return () => ro.disconnect();
   }, []);
 
-  const connect = () => host.current && void vnc.connect(host.current, vncUrl(machine), machine.vncPassword, machine.vncUsername);
+  const connect = () => host.current && void vnc.connect(host.current, {
+    base: baseUrl(machine), url: vncUrl(machine), health, password: vncPassword(machine), username: machine.vncUsername,
+  });
   const control = connected && state.control;
   const dot = { idle: "bg-muted-foreground/40", connecting: "bg-warning", connected: "bg-success", error: "bg-danger" }[state.status];
 

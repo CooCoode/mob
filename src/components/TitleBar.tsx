@@ -17,10 +17,12 @@ function HealthChip({ machine, health, error, queue, refetch }: {
   queue?: Queue;
   refetch: () => void;
 }) {
+  const openSettings = useApp((s) => s.openSettings);
+  const unpaired = !!machine.needsPairing;
   const checks = Object.values(health?.checks ?? {});
   const failing = checks.filter((c) => !c.ok && !c.unknown).length;
-  const state = error ? "offline" : !health ? "checking" : failing ? `${failing} issue${failing > 1 ? "s" : ""}` : "ready";
-  const dot = error ? "bg-danger" : !health ? "bg-muted-foreground/40" : failing ? "bg-warning" : "bg-success";
+  const state = unpaired ? "needs pairing" : error ? "offline" : !health ? "checking" : failing ? `${failing} issue${failing > 1 ? "s" : ""}` : "ready";
+  const dot = unpaired ? "bg-warning" : error ? "bg-danger" : !health ? "bg-muted-foreground/40" : failing ? "bg-warning" : "bg-success";
   const waiting = queue?.queued.length ?? 0;
   return (
     <Popover>
@@ -38,9 +40,17 @@ function HealthChip({ machine, health, error, queue, refetch }: {
             <p className="text-[13px] font-semibold">{machine.name}</p>
             <p className="text-[11px] text-muted-foreground">{machine.mobdUrl}{health && ` · API v${health.apiVersion}`}</p>
           </div>
-          <Button variant="ghost" size="icon-sm" aria-label="Recheck" onClick={refetch}><RefreshCw /></Button>
+          {!unpaired && <Button variant="ghost" size="icon-sm" aria-label="Recheck" onClick={refetch}><RefreshCw /></Button>}
         </div>
-        {error && <p className="text-xs text-danger">mobd is unreachable. Check the URL, network/VPN and MOBD_CORS_ORIGINS on the office Mac.</p>}
+        {unpaired && (
+          <div className="grid gap-2">
+            <p className="text-xs text-muted-foreground">
+              This device needs to be paired again. Run <code className="font-mono">mobd link</code> on the office Mac and paste the new link.
+            </p>
+            <Button size="sm" className="w-fit" onClick={() => openSettings("machines", machine.id)}>Pair again</Button>
+          </div>
+        )}
+        {error && !unpaired && <p className="text-xs text-danger">mobd is unreachable. Check the URL, network/VPN and MOBD_CORS_ORIGINS on the office Mac.</p>}
         {health && !health.checks && <p className="text-xs text-muted-foreground">This mobd does not report readiness checks. Update it to API v3.</p>}
         <ChecksList checks={health?.checks} />
       </PopoverContent>

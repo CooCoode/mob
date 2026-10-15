@@ -1,14 +1,31 @@
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
+import { configureAuth } from "@/lib/auth";
+import { deleteSecret, getSecret, loadSecrets, setSecret, tokenAccount, vncPasswordAccount } from "@/lib/secrets";
 import { relayUrl, uid } from "@/lib/utils";
+import { log } from "@/store/log";
+import { extractSecrets, migrateApp } from "@/store/migrate";
 
 export interface Machine {
   id: string;
   name: string;
+  /** Origin from the pairing link; changes only by pairing again. */
   mobdUrl: string;
-  /** macOS user for Screen Sharing sign-in (ARD); empty uses VNC password auth. */
+  serverId?: string;
+  clientId?: string;
+  /** No usable credential: never paired, or mobd answered 401. */
+  needsPairing?: boolean;
+  /** macOS user for Screen Sharing sign-in (ARD); empty uses VNC password auth. The password is in the keychain. */
   vncUsername?: string;
-  vncPassword?: string;
+}
+
+export interface PairResult {
+  id?: string;
+  name: string;
+  mobdUrl: string;
+  serverId: string;
+  clientId: string;
+  token: string;
 }
 
 export type Theme = "system" | "light" | "dark";
@@ -30,6 +47,8 @@ interface Persisted {
   previewOpen: boolean;
   theme: Theme;
   turnPrefs: Record<string, TurnPrefs>;
+  /** Migrated passwords not yet written to the keychain, keyed by account. */
+  legacySecrets: Record<string, string>;
 }
 
 interface Ephemeral {
@@ -43,7 +62,11 @@ interface Ephemeral {
 interface Actions {
   set: (patch: Partial<Persisted & Ephemeral>) => void;
   selectMachine: (id: string) => void;
-  saveMachine: (m: Omit<Machine, "id"> & { id?: string }) => string;
+  /** Updates the name and Desktop sign-in user of a paired machine. */
+  saveMachine: (m: { id: string; name: string; vncUsername?: string }) => void;
+  /** Stores the new credential, then creates or updates the machine with the paired address. */
+  completePairing: (p: PairResult) => Promise<string>;
+  markNeedsPairing: (id: string) => void;
   deleteMachine: (id: string) => void;
   rememberSession: (machineId: string, sessionId: string | null) => void;
   setTurnPrefs: (machineId: string, prefs: TurnPrefs) => void;
@@ -60,8 +83,6 @@ export function envDefault(...keys: (keyof ImportMetaEnv)[]): string {
   return "";
 }
 
-export const defaultMobdUrl = () => envDefault("MOBD_URL", "VITE_MOBD_URL") || "http://127.0.0.1:8080";
-
 function read<T>(key: string): T | null {
   try {
     const raw = localStorage.getItem(key);
@@ -71,22 +92,19 @@ function read<T>(key: string): T | null {
   }
 }
 
-// Seeds state from the v1 client's keys (or env) the first time v2 runs.
+// Seeds state from the v1 client's keys the first time v2+ runs. Those machines still need pairing.
 function initial(): Persisted {
-  let machines = read<Machine[]>("mob.machines");
+  let machines = read<(Machine & { vncPassword?: string })[]>("mob.machines");
   if (!Array.isArray(machines) || !machines.length) {
-    const legacy = (k: string) => {
-      try {
-        return localStorage.getItem(k)?.trim() || "";
-      } catch {
-        return "";
-      }
-    };
-    machines = [{
-      id: uid(), name: "Office Mac",
-      mobdUrl: legacy("mob.mobdUrl") || defaultMobdUrl(),
-    }];
+    let url = "";
+    try {
+      url = localStorage.getItem("mob.mobdUrl")?.trim() || envDefault("MOBD_URL", "VITE_MOBD_URL");
+    } catch {
+      /* storage unavailable */
+    }
+    machines = url ? [{ id: uid(), name: "Office Mac", mobdUrl: url }] : [];
   }
+  const extracted = extractSecrets(machines.map((m) => ({ ...m, needsPairing: true })));
   let active: string | null = null;
   try {
     active = localStorage.getItem("mob.activeMachineId");
@@ -95,7 +113,8 @@ function initial(): Persisted {
   }
   const saved = read<Record<string, string | null>>("mob.activeSessionByMachine");
   return {
-    machines,
+    machines: extracted.machines,
+    legacySecrets: extracted.legacySecrets,
     activeMachineId: machines.some((m) => m.id === active) ? active : machines[0]?.id ?? null,
     savedSessions: saved && typeof saved === "object" && !Array.isArray(saved) ? saved : {},
     collapsed: {},
@@ -117,24 +136,40 @@ export const useApp = create<AppState>()(
       fullscreen: false,
       set: (patch) => set(patch),
       selectMachine: (id) => set({ activeMachineId: id, fullscreen: false }),
-      saveMachine: (m) => {
-        const id = m.id || uid();
+      saveMachine: (m) =>
+        set({
+          machines: get().machines.map((x) =>
+            x.id === m.id ? { ...x, name: m.name.trim(), vncUsername: m.vncUsername?.trim() || undefined } : x),
+        }),
+      completePairing: async (p) => {
+        const id = p.id || uid();
+        // The keychain write comes first: the address and its credential change together.
+        await setSecret(tokenAccount(id), p.token);
+        const previous = get().machines.find((x) => x.id === id);
         const machine: Machine = {
-          id, name: m.name.trim(), mobdUrl: m.mobdUrl.trim(),
-          vncUsername: m.vncUsername?.trim() || undefined, vncPassword: m.vncPassword || undefined,
+          ...previous, id, name: p.name.trim(), mobdUrl: p.mobdUrl, serverId: p.serverId, clientId: p.clientId, needsPairing: false,
         };
-        const machines = get().machines.some((x) => x.id === id)
-          ? get().machines.map((x) => (x.id === id ? machine : x))
-          : [...get().machines, machine];
+        const machines = previous ? get().machines.map((x) => (x.id === id ? machine : x)) : [...get().machines, machine];
         set({ machines, activeMachineId: get().activeMachineId ?? id });
         return id;
       },
+      markNeedsPairing: (id) => {
+        const machine = get().machines.find((m) => m.id === id);
+        if (!machine || machine.needsPairing) return;
+        log(`${id}: mobd rejected the credential; pairing needed`, "error");
+        set({ machines: get().machines.map((m) => (m.id === id ? { ...m, needsPairing: true } : m)) });
+      },
       deleteMachine: (id) => {
+        for (const account of [tokenAccount(id), vncPasswordAccount(id)]) {
+          deleteSecret(account).catch((err) => log(`keychain delete failed: ${String(err)}`, "error"));
+        }
         const machines = get().machines.filter((m) => m.id !== id);
         const savedSessions = { ...get().savedSessions };
         delete savedSessions[id];
+        const legacySecrets = { ...get().legacySecrets };
+        delete legacySecrets[vncPasswordAccount(id)];
         const activeMachineId = get().activeMachineId === id ? machines[0]?.id ?? null : get().activeMachineId;
-        set({ machines, savedSessions, activeMachineId });
+        set({ machines, savedSessions, legacySecrets, activeMachineId });
       },
       rememberSession: (machineId, sessionId) => {
         if (get().savedSessions[machineId] === sessionId) return;
@@ -147,20 +182,13 @@ export const useApp = create<AppState>()(
     }),
     {
       name: "mob.app",
-      version: 2,
-      // v2 drops the custom VNC WebSocket URL: the live view always goes through mobd.
-      migrate: (state, version) => {
-        const s = state as Persisted;
-        if (version < 2 && Array.isArray(s.machines)) {
-          s.machines = s.machines.map(({ vncWsUrl: _, ...m }: Machine & { vncWsUrl?: string }) => m);
-        }
-        return s;
-      },
+      version: 3,
+      migrate: (state, version) => migrateApp(state, version) as Persisted,
       storage: createJSONStorage(() => localStorage),
       partialize: (s): Persisted => ({
         machines: s.machines, activeMachineId: s.activeMachineId, savedSessions: s.savedSessions,
         collapsed: s.collapsed, sidebarOpen: s.sidebarOpen, previewOpen: s.previewOpen, theme: s.theme,
-        turnPrefs: s.turnPrefs,
+        turnPrefs: s.turnPrefs, legacySecrets: s.legacySecrets,
       }),
     },
   ),
@@ -178,3 +206,44 @@ export function baseUrl(m: Machine | null | undefined): string {
 export function vncUrl(m: Pick<Machine, "mobdUrl"> | null | undefined): string {
   return relayUrl(m?.mobdUrl ?? "");
 }
+
+/**
+ * Loads every machine's secrets into memory before the first request, writes migrated passwords
+ * to the keychain, and marks machines without a credential as needing pairing.
+ */
+export async function loadMachineSecrets(): Promise<void> {
+  const { machines } = useApp.getState();
+  const failed = await loadSecrets(machines.flatMap((m) => [tokenAccount(m.id), vncPasswordAccount(m.id)]));
+  for (const account of failed) log(`keychain read failed: ${account}`, "error");
+  for (const [account, value] of Object.entries(useApp.getState().legacySecrets ?? {})) {
+    try {
+      await setSecret(account, value);
+      const { [account]: _, ...rest } = useApp.getState().legacySecrets;
+      useApp.setState({ legacySecrets: rest });
+    } catch (err) {
+      log(`keychain write failed for ${account}: ${String(err)}`, "error");
+    }
+  }
+  useApp.setState({
+    machines: useApp.getState().machines.map((m) =>
+      !m.needsPairing && !getSecret(tokenAccount(m.id)) && !failed.includes(tokenAccount(m.id)) ? { ...m, needsPairing: true } : m),
+  });
+}
+
+/** A pending migrated password still counts until it reaches the keychain. */
+export function vncPassword(m: Machine): string | undefined {
+  return getSecret(vncPasswordAccount(m.id)) ?? useApp.getState().legacySecrets?.[vncPasswordAccount(m.id)];
+}
+
+const machinesAt = (base: string) => useApp.getState().machines.filter((m) => baseUrl(m) === base);
+
+configureAuth({
+  // An unpaired machine sends nothing: never an old credential to a changed address.
+  token: (base) => {
+    const m = machinesAt(base).find((x) => !x.needsPairing);
+    return m && getSecret(tokenAccount(m.id));
+  },
+  unauthorized: (base) => {
+    for (const m of machinesAt(base)) useApp.getState().markNeedsPairing(m.id);
+  },
+});
