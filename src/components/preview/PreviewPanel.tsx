@@ -10,7 +10,9 @@ import { Tooltip } from "@/components/ui/tooltip";
 import { useAuthedImage } from "@/hooks/useAuthedImage";
 import { chat, useChat } from "@/hooks/useChat";
 import { latestClick, screenGeometry } from "@/lib/timeline";
+import { stream, useStream } from "@/lib/stream";
 import { cn } from "@/lib/utils";
+import { devicePixels } from "@/lib/view";
 import { useVnc, vnc } from "@/lib/vnc";
 import { baseUrl, useApp, vncPassword, vncUrl, type Machine } from "@/store/app";
 
@@ -46,20 +48,20 @@ function ClickMarker({ stage, ratio }: { stage: HTMLElement | null; ratio: numbe
   );
 }
 
-function Snapshot({ base, active, onRatio }: { base: string; active: boolean; onRatio: (r: number) => void }) {
-  const [nonce, setNonce] = useState(() => Date.now());
+function Snapshot({ base, width, onRatio }: { base: string; width: number; onRatio: (r: number) => void }) {
+  const [tick, setTick] = useState(0);
   const [state, setState] = useState<"loading" | "ok" | "error">("loading");
-  const image = useAuthedImage(base, screenUrl(base, 1280, nonce));
+  // As wide as the panel shows it; an unchanged screen costs a 304, not a download.
+  const image = useAuthedImage(base, width ? screenUrl(base, devicePixels(width, window.devicePixelRatio)) : null, tick);
   useEffect(() => {
     if (image.error) setState("error");
   }, [image.error]);
-  const [at, setAt] = useState("");
+  const at = image.at ? new Date(image.at).toLocaleTimeString() : "";
   useEffect(() => {
-    // Refresh quickly while the agent works, slowly otherwise; pause when hidden.
-    const every = active ? 4000 : 30000;
-    const t = setInterval(() => document.visibilityState === "visible" && setNonce(Date.now()), every);
+    // Every few seconds while the panel is open; paused while the window is hidden.
+    const t = setInterval(() => document.visibilityState === "visible" && setTick((n) => n + 1), 4000);
     return () => clearInterval(t);
-  }, [active]);
+  }, []);
   return (
     <>
       <img
@@ -68,7 +70,6 @@ function Snapshot({ base, active, onRatio }: { base: string; active: boolean; on
         className={cn("absolute inset-0 size-full object-contain", state === "error" && "invisible")}
         onLoad={(e) => {
           setState("ok");
-          setAt(new Date().toLocaleTimeString());
           onRatio(e.currentTarget.naturalWidth / e.currentTarget.naturalHeight);
         }}
         onError={() => setState("error")}
@@ -81,7 +82,7 @@ function Snapshot({ base, active, onRatio }: { base: string; active: boolean; on
       {state === "ok" && (
         <button
           type="button"
-          onClick={() => setNonce(Date.now())}
+          onClick={() => setTick((n) => n + 1)}
           className="absolute bottom-1.5 left-1.5 flex items-center gap-1 rounded bg-black/55 px-1.5 py-0.5 text-[10px] text-white/90 hover:bg-black/70"
         >
           <RefreshCw className="size-2.5" /> Snapshot · {at}
@@ -100,7 +101,7 @@ function ModeSwitch({ control, canControl, onChange }: { control: boolean; canCo
         className={cn(item, !control ? "bg-white/90 text-black" : "text-white/70 hover:text-white")}>
         <Eye className="size-3.5" /> View
       </button>
-      <Tooltip content={canControl ? "Send your mouse and keyboard to the office Mac" : "Connect the live view (VNC) to take control"}>
+      <Tooltip content={canControl ? "Send your mouse and keyboard to the office Mac" : "Control is not available on this live view yet"}>
         <span>
           <button type="button" role="radio" aria-checked={control} disabled={!canControl} onClick={() => onChange(true)}
             className={cn(item, control ? "bg-warning text-black" : "text-white/70 hover:text-white")}>
@@ -170,8 +171,13 @@ function QueueList({ queue }: { queue?: Queue }) {
 
 export function PreviewPanel({ machine, health, queue }: { machine: Machine; health?: Health; queue?: Queue }) {
   const host = useRef<HTMLDivElement>(null);
+  const video = useRef<HTMLVideoElement>(null);
   const stage = useRef<HTMLDivElement>(null);
-  const state = useVnc();
+  // mobd with the stream feature serves WebRTC; older ones only the VNC relay (removed in D6).
+  const streaming = supports(health, "stream");
+  const vncState = useVnc();
+  const streamState = useStream();
+  const state = streaming ? streamState : vncState;
   const { fullscreen, set } = useApp();
   const chatState = useChat();
   const [ratio, setRatio] = useState(0);
@@ -179,9 +185,13 @@ export function PreviewPanel({ machine, health, queue }: { machine: Machine; hea
   const connected = state.status === "connected";
   const running = chatState.currentTask?.status === "running";
   const canSnapshot = supports(health, "screen") && !connected;
+  const canControl = connected && !streaming; // WebRTC control arrives with D3
   const latest = running ? chatState.activities.filter((a) => a.taskId === chatState.currentTask?.id && a.kind !== "notice").at(-1) : undefined;
 
-  useEffect(() => () => vnc.disconnect(), [machine.id]);
+  useEffect(() => () => {
+    vnc.disconnect();
+    stream.disconnect();
+  }, [machine.id]);
   // Only the full-size view can control; the thumbnail always just watches.
   useEffect(() => {
     if (!fullscreen) vnc.setControl(false);
@@ -197,9 +207,31 @@ export function PreviewPanel({ machine, health, queue }: { machine: Machine; hea
     return () => ro.disconnect();
   }, []);
 
-  const connect = () => host.current && void vnc.connect(host.current, {
-    base: baseUrl(machine), url: vncUrl(machine), health, password: vncPassword(machine), username: machine.vncUsername,
-  });
+  const connect = () => {
+    if (streaming) {
+      const box = stage.current?.getBoundingClientRect();
+      if (!video.current || !box) return;
+      void stream.connect(video.current, {
+        base: baseUrl(machine), health,
+        maxWidth: devicePixels(box.width, window.devicePixelRatio), maxHeight: devicePixels(box.height, window.devicePixelRatio),
+      });
+    } else if (host.current) {
+      void vnc.connect(host.current, {
+        base: baseUrl(machine), url: vncUrl(machine), health, password: vncPassword(machine), username: machine.vncUsername,
+      });
+    }
+  };
+  // The stream is sized to the view: entering or leaving full screen reconnects at the new size.
+  const reconnect = useRef(connect);
+  reconnect.current = connect;
+  const wasFullscreen = useRef(fullscreen);
+  useEffect(() => {
+    if (wasFullscreen.current === fullscreen) return;
+    wasFullscreen.current = fullscreen;
+    if (!streaming || stream.state.status !== "connected") return;
+    const raf = requestAnimationFrame(() => reconnect.current());
+    return () => cancelAnimationFrame(raf);
+  }, [fullscreen, streaming]);
   const control = connected && state.control;
   const dot = { idle: "bg-muted-foreground/40", connecting: "bg-warning", connected: "bg-success", error: "bg-danger" }[state.status];
 
@@ -220,7 +252,7 @@ export function PreviewPanel({ machine, health, queue }: { machine: Machine; hea
           <span className={cn("size-2 rounded-full", dot)} />
           <span className="text-[13px] font-medium">{fullscreen ? `Live · ${machine.name}` : "Live"}</span>
           {!fullscreen && <span className="rounded bg-muted px-1.5 py-px text-[10.5px] font-medium text-muted-foreground">View only</span>}
-          {fullscreen && <ModeSwitch control={control} canControl={connected} onChange={(on) => vnc.setControl(on)} />}
+          {fullscreen && <ModeSwitch control={control} canControl={canControl} onChange={(on) => vnc.setControl(on)} />}
           {connected && state.width > 0 && (
             <span className={cn("text-[11px]", fullscreen ? "text-white/50" : "text-muted-foreground")}>{state.width}×{state.height}</span>
           )}
@@ -231,8 +263,8 @@ export function PreviewPanel({ machine, health, queue }: { machine: Machine; hea
             </span>
           )}
           {!fullscreen && (
-            <Tooltip content={connected ? "Take control (opens full screen)" : "Connect the live view to take control"}>
-              <Button variant="ghost" size="sm" className="h-7 gap-1 px-2" aria-label="Take control" disabled={!connected}
+            <Tooltip content={canControl ? "Take control (opens full screen)" : connected ? "Control is not available on this live view yet" : "Connect the live view to take control"}>
+              <Button variant="ghost" size="sm" className="h-7 gap-1 px-2" aria-label="Take control" disabled={!canControl}
                 onClick={() => {
                   set({ fullscreen: true });
                   vnc.setControl(true);
@@ -248,10 +280,10 @@ export function PreviewPanel({ machine, health, queue }: { machine: Machine; hea
               {fullscreen ? <Minimize2 /> : <Expand />}
             </Button>
           </Tooltip>
-          <Tooltip content={connected ? "Disconnect live view" : "Connect live view (VNC)"}>
+          <Tooltip content={connected ? "Disconnect live view" : "Connect live view"}>
             <Button variant="ghost" size="icon-sm" aria-label={connected ? "Disconnect" : "Connect"}
               className={cn(connected && "text-success", fullscreen && "hover:bg-white/10")}
-              disabled={state.status === "connecting"} onClick={() => (connected ? vnc.disconnect() : connect())}>
+              disabled={state.status === "connecting"} onClick={() => (connected ? (streaming ? stream : vnc).disconnect() : connect())}>
               {state.status === "connecting" ? <Spinner /> : <Power />}
             </Button>
           </Tooltip>
@@ -264,8 +296,10 @@ export function PreviewPanel({ machine, health, queue }: { machine: Machine; hea
             control && "ring-2 ring-inset ring-warning",
           )}
         >
-          <div ref={host} className={cn("vnc-host absolute inset-0 flex items-center justify-center", !connected && "invisible")} tabIndex={-1} />
-          {!connected && canSnapshot && <Snapshot base={chatState.baseUrl} active={running} onRatio={setRatio} />}
+          <div ref={host} className={cn("vnc-host absolute inset-0 flex items-center justify-center", (streaming || !connected) && "invisible")} tabIndex={-1} />
+          <video ref={video} muted playsInline autoPlay aria-label="Office desktop, live"
+            className={cn("absolute inset-0 size-full object-contain", (!streaming || !connected) && "invisible")} />
+          {!connected && canSnapshot && <Snapshot base={chatState.baseUrl} width={stage.current?.clientWidth ?? 0} onRatio={setRatio} />}
           {!connected && !canSnapshot && (
             <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 p-4 text-center">
               <p className="text-xs text-white/60">{state.status === "error" ? state.detail : "Office desktop is not connected"}</p>
@@ -288,7 +322,7 @@ export function PreviewPanel({ machine, health, queue }: { machine: Machine; hea
           )}
         </div>
         {!fullscreen && state.status === "error" && canSnapshot && (
-          <p className="mt-1.5 truncate text-[11px] text-danger" title={state.detail}>VNC: {state.detail}</p>
+          <p className="mt-1.5 truncate text-[11px] text-danger" title={state.detail}>Live view: {state.detail}</p>
         )}
       </div>
       <div className="mt-3 grid min-h-0 flex-1 grid-cols-[minmax(0,1fr)] content-start gap-4 overflow-y-auto px-2 pb-3">

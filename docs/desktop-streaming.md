@@ -27,8 +27,8 @@ Files mainly touched: `src/lib/vnc.ts` (replaced), `src/components/preview/Previ
 
 | Step | Content | Verified by |
 | --- | --- | --- |
-| D1 | Snapshot size and refresh as above | panel in the running app |
-| D2 | View-only WebRTC live view; "Update mobd" when `/health` lacks `stream`. **Checkpoint:** H.264 playback in Tauri's WKWebView | office Mac over LAN and Tailscale |
+| D1 | **Done.** Snapshot at panel width × devicePixelRatio (rounded up to 64 px), quality 65, every 4 s while visible, `If-None-Match` so an unchanged screen costs a 304 | `view.test.mjs`; panel in the running app |
+| D2 | **Done.** `src/lib/stream.ts`: view-only WebRTC live view sized to the panel (reconnects at the new size on full screen), `stats`/`ended` from `control`, "Update mobd" for old builds; mobd without `stream` keeps VNC until D6. **Checkpoint passed:** H.264 plays in WKWebView | `stream.test.mjs`; office Mac, see below |
 | D3 | Control mode: mouse, keyboard, scroll, modifiers over data channels; Esc/View behaviour unchanged | manual input checks |
 | D4 | Quality setting; readout of kB/s, fps, resolution, transport | throttled link |
 | D5 | WebSocket fallback, raced against WebRTC (keep WebRTC if connected within ~3 s) | Funnel address |
@@ -36,3 +36,18 @@ Files mainly touched: `src/lib/vnc.ts` (replaced), `src/components/preview/Previ
 | D7 | Tests: signaling, message encoding, transport choice, migration | `make test` |
 
 Starts after mobd M7. Merges with the other repos at release.
+
+### D2 checkpoint (2026-10-18)
+
+The app's `stream.ts`, bundled into a page in a bare WKWebView (the engine Tauri uses on macOS) on the
+Mac Studio, against the office Mac's mobd (`433c68a`). Decoded pixels were read back from the
+`<video>` through a canvas every second.
+
+| Path | First picture | Picture | Bitrate |
+| --- | --- | --- | --- |
+| LAN | 0.24–0.41 s | 1280×720, live pixels every second | 2.3 → 3.8 Mbps |
+| Tailscale address | 1.0 s | same | 1.2–1.5 Mbps |
+
+`getVideoPlaybackQuality()` reports 0 frames for a WebRTC stream in WebKit; use pixels, not it, to
+check playback. That mobd build ends the stream on a locked screen (`ended` arrives and the app
+shows the reason); newer builds keep streaming.

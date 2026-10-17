@@ -25,8 +25,9 @@ export async function uploadImage(base: string, file: File): Promise<Upload> {
 // Image URLs need the credential too: load them with useAuthedImage, not <img src>.
 export const artifactUrl = (base: string, id: string) => `${base}/artifacts/${encodeURIComponent(id)}`;
 
-export const screenUrl = (base: string, maxWidth: number, nonce: number) =>
-  `${base}/screen?maxWidth=${maxWidth}&t=${nonce}`;
+// No cache-busting parameter: polling sends If-None-Match and an unchanged screen costs a 304.
+export const screenUrl = (base: string, maxWidth: number, quality = 65) =>
+  `${base}/screen?maxWidth=${maxWidth}&quality=${quality}`;
 
 /** The runner that will handle the next turn: the session's, else the default. */
 export function runnerFor(health: Health | undefined, name?: string): RunnerInfo | undefined {
