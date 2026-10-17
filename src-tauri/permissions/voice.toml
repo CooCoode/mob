@@ -1,0 +1,4 @@
+[[permission]]
+identifier = "allow-voice"
+description = "Start and stop macOS streaming speech recognition for the composer."
+commands.allow = ["voice_supported", "voice_start", "voice_stop"]

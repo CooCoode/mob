@@ -1,4 +1,4 @@
-import { ArrowUp, Bot, Brain, ChevronDown, Cpu, Paperclip, Square, X } from "lucide-react";
+import { ArrowUp, Bot, Brain, ChevronDown, Cpu, Mic, Paperclip, Square, X } from "lucide-react";
 import { useEffect, useRef, useState, type ClipboardEvent, type DragEvent } from "react";
 import { runnerFor, supports, uploadImage } from "@/api/client";
 import type { Health } from "@/api/types";
@@ -9,6 +9,7 @@ import {
 } from "@/components/ui/menu";
 import { Tooltip } from "@/components/ui/tooltip";
 import { useChat } from "@/hooks/useChat";
+import { useVoiceInput } from "@/hooks/useVoiceInput";
 import { cn } from "@/lib/utils";
 import { useApp } from "@/store/app";
 import { useComposer } from "@/store/composer";
@@ -57,6 +58,7 @@ function Picker({ icon: Icon, label, value, options, onChange, placeholder }: {
 
 export function Composer({ machineId, machineName, health }: { machineId: string; machineName: string; health?: Health }) {
   const chat = useChat();
+  const voice = useVoiceInput(chat);
   const { text, setText, focusTick } = useComposer();
   const machinePrefs = useApp((s) => s.turnPrefs[machineId]) ?? {};
   const setTurnPrefs = useApp((s) => s.setTurnPrefs);
@@ -244,6 +246,34 @@ export function Composer({ machineId, machineName, health }: { machineId: string
             </>
           )}
           <div className="flex-1" />
+          <Tooltip
+            content={
+              !voice.supported
+                ? "Voice input is available in the macOS app"
+                : voice.error
+                  ? voice.error
+                  : voice.listening
+                    ? "Listening… click or release to stop"
+                    : "Voice input — click to toggle, hold to talk"
+            }
+            side="top"
+          >
+            <span>
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                aria-label={voice.listening ? "Stop voice input" : "Start voice input"}
+                aria-pressed={voice.listening}
+                disabled={!voice.supported}
+                className={cn(voice.listening && "bg-accent-soft text-accent")}
+                onPointerDown={voice.onMicPointerDown}
+                onPointerUp={voice.onMicPointerUp}
+                onPointerCancel={voice.onMicPointerCancel}
+              >
+                <Mic className={cn("size-3.5", voice.listening && "animate-pulse")} />
+              </Button>
+            </span>
+          </Tooltip>
           {canSteer && (
             <Tooltip content="Send to the running turn" side="top">
               <Button size="icon" variant="secondary" className="mr-1 size-8 rounded-full" aria-label="Send to running turn" disabled={!text.trim()} onClick={() => void send()}>
@@ -271,7 +301,7 @@ export function Composer({ machineId, machineName, health }: { machineId: string
         </div>
       </div>
       <p className="mt-1.5 text-center text-[11px] text-muted-foreground/70">
-        ↵ send · ⇧↵ new line · the agent controls the office Mac
+        ↵ send · ⇧↵ new line · mic for voice · the agent controls the office Mac
       </p>
     </div>
   );

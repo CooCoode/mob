@@ -1,14 +1,20 @@
 // Pairing credentials and Desktop sign-in passwords live in the system keychain.
 const SECRET_SERVICE: &str = "com.xrdavies.mob";
 
+mod voice;
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
+        .manage(voice::init_state())
         .invoke_handler(tauri::generate_handler![
             updater_configured,
             secret_get,
             secret_set,
-            secret_delete
+            secret_delete,
+            voice::voice_supported,
+            voice::voice_start,
+            voice::voice_stop,
         ])
         .plugin(tauri_plugin_process::init())
         .setup(|app| {

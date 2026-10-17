@@ -1937,6 +1937,7 @@ dependencies = [
 name = "mob"
 version = "0.2.0"
 dependencies = [
+ "cc",
  "keyring",
  "serde",
  "serde_json",
