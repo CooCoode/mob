@@ -63,6 +63,17 @@ reports on `control` show where the office Mac's pointer went.
 | Control, move to (0.25, 0.25) then (0.75, 0.6) | (0.25, 0.25), then (0.75, 0.6) |
 | Back to View, move | unchanged |
 
-Shift down/up reached mobd without an `error`, and the app's window key handler saw neither. Clicks,
-typing and scrolling were not sent (the office Mac was at its lock screen); try them in the running
-app.
+Shift down/up reached mobd without an `error`, and the app's window key handler saw neither.
+
+Then, with the office Mac unlocked, on a scratch TextEdit document of 300 numbered lines (read back
+with AppleScript and screenshots, closed without saving):
+
+| Input | Result |
+| --- | --- |
+| Click right of a line | caret at the end of line 37 |
+| Keys `Shift`+`KeyH`, `KeyI`, `Space`, then composed text "café ✓" | line 37 became `line 37Hi café ✓` |
+| Double-click a word, then Shift+letters | `line` on line 29 selected and replaced: `WORD 29` |
+| Wheel, 8 × 100 px | view moved from line 18 to line 79 (~800 pt) |
+
+No `error` came back from mobd. These were synthetic DOM events; real trackpad and keyboard events in
+the Tauri app, and Command shortcuts the app menu may take first, are still to try by hand.

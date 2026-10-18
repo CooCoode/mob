@@ -253,7 +253,11 @@ class StreamController {
         if (!this.state.control || !button || !p?.inside) return;
         e.preventDefault();
         video.focus({ preventScroll: true });
-        video.setPointerCapture(e.pointerId);
+        try {
+          video.setPointerCapture(e.pointerId); // drags keep reporting outside the video
+        } catch {
+          // no active pointer (synthetic events): the click still goes through
+        }
         this.send(this.input, this.held.buttonDown(button, p.x, p.y));
       }),
       on("pointerup", (e) => {
