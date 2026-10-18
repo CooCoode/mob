@@ -390,7 +390,6 @@ export function PreviewPanel({ machine, health, queue }: { machine: Machine; hea
             </Tooltip>
           )}
           <div className="flex-1" />
-          {streaming && <QualityMenu machine={machine} dark={false} />}
           <Tooltip content={canControl ? "Take control (expands the view)" : connected ? "Control is not available on this live view yet" : "Connect the live view to take control"}>
             <Button variant="ghost" size="sm" className="h-7 gap-1 px-2" aria-label="Take control" disabled={!canControl}
               onClick={() => {
@@ -402,7 +401,8 @@ export function PreviewPanel({ machine, health, queue }: { machine: Machine; hea
               <MousePointer2 className="size-3.5" /> Control
             </Button>
           </Tooltip>
-          {/* Same order as the expanded toolbar: quality, power, then expand/collapse in the corner. */}
+          {streaming && <QualityMenu machine={machine} dark={false} />}
+          {/* Ends like the expanded toolbar: quality, power, then expand/collapse in the corner. */}
           <Tooltip content={connected ? "Disconnect live view" : "Connect live view"}>
             <Button variant="ghost" size="icon-sm" aria-label={connected ? "Disconnect" : "Connect"}
               className={cn(connected && "text-success")}
