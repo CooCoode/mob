@@ -35,7 +35,7 @@ Go 源码、服务配置示例、安装脚本和服务端设计文档已迁出�
 - mob 只维护 `mob/`，包含 DMG、Tauri 更新包和 `latest.json` / `releases.json`。
 - mobd 只维护 `mobd/`，包含 CLI 归档、安装脚本和独立发布清单。
 - 下载域名和产品路径不变，官网和已配置的 updater 不需要改 URL。
-- 两端通过 HTTP/SSE/VNC 通信，以 `/health` 的 API 版本和功能判定兼容性；仓库版本号无需同步。
+- 两端通过 HTTP/SSE 和实时桌面流（WebRTC / WebSocket）通信，以 `/health` 的 API 版本和功能判定兼容性；仓库版本号无需同步。
 
 mob 保留原 `release` environment 的 Apple、Tauri 和 R2 配置，见
 [桌面发布清单](releases.md)。mobd 新仓库需要单独配置 `release` environment；

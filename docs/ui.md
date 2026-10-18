@@ -1,7 +1,7 @@
 # mob — UI design (v2)
 
 **Product:** the home Mac **mob** App: dispatch tasks to the office agent, watch what it does, and monitor the office desktop.
-**Stack:** Tauri 2 + React 19 + Tailwind v4 + shadcn/ui ([ADR 0009](adr/0009-app-frontend-react.md)), embedding [svnc](https://github.com/xrdavies/svnc).
+**Stack:** Tauri 2 + React 19 + Tailwind v4 + shadcn/ui ([ADR 0009](adr/0009-app-frontend-react.md)); the live desktop is mobd's stream (WebRTC, WebSocket + WebCodecs fallback).
 **Backend:** [mobd v3](https://github.com/xrdavies/mobd/blob/main/docs/mobd-v3.md). Each v2 feature below names the API it depends on.
 **Status:** implemented in `mob` 0.2.0 (2026-10-13). Remaining gaps are listed under "Migration plan".
 
@@ -18,9 +18,9 @@
 ## Hard rules (unchanged from v1)
 
 - Three-column shell: sessions · timeline · preview. Connection settings live only in Settings.
-- Human VNC input is opt-in per use: the thumbnail is always **view only**; only the full-size view has a **View | Control** switch, which starts on View and resets to View when full screen closes. The svnc session connects input-capable with `inputMode: "script"` (human events ignored) and switches to `"human"` for control, so no reconnect is needed.
+- Human input is opt-in per use: the panel is always **view only**; only the expanded view has a **View | Control** switch, which starts on View and resets to View when the view collapses. Switching sends input over the open session's data channels (or the WebSocket); it does not reconnect.
 - No auth UI until mobd has auth.
-- Machines are first-class; each has its own `mobd` URL (the live view goes through its `/vnc` relay) and optional Screen Sharing sign-in.
+- Machines are first-class; each has its own `mobd` URL (added by pairing) and its own live view quality.
 
 ---
 
@@ -34,7 +34,7 @@
 │   ★ Weekly…  │  ───────────────────────────────────────  │ ┌────────────────────────┐ │
 │   ◉ Flights  │  You · 2m                                │ │                        │ │
 │     Expense… │  ┌──────────────────────────────────┐    │ │   office desktop       │ │
-│     Report…  │  │ Open Safari and find flights …    │    │ │   (svnc thumbnail)     │ │
+│     Report…  │  │ Open Safari and find flights …    │    │ │   (live thumbnail)     │ │
 │ ▸ Office-B ○ │  └──────────────────────────────────┘    │ │        ⊕ last click    │ │
 │              │  ▸ ✓ Opened Safari            open_app   │ └────────────────────────┘ │
 │              │  ▸ ✓ Screenshot  [▢ thumb]    0.8s       │  1920×1080 · 24 fps        │
@@ -61,7 +61,7 @@
 
 Responsive: below 1100 px the preview collapses to a floating thumbnail at the bottom right of the timeline. Below 800 px the sidebar becomes a drawer.
 
-**Fullscreen preview:** double-click the live view (or ⤢) → the svnc canvas fills the window, with a slim top bar (`Live · viewOnly · Office-A · Esc to exit`) and a bottom-left overlay showing the current step ("Typing 'Tokyo'…"). Esc or double-click returns. The svnc connection is reused, not reconnected.
+**Fullscreen preview:** double-click the live view (or ⤢) → the live view fills the window under a toolbar in the title bar row (machine, View/Control, signal bars, quality, Collapse) and a bottom-left overlay showing the current step ("Typing 'Tokyo'…"). Esc (in View) or double-click returns. The session is refitted with `resize`, not reconnected.
 
 ---
 
@@ -106,8 +106,8 @@ Empty session: centered greeting + 4 example prompt cards ("Open Safari and …"
 
 ### Preview panel
 
-- **Live view:** svnc canvas, aspect-fit, rounded 10 px, header with `LIVE ●` (green connected / grey idle / red error), `viewOnly` badge, expand ⤢, connect/disconnect ⏻. Shows desktop size and fps.
-- **Snapshot fallback:** when VNC is disconnected or not configured, show `GET /screen?maxWidth=720` refreshed every 5 s while a turn runs (otherwise on demand), labelled "Snapshot · 12:04:31".
+- **Live view:** `<video>` (WebRTC) or `<canvas>` (WebSocket), aspect-fit, rounded 10 px, header with `LIVE ●` (green connected / grey idle / red error), `View only` badge, quality, connect/disconnect ⏻, expand ⤢. Shows kB/s; size, fps, transport and network in a tooltip.
+- **Snapshot fallback:** when the live view is off, show `GET /screen` at the panel width in device pixels, refreshed every 4 s with `If-None-Match`, labelled "Snapshot · 12:04:31", or mobd's reason when unavailable.
 - **Click marker:** when a `click` activity completes, an animated ring is drawn at its point coordinates over the live view, scaled from desktop points to canvas size.
 - **Queue:** `GET /queue` + `queue` events. Each queued task shows its session title and position. Click to jump to it.
 - **Steps:** a compact list of the current turn's activities, synced with the timeline. Click to scroll the timeline to that card.
@@ -121,7 +121,7 @@ Empty session: centered greeting + 4 example prompt cards ("Open Safari and …"
 
 | Tab | Contents |
 | --- | --- |
-| Machines | List + form (name, mobd URL, VNC WS URL, VNC password), **Test connection** runs `/health` and shows the checks list |
+| Machines | List + form (name, pairing, live view quality), **Test connection** runs `/health` and shows the checks list |
 | Appearance | Theme (system / light / dark), density (comfortable / compact), font size |
 | Log | Raw SSE/debug viewer (filter, pause, clear, copy). Monospace |
 | About | App version, mobd `apiVersion`, links |
@@ -170,7 +170,7 @@ src/
   components/sidebar/      MachineGroup, SessionRow, SessionMenu
   components/timeline/     Timeline, UserMessage, AssistantMessage, ActivityCard(+kinds), ActivityGroup, TurnFooter
   components/composer/     Composer, AttachmentTray, ModelPicker, EffortPicker
-  components/preview/      LiveView (svnc lifecycle), SnapshotView, ClickMarker, QueueList, StepList
+  components/preview/      PreviewPanel (live view via lib/stream.ts), SnapshotView, ClickMarker, QueueList, StepList
   components/settings/     SettingsDialog + tabs
   components/command/      CommandPalette
 ```
@@ -193,4 +193,4 @@ Update this doc when the IA changes.
 
 ## References
 
-- [mobd API](https://github.com/xrdavies/mobd/blob/main/docs/mobd-v3.md) · [ADR 0009](adr/0009-app-frontend-react.md) · [vnc-svnc-setup.md](https://github.com/xrdavies/mobd/blob/main/docs/vnc-svnc-setup.md) · [Desktop README](../README.md)
+- [mobd API](https://github.com/xrdavies/mobd/blob/main/docs/mobd-v3.md) · [ADR 0009](adr/0009-app-frontend-react.md) · [desktop-streaming.md](https://github.com/xrdavies/mobd/blob/main/docs/desktop-streaming.md) · [Desktop README](../README.md)

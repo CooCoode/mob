@@ -24,14 +24,15 @@ then publish the stable Release on GitHub to distribute it through R2.
 - **React 19 + TypeScript 7 + Vite 8**, **Tailwind CSS v4**, shadcn/ui-style components on **Radix** (`src/components/ui`), **lucide** icons
 - **TanStack Query** (health, queue, archived sessions) and **Zustand** (machines, layout, preferences — persisted in localStorage)
 - `react-markdown` + GFM, **shiki** (core + JS regex engine, curated languages) for code blocks
-- **[@xrdavies/svnc](https://www.npmjs.com/package/@xrdavies/svnc)** for the live view
+- The live view: WebRTC in the webview (`RTCPeerConnection`), with a WebSocket + WebCodecs fallback
 
 ```text
 src/
   api/          mobd v3 types and fetch helpers
   lib/chat.ts   conversation lifecycle (framework-free, tested)
   lib/timeline.ts  messages + activities → timeline items (tested)
-  lib/vnc.ts    single svnc connection controller
+  lib/stream.ts live desktop: WebRTC session, transport race, input (tested)
+  lib/wsVideo.ts  WebSocket fallback decoded with WebCodecs (tested)
   hooks/        React bindings: chat, health/queue, global /events stream
   store/        app (persisted), composer, log
   components/   sidebar, timeline, composer, preview, settings, ui primitives
@@ -42,7 +43,7 @@ src/
 1. [Xcode Command Line Tools](https://developer.apple.com/xcode/) / full Xcode
 2. [Rust](https://rustup.rs/) stable (`rustup default stable`)
 3. Node.js 24+ (npm) — tests run TypeScript directly through Node's type stripping
-4. Office side reachable on LAN/VPN: `mobd` (API v3) with Screen Sharing turned on. mobd relays the live view ([VNC setup](https://github.com/xrdavies/mobd/blob/main/docs/vnc-svnc-setup.md))
+4. Office side reachable on LAN/VPN: `mobd` (API v3) with the `stream` feature, which streams the live desktop itself ([desktop streaming](https://github.com/xrdavies/mobd/blob/main/docs/desktop-streaming.md)); Screen Sharing is not needed
 
 ## Configure
 
@@ -51,7 +52,7 @@ cp .env.example .env
 # edit MOBD_URL
 ```
 
-Env values prefill the first **machine**. A machine only needs its **mobd URL**: the live view uses mobd's relay at `<mobd URL>/vnc`. Manage machines (name, mobd URL, macOS user name and password) in **Settings → Machines**, where **Test connection** shows the office readiness checks. Settings from the v1 client are migrated on first start.
+Env values prefill the first **machine**; machines are added by pasting the pairing link from `mobd link`. Manage machines (name, pairing, live view quality) in **Settings → Machines**, where **Test connection** shows the office readiness checks. Settings from the v1 client are migrated on first start.
 
 | Variable | Meaning |
 | --- | --- |
@@ -76,11 +77,12 @@ Checks: `npm test` (conversation lifecycle, reconnect recovery, timeline groupin
 - **Agent:** a new chat can use any agent the office Mac has (Codex, Claude Code); pick it in the composer. A conversation keeps its agent; start a new chat to switch. Model and effort are remembered per agent, and Claude turns show their cost.
 - **While the agent works:** with Codex (app-server mode) you can type in the composer and press ↵ to add to what it is doing, e.g. "also check the spam folder"; your message appears in the timeline and the agent picks it up in the same turn. **Stop** interrupts the turn. Replies stream in as they are written.
 - **Composer:** ↵ send, ⇧↵ newline. Attach images (button, paste or drag-and-drop), pick model and reasoning effort (remembered per machine; offered per runner, e.g. `MOBD_CODEX_MODELS` on the office Mac). The send button becomes **Stop** while the agent works.
-- **Live view (right):** svnc connection (⏻) or, when not connected, a refreshing `/screen` snapshot. Clicks by the agent flash at their position. Double-click or ⤢ for full screen, `Esc` to return. Below: the desktop queue and the current turn's steps.
-- **Title bar:** machine status chip opens the readiness checks (Codex, actuation, Accessibility, Screen Recording, VNC).
-- **Shortcuts:** ⌘K command palette · ⌘N new chat · ⌘B sidebar · ⌘⇧B live view · ⌘, settings · ⌘1–9 switch conversation.
-- **View / Control:** the thumbnail is always view-only. To drive the office Mac yourself, click **Control** (opens full screen) or use the **View | Control** switch in full screen; your mouse, keyboard and scroll then go to the Mac, and `Esc` goes to the Mac too — switch back to **View** to use `Esc` for leaving. Leaving full screen always returns to View. Control needs a live VNC connection (not the snapshot fallback); switching does not reconnect. To control the logged-in desktop, set the office Mac's **macOS user name** and its account password on the machine: svnc then signs in like Apple's Screen Sharing (ARD, needs `@xrdavies/svnc` ≥ 0.2.0). With only a VNC password, macOS shows its login window and ignores the sign-in there.
-- **Auth:** deferred (intranet/VPN only).
+- **Live view (right):** the office desktop streamed by mobd (⏻), or, when not connected, a snapshot refreshed every 4 s. Clicks by the agent flash at their position. Double-click or ⤢ expands it to fill the window (the green button gives macOS full screen); the expanded toolbar has View/Control, quality (Auto/High/Low), signal bars with kB/s, and Collapse. Resizing the window refits the stream without reconnecting. Below: the desktop queue and the current turn's steps.
+- **Title bar:** machine status chip opens the readiness checks (agents, actuation, Accessibility, Screen Recording, display).
+- **Shortcuts:** ⌘K command palette · ⌘N new chat · ⌘B sidebar · ⌘⇧B live view · ⌘⇧C expand and take control · ⌘, settings · ⌘1–9 switch conversation.
+- **View / Control:** the panel only watches. To drive the office Mac yourself, expand the view and switch **View | Control**, or press ⌘⇧C; your mouse, keyboard and scroll then go to the Mac, and `Esc` goes to the Mac too — switch back to **View** to use `Esc` for collapsing. Collapsing always returns to View. ⌘W and ⌘Q stay with the app.
+- **Transport:** WebRTC on the LAN or a tailnet. Where UDP cannot pass (Tailscale Funnel, an HTTPS gateway), the app falls back to mobd's WebSocket after 5 s and remembers that per machine (1 s next time); the readout shows which one is in use.
+- **Auth:** every machine is paired (`mobd link`); the device credential is kept in the Keychain.
 
 Older office daemons (API v2) still work for chat; activities, queue, uploads, model/effort and session management appear once mobd reports API v3 on `/health`.
 
@@ -101,7 +103,7 @@ The response should include `Access-Control-Allow-Origin: http://localhost:1420`
 
 ### Live view troubleshooting
 
-If `@xrdavies/svnc` fails to load or the WebSocket is unreachable, the live view shows the error and falls back to `/screen` snapshots; task dispatch still works. Re-run `npm install` if the package is missing.
+If the live view cannot start, it shows mobd's reason (screen locked or asleep, Screen Recording missing, "Update mobd" for builds without `stream`) and the panel keeps showing `/screen` snapshots; task dispatch still works. Settings → Log records the transport, first-picture time and errors.
 
 ## Repository layout and commands
 
