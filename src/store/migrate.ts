@@ -3,9 +3,13 @@
 interface StoredMachine {
   id: string;
   vncPassword?: string;
+  vncUsername?: string;
   vncWsUrl?: string;
   needsPairing?: boolean;
 }
+
+/** Keychain account of the Desktop sign-in password, removed with VNC in v5. */
+export const vncPasswordAccount = (machineId: string) => `${machineId}.vncPassword`;
 
 /**
  * Takes passwords out of machine records. They wait in legacySecrets, which stays persisted
@@ -36,6 +40,12 @@ export function migrateApp(state: unknown, version: number): unknown {
     const { machines, legacySecrets } = extractSecrets(s.machines, s.legacySecrets);
     s.machines = machines.map((m) => ({ ...m, needsPairing: true }));
     s.legacySecrets = legacySecrets;
+  }
+  // v5 removes VNC: no Desktop sign-in user, and a password still waiting for the keychain is dropped
+  // (the keychain copies are deleted at load, see loadMachineSecrets).
+  if (version < 5) {
+    s.machines = s.machines.map(({ vncUsername: _, ...m }) => m);
+    s.legacySecrets = Object.fromEntries(Object.entries(s.legacySecrets ?? {}).filter(([k]) => !k.endsWith(".vncPassword")));
   }
   return s;
 }

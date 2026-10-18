@@ -13,9 +13,8 @@ import { Input, Label } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { UnauthorizedError } from "@/lib/auth";
 import { deviceNameError, pair, parsePairLink } from "@/lib/pairing";
-import { setSecret, vncPasswordAccount } from "@/lib/secrets";
 import { cn } from "@/lib/utils";
-import { baseUrl, useApp, vncPassword, type Machine, type Theme } from "@/store/app";
+import { baseUrl, useApp, type Machine, type Theme } from "@/store/app";
 import { useLog } from "@/store/log";
 
 const CHECK_LABELS: Record<string, string> = {
@@ -23,7 +22,6 @@ const CHECK_LABELS: Record<string, string> = {
   actuation: "Desktop actuation",
   accessibility: "Accessibility permission",
   screenRecording: "Screen Recording permission",
-  vnc: "VNC server",
 };
 
 const order = (key: string) => {
@@ -172,13 +170,13 @@ function QualityPicker({ value, onChange }: { value: NonNullable<Machine["liveQu
 
 function MachineForm({ machine }: { machine: Machine }) {
   const { saveMachine, setLiveQuality, deleteMachine, set } = useApp();
-  const [form, setForm] = useState({ name: "", vncUsername: "", vncPassword: "" });
+  const [form, setForm] = useState({ name: "" });
   const [test, setTest] = useState<{ state: "idle" | "testing" | "ok" | "error"; health?: Health; error?: string }>({ state: "idle" });
   const [saved, setSaved] = useState("");
   const [repair, setRepair] = useState(false);
 
   useEffect(() => {
-    setForm({ name: machine.name, vncUsername: machine.vncUsername ?? "", vncPassword: vncPassword(machine) ?? "" });
+    setForm({ name: machine.name });
     setTest({ state: "idle" });
     setSaved("");
     setRepair(false);
@@ -204,10 +202,8 @@ function MachineForm({ machine }: { machine: Machine }) {
       onSubmit={(e) => {
         e.preventDefault();
         if (!form.name.trim()) return;
-        saveMachine({ id: machine.id, name: form.name, vncUsername: form.vncUsername });
-        setSecret(vncPasswordAccount(machine.id), form.vncPassword)
-          .then(() => setSaved("Saved"))
-          .catch((err) => setSaved(`Could not save the password to the Keychain: ${String(err)}`));
+        saveMachine({ id: machine.id, name: form.name });
+        setSaved("Saved");
       }}
     >
       <h3 className="text-[13px] font-semibold">Edit machine</h3>
@@ -234,14 +230,6 @@ function MachineForm({ machine }: { machine: Machine }) {
         )}
       </div>
       <QualityPicker value={machine.liveQuality ?? "auto"} onChange={(q) => setLiveQuality(machine.id, q)} />
-      <div className="grid grid-cols-2 gap-3">
-        <Label>macOS user name<Input autoComplete="off" value={form.vncUsername} placeholder="Office Mac account" onChange={(e) => setForm({ ...form, vncUsername: e.target.value })} /></Label>
-        <Label>Password<Input type="password" autoComplete="off" value={form.vncPassword} placeholder="Account or VNC password" onChange={(e) => setForm({ ...form, vncPassword: e.target.value })} /></Label>
-      </div>
-      <p className="-mt-1.5 text-[11px] text-muted-foreground">
-        With a user name, the live view signs in to that account like Apple's Screen Sharing and can be controlled. Without it, the
-        password is used as a VNC password, which macOS answers with its login window. The password is kept in the Keychain.
-      </p>
       <div className="flex items-center gap-2 pt-1">
         <Button type="submit" disabled={!form.name.trim()}>Save</Button>
         <Button variant="secondary" disabled={machine.needsPairing || test.state === "testing"} onClick={() => void runTest()}>
@@ -387,7 +375,6 @@ export function SettingsDialog() {
                 <img src="/logo.svg" alt="mob Screen Buddy" className="mb-2 size-20" />
                 <p className="font-semibold">mob</p>
                 <p className="text-muted-foreground">Home client for the MOB office agent</p>
-                <p className="text-muted-foreground">Desktop view by svnc · MIT</p>
                 <UpdateSettings />
               </div>
             </TabsContent>

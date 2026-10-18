@@ -117,17 +117,6 @@
   }
 }
 
-/* svnc renders a canvas at desktop resolution; fit it to its pane. */
-.vnc-host canvas {
-  display: block;
-  max-width: 100%;
-  max-height: 100%;
-  width: auto !important;
-  height: auto !important;
-  object-fit: contain;
-  outline: none;
-}
-
 /* Markdown body for assistant replies. */
 .prose-mob {
   font-size: 14.5px;

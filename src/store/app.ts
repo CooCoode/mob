@@ -1,10 +1,10 @@
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
 import { configureAuth } from "@/lib/auth";
-import { deleteSecret, getSecret, loadSecrets, setSecret, tokenAccount, vncPasswordAccount } from "@/lib/secrets";
-import { relayUrl, uid } from "@/lib/utils";
+import { deleteSecret, getSecret, loadSecrets, setSecret, tokenAccount } from "@/lib/secrets";
+import { uid } from "@/lib/utils";
 import { log } from "@/store/log";
-import { extractSecrets, migrateApp } from "@/store/migrate";
+import { migrateApp, vncPasswordAccount } from "@/store/migrate";
 
 export interface Machine {
   id: string;
@@ -15,8 +15,6 @@ export interface Machine {
   clientId?: string;
   /** No usable credential: never paired, or mobd answered 401. */
   needsPairing?: boolean;
-  /** macOS user for Screen Sharing sign-in (ARD); empty uses VNC password auth. The password is in the keychain. */
-  vncUsername?: string;
   /** Live view quality; unset means auto. */
   liveQuality?: "auto" | "high" | "low";
   /** The live view last needed mobd's WebSocket here (no UDP path): try it at once next time. */
@@ -70,8 +68,8 @@ interface Actions {
   selectMachine: (id: string) => void;
   /** Shows or hides the desktop panel; hiding it also leaves full screen. */
   togglePreview: (open?: boolean) => void;
-  /** Updates the name and Desktop sign-in user of a paired machine. */
-  saveMachine: (m: { id: string; name: string; vncUsername?: string }) => void;
+  /** Renames a paired machine. */
+  saveMachine: (m: { id: string; name: string }) => void;
   /** Live view quality from the view itself; "auto" clears it. */
   setLiveQuality: (id: string, quality: NonNullable<Machine["liveQuality"]>) => void;
   /** Remembers which transport the live view ended up on. */
@@ -106,7 +104,7 @@ function read<T>(key: string): T | null {
 
 // Seeds state from the v1 client's keys the first time v2+ runs. Those machines still need pairing.
 function initial(): Persisted {
-  let machines = read<(Machine & { vncPassword?: string })[]>("mob.machines");
+  let machines = read<(Machine & { vncPassword?: string; vncUsername?: string })[]>("mob.machines");
   if (!Array.isArray(machines) || !machines.length) {
     let url = "";
     try {
@@ -116,7 +114,8 @@ function initial(): Persisted {
     }
     machines = url ? [{ id: uid(), name: "Office Mac", mobdUrl: url }] : [];
   }
-  const extracted = extractSecrets(machines.map((m) => ({ ...m, needsPairing: true })));
+  // VNC is gone: the v1 Desktop sign-in fields are dropped, not moved to the keychain.
+  const extracted = { machines: machines.map(({ vncPassword: _p, vncUsername: _u, ...m }) => ({ ...m, needsPairing: true })), legacySecrets: {} };
   let active: string | null = null;
   try {
     active = localStorage.getItem("mob.activeMachineId");
@@ -154,7 +153,7 @@ export const useApp = create<AppState>()(
         set({
           machines: get().machines.map((x) =>
             x.id === m.id
-              ? { ...x, name: m.name.trim(), vncUsername: m.vncUsername?.trim() || undefined }
+              ? { ...x, name: m.name.trim() }
               : x),
         }),
       setLiveQuality: (id, quality) =>
@@ -180,16 +179,12 @@ export const useApp = create<AppState>()(
         set({ machines: get().machines.map((m) => (m.id === id ? { ...m, needsPairing: true } : m)) });
       },
       deleteMachine: (id) => {
-        for (const account of [tokenAccount(id), vncPasswordAccount(id)]) {
-          deleteSecret(account).catch((err) => log(`keychain delete failed: ${String(err)}`, "error"));
-        }
+        deleteSecret(tokenAccount(id)).catch((err) => log(`keychain delete failed: ${String(err)}`, "error"));
         const machines = get().machines.filter((m) => m.id !== id);
         const savedSessions = { ...get().savedSessions };
         delete savedSessions[id];
-        const legacySecrets = { ...get().legacySecrets };
-        delete legacySecrets[vncPasswordAccount(id)];
         const activeMachineId = get().activeMachineId === id ? machines[0]?.id ?? null : get().activeMachineId;
-        set({ machines, savedSessions, legacySecrets, activeMachineId });
+        set({ machines, savedSessions, activeMachineId });
       },
       rememberSession: (machineId, sessionId) => {
         if (get().savedSessions[machineId] === sessionId) return;
@@ -202,8 +197,11 @@ export const useApp = create<AppState>()(
     }),
     {
       name: "mob.app",
-      version: 4,
-      migrate: (state, version) => migrateApp(state, version) as Persisted,
+      version: 5,
+      migrate: (state, version) => {
+        if (version < 5) removedVncPasswords = true;
+        return migrateApp(state, version) as Persisted;
+      },
       storage: createJSONStorage(() => localStorage),
       partialize: (s): Persisted => ({
         machines: s.machines, activeMachineId: s.activeMachineId, savedSessions: s.savedSessions,
@@ -222,10 +220,8 @@ export function baseUrl(m: Machine | null | undefined): string {
   return (m?.mobdUrl ?? "").trim().replace(/\/$/, "");
 }
 
-/** VNC WebSocket for the live view: mobd's relay at <mobdUrl>/vnc (http→ws, https→wss). */
-export function vncUrl(m: Pick<Machine, "mobdUrl"> | null | undefined): string {
-  return relayUrl(m?.mobdUrl ?? "");
-}
+/** Set by the v5 migration: the Desktop sign-in passwords in the keychain are deleted at load. */
+let removedVncPasswords = false;
 
 /**
  * Loads every machine's secrets into memory before the first request, writes migrated passwords
@@ -233,8 +229,14 @@ export function vncUrl(m: Pick<Machine, "mobdUrl"> | null | undefined): string {
  */
 export async function loadMachineSecrets(): Promise<void> {
   const { machines } = useApp.getState();
-  const failed = await loadSecrets(machines.flatMap((m) => [tokenAccount(m.id), vncPasswordAccount(m.id)]));
+  const failed = await loadSecrets(machines.map((m) => tokenAccount(m.id)));
   for (const account of failed) log(`keychain read failed: ${account}`, "error");
+  if (removedVncPasswords) {
+    removedVncPasswords = false;
+    for (const m of machines) {
+      deleteSecret(vncPasswordAccount(m.id)).catch((err) => log(`keychain delete failed: ${String(err)}`, "error"));
+    }
+  }
   for (const [account, value] of Object.entries(useApp.getState().legacySecrets ?? {})) {
     try {
       await setSecret(account, value);
@@ -250,10 +252,6 @@ export async function loadMachineSecrets(): Promise<void> {
   });
 }
 
-/** A pending migrated password still counts until it reaches the keychain. */
-export function vncPassword(m: Machine): string | undefined {
-  return getSecret(vncPasswordAccount(m.id)) ?? useApp.getState().legacySecrets?.[vncPasswordAccount(m.id)];
-}
 
 const machinesAt = (base: string) => useApp.getState().machines.filter((m) => baseUrl(m) === base);
 

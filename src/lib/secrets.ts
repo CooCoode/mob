@@ -5,7 +5,6 @@ import { invoke, isTauri } from "@tauri-apps/api/core";
 const cache = new Map<string, string>();
 
 export const tokenAccount = (machineId: string) => `${machineId}.token`;
-export const vncPasswordAccount = (machineId: string) => `${machineId}.vncPassword`;
 
 export function getSecret(account: string): string | undefined {
   return cache.get(account);

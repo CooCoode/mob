@@ -146,7 +146,6 @@ export interface Health {
   /** Default runner for new conversations. */
   runner?: string;
   runners?: RunnerInfo[];
-  vncViewUrl?: string;
   maxRunning?: number;
   features?: string[];
   models?: string[];

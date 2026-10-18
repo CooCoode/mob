@@ -1,4 +1,4 @@
-// Pairing credentials and Desktop sign-in passwords live in the system keychain.
+// Pairing credentials live in the system keychain.
 const SECRET_SERVICE: &str = "com.xrdavies.mob";
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]

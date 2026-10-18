@@ -4,7 +4,6 @@ import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { StatusIcon } from "@/components/StatusIcon";
 import { chat, useChat } from "@/hooks/useChat";
 import { stream } from "@/lib/stream";
-import { vnc } from "@/lib/vnc";
 import { useApp } from "@/store/app";
 import { useComposer } from "@/store/composer";
 
@@ -27,10 +26,7 @@ export function CommandPalette({ onConnect }: { onConnect: () => void }) {
             <CommandGroup heading="Actions">
               <CommandItem onSelect={run(() => { chat.newChat(); useComposer.getState().focus(); })}><SquarePen /> New chat</CommandItem>
               <CommandItem onSelect={run(onConnect)}><Plug /> Connect live view</CommandItem>
-              <CommandItem onSelect={run(() => {
-                vnc.disconnect();
-                stream.disconnect();
-              })}><Plug /> Disconnect live view</CommandItem>
+              <CommandItem onSelect={run(() => stream.disconnect())}><Plug /> Disconnect live view</CommandItem>
               <CommandItem onSelect={run(() => set({ sidebarOpen: !sidebarOpen }))}><PanelLeft /> Toggle sidebar</CommandItem>
               <CommandItem onSelect={run(() => useApp.getState().togglePreview())}><Monitor /> {previewOpen ? "Hide desktop" : "Show desktop"}</CommandItem>
               <CommandItem onSelect={run(() => set({ theme: "light" }))}><Sun /> Light theme</CommandItem>

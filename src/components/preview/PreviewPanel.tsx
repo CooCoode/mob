@@ -15,8 +15,7 @@ import { latestClick, screenGeometry } from "@/lib/timeline";
 import { QUALITIES, readoutText, signalBars, stream, useStream, type Quality } from "@/lib/stream";
 import { cn } from "@/lib/utils";
 import { devicePixels } from "@/lib/view";
-import { useVnc, vnc } from "@/lib/vnc";
-import { baseUrl, useApp, vncPassword, vncUrl, type Machine } from "@/store/app";
+import { baseUrl, useApp, type Machine } from "@/store/app";
 
 /** Content box of an object-fit: contain child inside a container. */
 function fitRect(box: DOMRect, ratio: number) {
@@ -218,15 +217,13 @@ function QueueList({ queue }: { queue?: Queue }) {
 }
 
 export function PreviewPanel({ machine, health, queue }: { machine: Machine; health?: Health; queue?: Queue }) {
-  const host = useRef<HTMLDivElement>(null);
   const video = useRef<HTMLVideoElement>(null);
   const canvas = useRef<HTMLCanvasElement>(null);
   const stage = useRef<HTMLDivElement>(null);
-  // mobd with the stream feature serves WebRTC; older ones only the VNC relay (removed in D6).
-  const streaming = supports(health, "stream");
-  const vncState = useVnc();
+  // The live desktop is mobd's stream (WebRTC, or the WebSocket fallback); mobd without the stream
+  // feature gets "Update mobd" from the connect.
   const streamState = useStream();
-  const state = streaming ? streamState : vncState;
+  const state = streamState;
   const { fullscreen, set } = useApp();
   const chatState = useChat();
   const [ratio, setRatio] = useState(0);
@@ -235,19 +232,13 @@ export function PreviewPanel({ machine, health, queue }: { machine: Machine; hea
   const running = chatState.currentTask?.status === "running";
   const canSnapshot = supports(health, "screen") && !connected;
   const canControl = connected;
-  const live = streaming ? stream : vnc;
+  const live = stream;
   const latest = running ? chatState.activities.filter((a) => a.taskId === chatState.currentTask?.id && a.kind !== "notice").at(-1) : undefined;
 
-  useEffect(() => () => {
-    vnc.disconnect();
-    stream.disconnect();
-  }, [machine.id]);
+  useEffect(() => () => stream.disconnect(), [machine.id]);
   // Only the full-size view can control; the thumbnail always just watches.
   useEffect(() => {
-    if (!fullscreen) {
-      vnc.setControl(false);
-      stream.setControl(false);
-    }
+    if (!fullscreen) stream.setControl(false);
   }, [fullscreen]);
   useEffect(() => {
     if (state.width && state.height) setRatio(state.width / state.height);
@@ -262,20 +253,14 @@ export function PreviewPanel({ machine, health, queue }: { machine: Machine; hea
 
   const opened = useRef({ width: 0, height: 0 });
   const connect = (control = false) => {
-    if (streaming) {
-      const box = stage.current?.getBoundingClientRect();
-      if (!video.current || !canvas.current || !box) return;
-      opened.current = { width: devicePixels(box.width, window.devicePixelRatio), height: devicePixels(box.height, window.devicePixelRatio) };
-      void stream.connect({ video: video.current, canvas: canvas.current }, {
-        base: baseUrl(machine), health,
-        maxWidth: opened.current.width, maxHeight: opened.current.height,
-        quality: machine.liveQuality ?? "auto", preferWebSocket: machine.liveWebSocket, control,
-      });
-    } else if (host.current) {
-      void vnc.connect(host.current, {
-        base: baseUrl(machine), url: vncUrl(machine), health, password: vncPassword(machine), username: machine.vncUsername,
-      });
-    }
+    const box = stage.current?.getBoundingClientRect();
+    if (!video.current || !canvas.current || !box) return;
+    opened.current = { width: devicePixels(box.width, window.devicePixelRatio), height: devicePixels(box.height, window.devicePixelRatio) };
+    void stream.connect({ video: video.current, canvas: canvas.current }, {
+      base: baseUrl(machine), health,
+      maxWidth: opened.current.width, maxHeight: opened.current.height,
+      quality: machine.liveQuality ?? "auto", preferWebSocket: machine.liveWebSocket, control,
+    });
   };
   // The stream is sized to the view. mobd with streamResize refits the running session; older builds
   // are reconnected at the new size.
@@ -288,8 +273,8 @@ export function PreviewPanel({ machine, health, queue }: { machine: Machine; hea
   useEffect(() => {
     if (lastQuality.current === quality) return;
     lastQuality.current = quality;
-    if (streaming && stream.state.status === "connected") reconnect.current(stream.state.control);
-  }, [quality, streaming]);
+    if (stream.state.status === "connected") reconnect.current(stream.state.control);
+  }, [quality]);
   const wasFullscreen = useRef(fullscreen);
   const controlAfterResize = useRef(false);
   useEffect(() => {
@@ -297,15 +282,15 @@ export function PreviewPanel({ machine, health, queue }: { machine: Machine; hea
     wasFullscreen.current = fullscreen;
     const control = fullscreen && controlAfterResize.current;
     controlAfterResize.current = false;
-    if (!streaming || stream.state.status !== "connected") return;
+    if (stream.state.status !== "connected") return;
     // With resize, the stage's resize observer refits the stream; only control is left to take.
     const raf = requestAnimationFrame(() => (canResize ? control && stream.setControl(true) : reconnect.current(control)));
     return () => cancelAnimationFrame(raf);
-  }, [fullscreen, streaming, canResize]);
+  }, [fullscreen, canResize]);
   // Once the view has stopped changing size: refit the running stream, or reconnect for older mobd.
   useEffect(() => {
     const el = stage.current;
-    if (!el || !streaming) return;
+    if (!el) return;
     let t: ReturnType<typeof setTimeout> | undefined;
     const ro = new ResizeObserver(() => {
       clearTimeout(t);
@@ -323,7 +308,7 @@ export function PreviewPanel({ machine, health, queue }: { machine: Machine; hea
       clearTimeout(t);
       ro.disconnect();
     };
-  }, [streaming, canResize]);
+  }, [canResize]);
   // Remember whether this machine needed the WebSocket, so the next connect races it at once.
   const setLiveWebSocket = useApp((s) => s.setLiveWebSocket);
   useEffect(() => {
@@ -340,8 +325,7 @@ export function PreviewPanel({ machine, health, queue }: { machine: Machine; hea
     } else if (fullscreen) {
       live.setControl(true);
     } else {
-      if (streaming) controlAfterResize.current = true;
-      else vnc.setControl(true);
+      controlAfterResize.current = true;
       set({ fullscreen: true });
     }
   };
@@ -382,7 +366,7 @@ export function PreviewPanel({ machine, health, queue }: { machine: Machine; hea
             <span className={cn("size-2 shrink-0 rounded-full", dot)} />
             <span data-tauri-drag-region className="text-[13px] font-semibold">{machine.name}</span>
             <ModeSwitch control={control} canControl={canControl} onChange={(on) => live.setControl(on)} />
-            {connected && streaming && state.width > 0 && (
+            {connected && state.width > 0 && (
               <Tooltip content={readoutText(state.width, state.height, streamState.readout)}>
                 <span className="flex items-center gap-1.5 text-[11px] tabular-nums text-white/60">
                   <SignalBars bars={bars} />
@@ -390,14 +374,11 @@ export function PreviewPanel({ machine, health, queue }: { machine: Machine; hea
                 </span>
               </Tooltip>
             )}
-            {connected && !streaming && state.width > 0 && (
-              <span className="text-[11px] tabular-nums text-white/50">{state.width}×{state.height}</span>
-            )}
             <div data-tauri-drag-region className="h-full flex-1" />
             <span data-tauri-drag-region className="mr-1 flex items-center gap-1 text-[11px] text-white/45">
               {control ? <>Keys go to the Mac · switch to View, then <Kbd>Esc</Kbd></> : <><Kbd>Esc</Kbd> to collapse</>}
             </span>
-            {streaming && <QualityMenu machine={machine} dark />}
+            <QualityMenu machine={machine} dark />
             <Tooltip content={connected ? "Disconnect live view" : "Connect live view"}>
               <Button variant="ghost" size="icon-sm" aria-label={connected ? "Disconnect" : "Connect"}
                 className={cn("hover:bg-white/10", connected ? "text-success" : "text-white/80")}
@@ -418,10 +399,7 @@ export function PreviewPanel({ machine, health, queue }: { machine: Machine; hea
           <span className={cn("size-2 rounded-full", dot)} />
           <span className="text-[13px] font-medium">Live</span>
           <span className="rounded bg-muted px-1.5 py-px text-[10.5px] font-medium text-muted-foreground">View only</span>
-          {connected && state.width > 0 && !streaming && (
-            <span className="text-[11px] tabular-nums text-muted-foreground">{state.width}×{state.height}</span>
-          )}
-          {connected && state.width > 0 && streaming && (
+          {connected && state.width > 0 && (
             <Tooltip content={readoutText(state.width, state.height, streamState.readout)}>
               <span className="text-[11px] tabular-nums text-muted-foreground">
                 {streamState.readout ? `${streamState.readout.kBps} kB/s` : `${state.width}×${state.height}`}
@@ -429,7 +407,7 @@ export function PreviewPanel({ machine, health, queue }: { machine: Machine; hea
             </Tooltip>
           )}
           <div className="flex-1" />
-          {streaming && <QualityMenu machine={machine} dark={false} />}
+          <QualityMenu machine={machine} dark={false} />
           {/* Ends like the expanded toolbar: quality, power, then expand/collapse in the corner. */}
           <Tooltip content={connected ? "Disconnect live view" : "Connect live view"}>
             <Button variant="ghost" size="icon-sm" aria-label={connected ? "Disconnect" : "Connect"}
@@ -459,12 +437,11 @@ export function PreviewPanel({ machine, health, queue }: { machine: Machine; hea
             control && "ring-2 ring-inset ring-warning",
           )}
         >
-          <div ref={host} className={cn("vnc-host absolute inset-0 flex items-center justify-center", (streaming || !connected) && "invisible")} tabIndex={-1} />
           <video ref={video} muted playsInline autoPlay tabIndex={-1} aria-label="Office desktop, live"
-            className={cn("absolute inset-0 size-full object-contain outline-none", (!streaming || !connected || streamState.transport !== "WebRTC") && "invisible", control && "touch-none")} />
+            className={cn("absolute inset-0 size-full object-contain outline-none", (!connected || streamState.transport !== "WebRTC") && "invisible", control && "touch-none")} />
           {/* The WebSocket fallback draws decoded frames here instead of the video. */}
           <canvas ref={canvas} tabIndex={-1} aria-label="Office desktop, live"
-            className={cn("absolute inset-0 size-full object-contain outline-none", (!streaming || !connected || streamState.transport !== "WebSocket") && "invisible", control && "touch-none")} />
+            className={cn("absolute inset-0 size-full object-contain outline-none", (!connected || streamState.transport !== "WebSocket") && "invisible", control && "touch-none")} />
           {!connected && canSnapshot && <Snapshot base={chatState.baseUrl} width={stage.current?.clientWidth ?? 0} onRatio={setRatio} />}
           {!connected && !canSnapshot && (
             <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 p-4 text-center">
