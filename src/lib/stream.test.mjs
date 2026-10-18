@@ -68,9 +68,9 @@ test("readStats measures received kB/s and fps from the selected pair", () => {
     { type: "remote-candidate", id: "r", address: "100.64.31.36", candidateType: "host" },
   ];
   const first = readStats(report(1000, 10), null, 0);
-  assert.deepEqual(first.readout, { kBps: 0, fps: 0, network: "Tailscale", rttMs: 12 });
+  assert.deepEqual(first.readout, { transport: "WebRTC", kBps: 0, fps: 0, network: "Tailscale", rttMs: 12 });
   const next = readStats(report(401000, 40), first.sample, 1000);
-  assert.deepEqual(next.readout, { kBps: 400, fps: 30, network: "Tailscale", rttMs: 12 });
+  assert.deepEqual(next.readout, { transport: "WebRTC", kBps: 400, fps: 30, network: "Tailscale", rttMs: 12 });
   // WebKit without a transport entry: the nominated, succeeded pair is the one in use.
   const webkit = readStats([
     { type: "candidate-pair", id: "p", remoteCandidateId: "r", localCandidateId: "l", nominated: true, state: "succeeded" },
@@ -82,7 +82,8 @@ test("readStats measures received kB/s and fps from the selected pair", () => {
 
 test("readoutText summarises the picture", () => {
   assert.equal(readoutText(1408, 792, null), "1408×792");
-  assert.equal(readoutText(1408, 792, { kBps: 380, fps: 30, network: "LAN" }), "1408×792 · 30 fps · 380 kB/s · WebRTC · LAN");
+  assert.equal(readoutText(1408, 792, { transport: "WebRTC", kBps: 380, fps: 30, network: "LAN" }), "1408×792 · 30 fps · 380 kB/s · WebRTC · LAN");
+  assert.equal(readoutText(1280, 720, { transport: "WebSocket", kBps: 25, fps: 12 }), "1280×720 · 12 fps · 25 kB/s · WebSocket");
 });
 
 test("WebKit's address-less stats are matched to the answer's candidates by port", () => {

@@ -31,7 +31,7 @@ Files mainly touched: `src/lib/vnc.ts` (replaced), `src/components/preview/Previ
 | D2 | **Done.** `src/lib/stream.ts`: view-only WebRTC live view sized to the panel (reconnects at the new size on full screen), `stats`/`ended` from `control`, "Update mobd" for old builds; mobd without `stream` keeps VNC until D6. **Checkpoint passed:** H.264 plays in WKWebView | `stream.test.mjs`; office Mac, see below |
 | D3 | **Done.** `src/lib/liveInput.ts` + `stream.ts`: `input` (reliable) and `pointer` (unreliable, one move per frame) channels; buttons, drags, wheel, keys by `code`, composed text; points normalized inside the letterbox; held keys/buttons released on View, window blur and Command up (macOS sends no key-up for keys pressed with Command); keys in control mode never reach the app's shortcuts (Esc goes to the Mac, as before); Take control reconnects at full-screen size, then takes control | `liveInput.test.mjs`; office Mac, see below |
 | D4 | **Done.** Per-machine **Live view quality** (Auto / High / Low), switched from the live view's header (gauge menu; icon only in the panel, named in full screen) or Settings → Machines, both applying at once; stored as `liveQuality` (unset = auto); changing it reconnects an open view, keeping control. Readout from `getStats()` once a second: received kB/s, decoded fps, size, transport and network (LAN / Tailscale / Internet / relay); full in full screen, kB/s with a tooltip in the panel | `stream.test.mjs`; office Mac, see below |
-| D5 | WebSocket fallback, raced against WebRTC (keep WebRTC if connected within ~3 s) | Funnel address |
+| D5 | **Done.** `src/lib/wsVideo.ts`: one `POST /stream` with the offer also returns `wsTicket`; WebRTC gets a 3 s head start (less if ICE fails), then the peer connection is closed and the same session continues on `/stream/ws` (mobd keeps the first transport to connect). H.264 decoded with WebCodecs into a `<canvas>`, every frame acked, decoder restarted from the next keyframe after an error; input and control JSON as text. Readout shows `WebSocket` | `wsVideo.test.mjs`; office Mac, see below |
 | D6 | Remove svnc, ticket code, Desktop sign-in; store v5 migration | `npm test`, typecheck |
 | D7 | Tests: signaling, message encoding, transport choice, migration | `make test` |
 
@@ -108,3 +108,21 @@ The panel only watches (its header: Live · View only · kB/s … Quality · Pow
 happens in the expanded view, which always opens in View and has the only View/Control switch.
 Shift-Command-C expands (connecting if needed) and takes control in one step. Both toolbars end with
 Quality · Power · Expand/Collapse.
+
+### D5 check (2026-10-18)
+
+The app's `stream.ts` in WKWebView against the office mobd (`d3cc432`), through a local test proxy
+(the page's origin is not one mobd allows). "Blocked" removes ICE candidates from both the offer and
+the answer, like a network without UDP; removing them from the answer alone is not enough, as both
+sides learn each other from the checks.
+
+| Path | Transport | First picture | Notes |
+| --- | --- | --- | --- |
+| LAN | WebRTC | 0.5 s | |
+| LAN, WebRTC blocked | WebSocket after 3 s | 3.5–4.9 s | WebCodecs decodes in WKWebView; pointer moves land exactly |
+| Funnel relay, WebRTC blocked | WebSocket after 3 s | 7–10 s | 960×540 → 1280×720, RTT 0.7–1.6 s; moves arrive with that delay |
+
+Over Funnel the wait is the relay's TLS handshakes (two: the POST and the WebSocket) plus the 3 s
+head start, which WebRTC cannot shorten when no candidates arrive at all. mobd's deferred M7 fixes
+(open the session from the WebSocket; start at 540p) would cut it.
+

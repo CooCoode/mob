@@ -220,6 +220,7 @@ function QueueList({ queue }: { queue?: Queue }) {
 export function PreviewPanel({ machine, health, queue }: { machine: Machine; health?: Health; queue?: Queue }) {
   const host = useRef<HTMLDivElement>(null);
   const video = useRef<HTMLVideoElement>(null);
+  const canvas = useRef<HTMLCanvasElement>(null);
   const stage = useRef<HTMLDivElement>(null);
   // mobd with the stream feature serves WebRTC; older ones only the VNC relay (removed in D6).
   const streaming = supports(health, "stream");
@@ -263,9 +264,9 @@ export function PreviewPanel({ machine, health, queue }: { machine: Machine; hea
   const connect = (control = false) => {
     if (streaming) {
       const box = stage.current?.getBoundingClientRect();
-      if (!video.current || !box) return;
+      if (!video.current || !canvas.current || !box) return;
       opened.current = { width: devicePixels(box.width, window.devicePixelRatio), height: devicePixels(box.height, window.devicePixelRatio) };
-      void stream.connect(video.current, {
+      void stream.connect({ video: video.current, canvas: canvas.current }, {
         base: baseUrl(machine), health,
         maxWidth: opened.current.width, maxHeight: opened.current.height,
         quality: machine.liveQuality ?? "auto", control,
@@ -448,7 +449,10 @@ export function PreviewPanel({ machine, health, queue }: { machine: Machine; hea
         >
           <div ref={host} className={cn("vnc-host absolute inset-0 flex items-center justify-center", (streaming || !connected) && "invisible")} tabIndex={-1} />
           <video ref={video} muted playsInline autoPlay tabIndex={-1} aria-label="Office desktop, live"
-            className={cn("absolute inset-0 size-full object-contain outline-none", (!streaming || !connected) && "invisible", control && "touch-none")} />
+            className={cn("absolute inset-0 size-full object-contain outline-none", (!streaming || !connected || streamState.transport !== "WebRTC") && "invisible", control && "touch-none")} />
+          {/* The WebSocket fallback draws decoded frames here instead of the video. */}
+          <canvas ref={canvas} tabIndex={-1} aria-label="Office desktop, live"
+            className={cn("absolute inset-0 size-full object-contain outline-none", (!streaming || !connected || streamState.transport !== "WebSocket") && "invisible", control && "touch-none")} />
           {!connected && canSnapshot && <Snapshot base={chatState.baseUrl} width={stage.current?.clientWidth ?? 0} onRatio={setRatio} />}
           {!connected && !canSnapshot && (
             <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 p-4 text-center">
