@@ -1,4 +1,4 @@
-import { Eye, Expand, Minimize2, MousePointer2, Power, RefreshCw } from "lucide-react";
+import { ChevronDown, Eye, Expand, Gauge, Minimize2, MousePointer2, Power, RefreshCw } from "lucide-react";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { screenUrl, supports } from "@/api/client";
 import type { Health, Queue } from "@/api/types";
@@ -6,11 +6,12 @@ import { activityIcon } from "@/components/timeline/activity";
 import { Spinner, StatusIcon } from "@/components/StatusIcon";
 import { Button } from "@/components/ui/button";
 import { Kbd } from "@/components/ui/kbd";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuLabel, DropdownMenuRadioGroup, DropdownMenuRadioItem, DropdownMenuTrigger } from "@/components/ui/menu";
 import { Tooltip } from "@/components/ui/tooltip";
 import { useAuthedImage } from "@/hooks/useAuthedImage";
 import { chat, useChat } from "@/hooks/useChat";
 import { latestClick, screenGeometry } from "@/lib/timeline";
-import { readoutText, stream, useStream } from "@/lib/stream";
+import { QUALITIES, readoutText, stream, useStream, type Quality } from "@/lib/stream";
 import { cn } from "@/lib/utils";
 import { devicePixels } from "@/lib/view";
 import { useVnc, vnc } from "@/lib/vnc";
@@ -89,6 +90,40 @@ function Snapshot({ base, width, onRatio }: { base: string; width: number; onRat
         </button>
       )}
     </>
+  );
+}
+
+/** Quality for this machine's live view; picking one reconnects an open view (mobd fixes it per session). */
+function QualityMenu({ machine, dark }: { machine: Machine; dark: boolean }) {
+  const setLiveQuality = useApp((s) => s.setLiveQuality);
+  const value = machine.liveQuality ?? "auto";
+  const label = QUALITIES.find((q) => q.value === value)?.label;
+  return (
+    <DropdownMenu>
+      <Tooltip content={`Live view quality: ${label}`}>
+        <DropdownMenuTrigger asChild>
+          <Button variant="ghost" size="sm" aria-label={`Live view quality: ${label}`}
+            className={cn("h-7 gap-1 px-1.5 text-[11.5px]", dark && "text-white/80 hover:bg-white/10 hover:text-white")}>
+            <Gauge className="size-3.5" />
+            {/* The panel header is narrow: the icon alone there, the name in full screen. */}
+            {dark && <>{label} <ChevronDown className="size-3 opacity-60" /></>}
+          </Button>
+        </DropdownMenuTrigger>
+      </Tooltip>
+      <DropdownMenuContent align="end" className="w-64" onCloseAutoFocus={(e) => e.preventDefault()}>
+        <DropdownMenuLabel>Live view quality</DropdownMenuLabel>
+        <DropdownMenuRadioGroup value={value} onValueChange={(q) => setLiveQuality(machine.id, q as Quality)}>
+          {QUALITIES.map((q) => (
+            <DropdownMenuRadioItem key={q.value} value={q.value} className="items-start">
+              <span className="grid gap-0.5">
+                <span className="font-medium">{q.label}</span>
+                <span className="text-[11px] leading-snug text-muted-foreground">{q.hint}</span>
+              </span>
+            </DropdownMenuRadioItem>
+          ))}
+        </DropdownMenuRadioGroup>
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }
 
@@ -289,6 +324,7 @@ export function PreviewPanel({ machine, health, queue }: { machine: Machine; hea
             </Tooltip>
           )}
           <div className="flex-1" />
+          {streaming && <QualityMenu machine={machine} dark={fullscreen} />}
           {fullscreen && (
             <span className="mr-2 flex items-center gap-1 text-[11px] text-white/50">
               {control ? <>Keys go to the Mac · switch to View, then <Kbd>Esc</Kbd></> : <><Kbd>Esc</Kbd> to exit</>}

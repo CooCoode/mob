@@ -4,6 +4,7 @@ import {
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { fetchHealth } from "@/api/client";
+import { QUALITIES } from "@/lib/stream";
 import type { Check, Health } from "@/api/types";
 import { Spinner } from "@/components/StatusIcon";
 import { Button } from "@/components/ui/button";
@@ -149,11 +150,6 @@ function PairForm({ machine, onPaired }: { machine?: Machine; onPaired: (id: str
   );
 }
 
-const QUALITIES = [
-  { value: "auto", label: "Auto", hint: "Starts at 720p and follows the connection, up to 1080p at 30 fps and 6 Mbps" },
-  { value: "high", label: "High", hint: "Starts sharp at 3 Mbps, then follows the connection, up to 1080p at 30 fps and 6 Mbps" },
-  { value: "low", label: "Low", hint: "For slow or metered links: up to 720p at 15 fps and 1 Mbps" },
-] as const;
 
 function QualityPicker({ value, onChange }: { value: NonNullable<Machine["liveQuality"]>; onChange: (q: NonNullable<Machine["liveQuality"]>) => void }) {
   const hint = QUALITIES.find((q) => q.value === value)?.hint;
@@ -169,20 +165,20 @@ function QualityPicker({ value, onChange }: { value: NonNullable<Machine["liveQu
           </button>
         ))}
       </div>
-      <p className="text-[11px] text-muted-foreground">{hint}. Changing it reconnects an open live view.</p>
+      <p className="text-[11px] text-muted-foreground">{hint}. Applies at once and reconnects an open live view; also in the live view's header.</p>
     </div>
   );
 }
 
 function MachineForm({ machine }: { machine: Machine }) {
-  const { saveMachine, deleteMachine, set } = useApp();
-  const [form, setForm] = useState({ name: "", vncUsername: "", vncPassword: "", liveQuality: "auto" as NonNullable<Machine["liveQuality"]> });
+  const { saveMachine, setLiveQuality, deleteMachine, set } = useApp();
+  const [form, setForm] = useState({ name: "", vncUsername: "", vncPassword: "" });
   const [test, setTest] = useState<{ state: "idle" | "testing" | "ok" | "error"; health?: Health; error?: string }>({ state: "idle" });
   const [saved, setSaved] = useState("");
   const [repair, setRepair] = useState(false);
 
   useEffect(() => {
-    setForm({ name: machine.name, vncUsername: machine.vncUsername ?? "", vncPassword: vncPassword(machine) ?? "", liveQuality: machine.liveQuality ?? "auto" });
+    setForm({ name: machine.name, vncUsername: machine.vncUsername ?? "", vncPassword: vncPassword(machine) ?? "" });
     setTest({ state: "idle" });
     setSaved("");
     setRepair(false);
@@ -208,7 +204,7 @@ function MachineForm({ machine }: { machine: Machine }) {
       onSubmit={(e) => {
         e.preventDefault();
         if (!form.name.trim()) return;
-        saveMachine({ id: machine.id, name: form.name, vncUsername: form.vncUsername, liveQuality: form.liveQuality });
+        saveMachine({ id: machine.id, name: form.name, vncUsername: form.vncUsername });
         setSecret(vncPasswordAccount(machine.id), form.vncPassword)
           .then(() => setSaved("Saved"))
           .catch((err) => setSaved(`Could not save the password to the Keychain: ${String(err)}`));
@@ -237,7 +233,7 @@ function MachineForm({ machine }: { machine: Machine }) {
           </>
         )}
       </div>
-      <QualityPicker value={form.liveQuality} onChange={(liveQuality) => setForm({ ...form, liveQuality })} />
+      <QualityPicker value={machine.liveQuality ?? "auto"} onChange={(q) => setLiveQuality(machine.id, q)} />
       <div className="grid grid-cols-2 gap-3">
         <Label>macOS user name<Input autoComplete="off" value={form.vncUsername} placeholder="Office Mac account" onChange={(e) => setForm({ ...form, vncUsername: e.target.value })} /></Label>
         <Label>Password<Input type="password" autoComplete="off" value={form.vncPassword} placeholder="Account or VNC password" onChange={(e) => setForm({ ...form, vncPassword: e.target.value })} /></Label>

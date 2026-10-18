@@ -69,7 +69,9 @@ interface Actions {
   /** Shows or hides the desktop panel; hiding it also leaves full screen. */
   togglePreview: (open?: boolean) => void;
   /** Updates the name and Desktop sign-in user of a paired machine. */
-  saveMachine: (m: { id: string; name: string; vncUsername?: string; liveQuality?: Machine["liveQuality"] }) => void;
+  saveMachine: (m: { id: string; name: string; vncUsername?: string }) => void;
+  /** Live view quality from the view itself; "auto" clears it. */
+  setLiveQuality: (id: string, quality: NonNullable<Machine["liveQuality"]>) => void;
   /** Stores the new credential, then creates or updates the machine with the paired address. */
   completePairing: (p: PairResult) => Promise<string>;
   markNeedsPairing: (id: string) => void;
@@ -148,9 +150,11 @@ export const useApp = create<AppState>()(
         set({
           machines: get().machines.map((x) =>
             x.id === m.id
-              ? { ...x, name: m.name.trim(), vncUsername: m.vncUsername?.trim() || undefined, liveQuality: m.liveQuality === "auto" ? undefined : m.liveQuality ?? x.liveQuality }
+              ? { ...x, name: m.name.trim(), vncUsername: m.vncUsername?.trim() || undefined }
               : x),
         }),
+      setLiveQuality: (id, quality) =>
+        set({ machines: get().machines.map((x) => (x.id === id ? { ...x, liveQuality: quality === "auto" ? undefined : quality } : x)) }),
       completePairing: async (p) => {
         const id = p.id || uid();
         // The keychain write comes first: the address and its credential change together.

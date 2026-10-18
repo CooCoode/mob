@@ -12,6 +12,13 @@ export const UPDATE_MOBD = "Update mobd on the office Mac to use the live deskto
 
 export type Quality = "auto" | "high" | "low";
 
+/** mobd's profiles (internal/stream/stream.go), for the quality pickers. */
+export const QUALITIES: { value: Quality; label: string; hint: string }[] = [
+  { value: "auto", label: "Auto", hint: "Starts at 720p and follows the connection, up to 1080p at 30 fps and 6 Mbps" },
+  { value: "high", label: "High", hint: "Starts sharp at 3 Mbps, then follows the connection, up to 1080p at 30 fps and 6 Mbps" },
+  { value: "low", label: "Low", hint: "For slow or metered links: up to 720p at 15 fps and 1 Mbps" },
+];
+
 export interface StreamRequest {
   offer?: string;
   maxWidth: number;
