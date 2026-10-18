@@ -402,17 +402,18 @@ export function PreviewPanel({ machine, health, queue }: { machine: Machine; hea
               <MousePointer2 className="size-3.5" /> Control
             </Button>
           </Tooltip>
-          <Tooltip content="Expand in the window (double-click)">
-            <Button variant="ghost" size="icon-sm" aria-label="Expand live view" disabled={!connected && !canSnapshot}
-              onClick={() => set({ fullscreen: true })}>
-              <Expand />
-            </Button>
-          </Tooltip>
+          {/* Same order as the expanded toolbar: quality, power, then expand/collapse in the corner. */}
           <Tooltip content={connected ? "Disconnect live view" : "Connect live view"}>
             <Button variant="ghost" size="icon-sm" aria-label={connected ? "Disconnect" : "Connect"}
               className={cn(connected && "text-success")}
               disabled={state.status === "connecting"} onClick={() => (connected ? live.disconnect() : connect())}>
               {state.status === "connecting" ? <Spinner /> : <Power />}
+            </Button>
+          </Tooltip>
+          <Tooltip content="Expand in the window (double-click)">
+            <Button variant="ghost" size="icon-sm" aria-label="Expand live view" disabled={!connected && !canSnapshot}
+              onClick={() => set({ fullscreen: true })}>
+              <Expand />
             </Button>
           </Tooltip>
         </div>
