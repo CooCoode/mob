@@ -52,12 +52,12 @@ function ClickMarker({ stage, ratio }: { stage: HTMLElement | null; ratio: numbe
 
 function Snapshot({ base, width, onRatio }: { base: string; width: number; onRatio: (r: number) => void }) {
   const [tick, setTick] = useState(0);
-  const [state, setState] = useState<"loading" | "ok" | "error">("loading");
   // As wide as the panel shows it; an unchanged screen costs a 304, not a download.
   const image = useAuthedImage(base, width ? screenUrl(base, devicePixels(width, window.devicePixelRatio)) : null, tick);
-  useEffect(() => {
-    if (image.error) setState("error");
-  }, [image.error]);
+  const [undecodable, setUndecodable] = useState<string | undefined>(undefined);
+  // mobd's reason (locked, asleep, no Screen Recording) until a later check succeeds, 304 included.
+  const error = image.error || (undecodable === image.src ? "the snapshot could not be shown" : "");
+  const state = error ? "error" : image.src ? "ok" : "loading";
   const at = image.at ? new Date(image.at).toLocaleTimeString() : "";
   useEffect(() => {
     // Every few seconds while the panel is open; paused while the window is hidden.
@@ -71,14 +71,14 @@ function Snapshot({ base, width, onRatio }: { base: string; width: number; onRat
         alt="Office desktop snapshot"
         className={cn("absolute inset-0 size-full object-contain", state === "error" && "invisible")}
         onLoad={(e) => {
-          setState("ok");
+          setUndecodable(undefined);
           onRatio(e.currentTarget.naturalWidth / e.currentTarget.naturalHeight);
         }}
-        onError={() => setState("error")}
+        onError={() => setUndecodable(image.src)}
       />
       {state === "error" && (
         <p className="absolute inset-0 flex items-center justify-center p-4 text-center text-xs text-muted-foreground">
-          Snapshot unavailable. Check Screen Recording on the office Mac.
+          Snapshot unavailable: {error.replace(/^screen unavailable: /, "")}
         </p>
       )}
       {state === "ok" && (

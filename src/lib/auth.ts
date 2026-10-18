@@ -42,6 +42,12 @@ export async function authFetch(base: string, url: string, init?: RequestInit): 
   return res;
 }
 
+/** mobd's explanation for a failed response (`{"error": "..."}`), else the HTTP status. */
+export async function responseError(res: Response): Promise<string> {
+  const data = (await res.json().catch(() => ({}))) as { error?: unknown };
+  return typeof data.error === "string" && data.error ? data.error : `HTTP ${res.status}`;
+}
+
 /** EventStream options for a mobd base URL: current credential on every reconnect, stop on 401. */
 export function streamAuth(base: string): { headers: () => Headers; onUnauthorized: () => void } {
   return { headers: () => authHeaders(base), onUnauthorized: () => notifyUnauthorized(base) };

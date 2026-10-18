@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { deviceNameError, pair, parsePairLink } from "./pairing.ts";
-import { authFetch, configureAuth, UnauthorizedError } from "./auth.ts";
+import { authFetch, configureAuth, responseError, UnauthorizedError } from "./auth.ts";
 
 test("parses links in any parameter order, with ports and IPv6", () => {
   assert.deepEqual(parsePairLink("  https://office.example.com/pair#invite=I&serverId=S&v=1\n"),
@@ -97,4 +97,10 @@ test("authFetch adds the bearer header and reports 401 once", async (t) => {
   mockFetch(t, 401, { error: "unauthorized" });
   await assert.rejects(authFetch("http://office", "http://office/health"), UnauthorizedError);
   assert.deepEqual(rejected, ["http://office"]);
+});
+
+test("responseError prefers mobd's message over the status", async () => {
+  assert.equal(await responseError(new Response(JSON.stringify({ error: "the office computer is locked" }), { status: 503 })), "the office computer is locked");
+  assert.equal(await responseError(new Response("<html>", { status: 502 })), "HTTP 502");
+  assert.equal(await responseError(new Response(JSON.stringify({ error: "" }), { status: 500 })), "HTTP 500");
 });

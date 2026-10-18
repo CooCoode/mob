@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { authFetch } from "@/lib/auth";
+import { authFetch, responseError } from "@/lib/auth";
 
 export interface AuthedImage {
   src?: string;
@@ -29,7 +29,7 @@ export function useAuthedImage(base: string, url: string | null, refresh?: numbe
           if (!abort.signal.aborted) setState((s) => ({ ...s, error: "", at: Date.now() }));
           return;
         }
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        if (!res.ok) throw new Error(await responseError(res));
         const tag = res.headers.get("ETag");
         const src = URL.createObjectURL(await res.blob());
         if (abort.signal.aborted) {
