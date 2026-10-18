@@ -10,7 +10,7 @@ import { Tooltip } from "@/components/ui/tooltip";
 import { useAuthedImage } from "@/hooks/useAuthedImage";
 import { chat, useChat } from "@/hooks/useChat";
 import { latestClick, screenGeometry } from "@/lib/timeline";
-import { stream, useStream } from "@/lib/stream";
+import { readoutText, stream, useStream } from "@/lib/stream";
 import { cn } from "@/lib/utils";
 import { devicePixels } from "@/lib/view";
 import { useVnc, vnc } from "@/lib/vnc";
@@ -218,7 +218,7 @@ export function PreviewPanel({ machine, health, queue }: { machine: Machine; hea
       void stream.connect(video.current, {
         base: baseUrl(machine), health,
         maxWidth: devicePixels(box.width, window.devicePixelRatio), maxHeight: devicePixels(box.height, window.devicePixelRatio),
-        control,
+        quality: machine.liveQuality ?? "auto", control,
       });
     } else if (host.current) {
       void vnc.connect(host.current, {
@@ -229,6 +229,14 @@ export function PreviewPanel({ machine, health, queue }: { machine: Machine; hea
   // The stream is sized to the view: entering or leaving full screen reconnects at the new size.
   const reconnect = useRef(connect);
   reconnect.current = connect;
+  // mobd fixes the profile per session: a new quality reconnects, keeping control if it was on.
+  const quality = machine.liveQuality ?? "auto";
+  const lastQuality = useRef(quality);
+  useEffect(() => {
+    if (lastQuality.current === quality) return;
+    lastQuality.current = quality;
+    if (streaming && stream.state.status === "connected") reconnect.current(stream.state.control);
+  }, [quality, streaming]);
   const wasFullscreen = useRef(fullscreen);
   const controlAfterResize = useRef(false);
   useEffect(() => {
@@ -268,8 +276,17 @@ export function PreviewPanel({ machine, health, queue }: { machine: Machine; hea
           <span className="text-[13px] font-medium">{fullscreen ? `Live · ${machine.name}` : "Live"}</span>
           {!fullscreen && <span className="rounded bg-muted px-1.5 py-px text-[10.5px] font-medium text-muted-foreground">View only</span>}
           {fullscreen && <ModeSwitch control={control} canControl={canControl} onChange={(on) => live.setControl(on)} />}
-          {connected && state.width > 0 && (
-            <span className={cn("text-[11px]", fullscreen ? "text-white/50" : "text-muted-foreground")}>{state.width}×{state.height}</span>
+          {connected && state.width > 0 && (fullscreen || !streaming) && (
+            <span className={cn("text-[11px] tabular-nums", fullscreen ? "text-white/50" : "text-muted-foreground")}>
+              {streaming ? readoutText(state.width, state.height, streamState.readout) : `${state.width}×${state.height}`}
+            </span>
+          )}
+          {connected && state.width > 0 && !fullscreen && streaming && (
+            <Tooltip content={readoutText(state.width, state.height, streamState.readout)}>
+              <span className="text-[11px] tabular-nums text-muted-foreground">
+                {streamState.readout ? `${streamState.readout.kBps} kB/s` : `${state.width}×${state.height}`}
+              </span>
+            </Tooltip>
           )}
           <div className="flex-1" />
           {fullscreen && (

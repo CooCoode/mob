@@ -17,6 +17,8 @@ export interface Machine {
   needsPairing?: boolean;
   /** macOS user for Screen Sharing sign-in (ARD); empty uses VNC password auth. The password is in the keychain. */
   vncUsername?: string;
+  /** Live view quality; unset means auto. */
+  liveQuality?: "auto" | "high" | "low";
 }
 
 export interface PairResult {
@@ -67,7 +69,7 @@ interface Actions {
   /** Shows or hides the desktop panel; hiding it also leaves full screen. */
   togglePreview: (open?: boolean) => void;
   /** Updates the name and Desktop sign-in user of a paired machine. */
-  saveMachine: (m: { id: string; name: string; vncUsername?: string }) => void;
+  saveMachine: (m: { id: string; name: string; vncUsername?: string; liveQuality?: Machine["liveQuality"] }) => void;
   /** Stores the new credential, then creates or updates the machine with the paired address. */
   completePairing: (p: PairResult) => Promise<string>;
   markNeedsPairing: (id: string) => void;
@@ -145,7 +147,9 @@ export const useApp = create<AppState>()(
       saveMachine: (m) =>
         set({
           machines: get().machines.map((x) =>
-            x.id === m.id ? { ...x, name: m.name.trim(), vncUsername: m.vncUsername?.trim() || undefined } : x),
+            x.id === m.id
+              ? { ...x, name: m.name.trim(), vncUsername: m.vncUsername?.trim() || undefined, liveQuality: m.liveQuality === "auto" ? undefined : m.liveQuality ?? x.liveQuality }
+              : x),
         }),
       completePairing: async (p) => {
         const id = p.id || uid();

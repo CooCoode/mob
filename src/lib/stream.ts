@@ -77,6 +77,82 @@ export function parseControl(data: unknown): ControlMessage | null {
   return null;
 }
 
+export type Network = "LAN" | "Tailscale" | "Internet" | "relay";
+
+/** Where the peer's address lives: Tailscale (100.64.0.0/10, fd7a:115c:a1e0::/48), a private LAN, or beyond. */
+export function networkOf(address: string, candidateType?: string): Network {
+  if (candidateType === "relay") return "relay";
+  const a = address.toLowerCase().replace(/^\[|\]$/g, "");
+  const v4 = a.match(/^(\d+)\.(\d+)\.\d+\.\d+$/);
+  if (v4) {
+    const [x, y] = [Number(v4[1]), Number(v4[2])];
+    if (x === 100 && y >= 64 && y < 128) return "Tailscale";
+    if (x === 10 || x === 127 || (x === 172 && y >= 16 && y < 32) || (x === 192 && y === 168) || (x === 169 && y === 254)) return "LAN";
+    return "Internet";
+  }
+  if (a.startsWith("fd7a:115c:a1e0:")) return "Tailscale";
+  if (/^(fe8|fe9|fea|feb|fc|fd)/.test(a) || a === "::1") return "LAN";
+  return "Internet";
+}
+
+export interface StatsSample {
+  at: number;
+  bytes: number;
+  frames: number;
+}
+
+export interface Readout {
+  /** Video received, kilobytes per second. */
+  kBps: number;
+  /** Frames decoded per second. */
+  fps: number;
+  network?: Network;
+  rttMs?: number;
+}
+
+type Stat = { type: string; id: string; [k: string]: unknown };
+
+/** Candidate addresses in an SDP, keyed "protocol:port": WebKit leaves addresses out of getStats(). */
+export function candidateAddresses(sdp: string): Map<string, string> {
+  const out = new Map<string, string>();
+  for (const m of sdp.matchAll(/^a=candidate:\S+ \d+ (\S+) \d+ (\S+) (\d+) typ/gm)) out.set(`${m[1].toLowerCase()}:${m[3]}`, m[2]);
+  return out;
+}
+
+/** One getStats() report against the previous sample: what the viewer actually receives. */
+export function readStats(report: Iterable<Stat>, prev: StatsSample | null, now: number, remoteAddresses?: Map<string, string>): { sample: StatsSample; readout: Readout } {
+  const stats = [...report];
+  const byId = new Map(stats.map((s) => [s.id, s]));
+  const video = stats.find((s) => s.type === "inbound-rtp" && (s.kind ?? s.mediaType) === "video");
+  const sample = { at: now, bytes: Number(video?.bytesReceived ?? 0), frames: Number(video?.framesDecoded ?? 0) };
+  const seconds = prev ? (now - prev.at) / 1000 : 0;
+  const readout: Readout = {
+    kBps: seconds > 0 ? Math.max(0, Math.round((sample.bytes - prev!.bytes) / 1000 / seconds)) : 0,
+    fps: seconds > 0 ? Math.max(0, Math.round((sample.frames - prev!.frames) / seconds)) : 0,
+  };
+  // The pair in use: the transport names it; WebKit may only mark it nominated and succeeded.
+  const transport = stats.find((s) => s.type === "transport" && s.selectedCandidatePairId);
+  const pair = (transport && byId.get(String(transport.selectedCandidatePairId)))
+    ?? stats.find((s) => s.type === "candidate-pair" && (s.selected || (s.nominated && s.state === "succeeded")));
+  if (pair) {
+    const remote = byId.get(String(pair.remoteCandidateId));
+    const local = byId.get(String(pair.localCandidateId));
+    const address = String(remote?.address ?? remote?.ip
+      ?? remoteAddresses?.get(`${String(remote?.protocol ?? "udp").toLowerCase()}:${String(remote?.port)}`) ?? "");
+    const relayed = remote?.candidateType === "relay" || local?.candidateType === "relay";
+    if (address || relayed) readout.network = networkOf(address, relayed ? "relay" : undefined);
+    if (typeof pair.currentRoundTripTime === "number") readout.rttMs = Math.round(pair.currentRoundTripTime * 1000);
+  }
+  return { sample, readout };
+}
+
+/** "1408×792 · 30 fps · 380 kB/s · WebRTC · LAN": what the viewer receives, once a second. */
+export function readoutText(width: number, height: number, r: Readout | null): string {
+  const parts = [`${width}×${height}`];
+  if (r) parts.push(`${r.fps} fps`, `${r.kBps} kB/s`, r.network ? `WebRTC · ${r.network}` : "WebRTC");
+  return parts.join(" · ");
+}
+
 export type LiveStatus = "idle" | "connecting" | "connected" | "error";
 
 export interface StreamState {
@@ -87,8 +163,10 @@ export interface StreamState {
   height: number;
   /** Mouse and keyboard on the video reach the office Mac only while true. */
   control: boolean;
+  /** mobd's encoder target. */
   kbps: number;
-  fps: number;
+  /** Measured once a second while connected. */
+  readout: Readout | null;
 }
 
 export interface StreamTarget {
@@ -103,7 +181,7 @@ export interface StreamTarget {
 }
 
 const CONNECT_TIMEOUT = 15_000;
-const IDLE: StreamState = { status: "idle", detail: "", width: 0, height: 0, control: false, kbps: 0, fps: 0 };
+const IDLE: StreamState = { status: "idle", detail: "", width: 0, height: 0, control: false, kbps: 0, readout: null };
 
 /** Resolves when ICE gathering completes, or after `ms`: host candidates take a few milliseconds. */
 function gathered(pc: RTCPeerConnection, ms: number): Promise<void> {
@@ -186,6 +264,7 @@ class StreamController {
         clearTimeout(timer);
         console.info(`live: first picture after ${Math.round(performance.now() - started)} ms`);
         this.update({ status: "connected", detail: "" });
+        this.watchStats(pc, attempt);
         if (target.control) this.setControl(true);
       }
       this.update({ width: video.videoWidth, height: video.videoHeight });
@@ -201,7 +280,7 @@ class StreamController {
       control.onmessage = (e) => {
         if (attempt !== this.attempt) return;
         const m = parseControl(e.data);
-        if (m?.t === "stats") this.update({ kbps: m.kbps, fps: m.fps });
+        if (m?.t === "stats") this.update({ kbps: m.kbps });
         else if (m?.t === "ended") fail(m.message);
         else if (m?.t === "error") console.warn(`live: ${m.about}: ${m.message}`);
       };
@@ -319,7 +398,24 @@ class StreamController {
     };
   }
 
+  private statsTimer: ReturnType<typeof setInterval> | undefined;
+
+  private watchStats(pc: RTCPeerConnection, attempt: number) {
+    clearInterval(this.statsTimer);
+    let prev: StatsSample | null = null;
+    const addresses = candidateAddresses(pc.remoteDescription?.sdp ?? "");
+    this.statsTimer = setInterval(() => {
+      void pc.getStats().then((report) => {
+        if (attempt !== this.attempt) return;
+        const { sample, readout } = readStats(report.values() as Iterable<Stat>, prev, performance.now(), addresses);
+        if (prev) this.update({ readout });
+        prev = sample;
+      }).catch(() => {});
+    }, 1000);
+  }
+
   private teardown() {
+    clearInterval(this.statsTimer);
     this.detachInput?.();
     this.detachInput = null;
     this.release();

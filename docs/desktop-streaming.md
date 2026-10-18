@@ -30,7 +30,7 @@ Files mainly touched: `src/lib/vnc.ts` (replaced), `src/components/preview/Previ
 | D1 | **Done.** Snapshot at panel width × devicePixelRatio (rounded up to 64 px), quality 65, every 4 s while visible, `If-None-Match` so an unchanged screen costs a 304 | `view.test.mjs`; panel in the running app |
 | D2 | **Done.** `src/lib/stream.ts`: view-only WebRTC live view sized to the panel (reconnects at the new size on full screen), `stats`/`ended` from `control`, "Update mobd" for old builds; mobd without `stream` keeps VNC until D6. **Checkpoint passed:** H.264 plays in WKWebView | `stream.test.mjs`; office Mac, see below |
 | D3 | **Done.** `src/lib/liveInput.ts` + `stream.ts`: `input` (reliable) and `pointer` (unreliable, one move per frame) channels; buttons, drags, wheel, keys by `code`, composed text; points normalized inside the letterbox; held keys/buttons released on View, window blur and Command up (macOS sends no key-up for keys pressed with Command); keys in control mode never reach the app's shortcuts (Esc goes to the Mac, as before); Take control reconnects at full-screen size, then takes control | `liveInput.test.mjs`; office Mac, see below |
-| D4 | Quality setting; readout of kB/s, fps, resolution, transport | throttled link |
+| D4 | **Done.** Per-machine **Live view quality** (Auto / High / Low) in Settings → Machines, stored as `liveQuality` (unset = auto); changing it reconnects an open view, keeping control. Readout from `getStats()` once a second: received kB/s, decoded fps, size, transport and network (LAN / Tailscale / Internet / relay); full in full screen, kB/s with a tooltip in the panel | `stream.test.mjs`; office Mac, see below |
 | D5 | WebSocket fallback, raced against WebRTC (keep WebRTC if connected within ~3 s) | Funnel address |
 | D6 | Remove svnc, ticket code, Desktop sign-in; store v5 migration | `npm test`, typecheck |
 | D7 | Tests: signaling, message encoding, transport choice, migration | `make test` |
@@ -77,3 +77,20 @@ with AppleScript and screenshots, closed without saving):
 
 No `error` came back from mobd. These were synthetic DOM events; real trackpad and keyboard events in
 the Tauri app, and Command shortcuts the app menu may take first, are still to try by hand.
+
+
+### D4 check (2026-10-18)
+
+Same WKWebView setup, office mobd `d3cc432`.
+
+| Quality | mobd session | Readout |
+| --- | --- | --- |
+| Low | 960×540 at 600 kbps → 1280×720, capped at 1000 kbps | `1280×720 · … · WebRTC · LAN` |
+| High | 1920×1080 at 3000 kbps → 5.5–6 Mbps | `1920×1080 · … · WebRTC · LAN` |
+| Auto | 1280×720 at 1200 kbps, ramping | `1280×720 · … · WebRTC · LAN` |
+
+WebKit leaves candidate addresses out of `getStats()`; the selected remote candidate's protocol and
+port are matched against the `a=candidate` lines of mobd's answer instead. Signaling to the Tailscale
+address still reads LAN: ICE prefers the shared LAN, as in M6. kB/s and fps were near zero because the
+screen was idle (frames only on change). The throttled-link check is still to do.
+

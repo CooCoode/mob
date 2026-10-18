@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { configureAuth } from "./auth.ts";
-import { openSession, parseControl, UPDATE_MOBD } from "./stream.ts";
+import { candidateAddresses, networkOf, openSession, parseControl, readoutText, readStats, UPDATE_MOBD } from "./stream.ts";
 
 function mockFetch(t, status, body) {
   const calls = [];
@@ -45,4 +45,54 @@ test("parseControl reads mobd's control messages and ignores the rest", () => {
   assert.equal(parseControl('{"t":"something-new"}'), null);
   assert.equal(parseControl(new ArrayBuffer(4)), null);
   assert.equal(parseControl("null"), null);
+});
+
+test("networkOf tells Tailscale, LAN, internet and relayed paths apart", () => {
+  const cases = {
+    "100.64.31.36": "Tailscale", "100.127.0.1": "Tailscale", "100.128.0.1": "Internet",
+    "192.168.50.86": "LAN", "10.0.0.2": "LAN", "172.20.1.1": "LAN", "172.32.0.1": "Internet",
+    "fd7a:115c:a1e0::1": "Tailscale", "[fd7a:115c:a1e0:ab12::5]": "Tailscale", "fe80::1": "LAN", "fd00::1": "LAN",
+    "203.0.113.9": "Internet", "2001:db8::1": "Internet",
+  };
+  for (const [address, want] of Object.entries(cases)) assert.equal(networkOf(address), want, address);
+  assert.equal(networkOf("192.168.1.2", "relay"), "relay");
+});
+
+test("readStats measures received kB/s and fps from the selected pair", () => {
+  const report = (bytes, frames) => [
+    { type: "inbound-rtp", id: "v", kind: "video", bytesReceived: bytes, framesDecoded: frames },
+    { type: "transport", id: "t", selectedCandidatePairId: "p" },
+    { type: "candidate-pair", id: "old", remoteCandidateId: "r0", nominated: true, state: "failed" },
+    { type: "candidate-pair", id: "p", localCandidateId: "l", remoteCandidateId: "r", currentRoundTripTime: 0.012 },
+    { type: "local-candidate", id: "l", candidateType: "host" },
+    { type: "remote-candidate", id: "r", address: "100.64.31.36", candidateType: "host" },
+  ];
+  const first = readStats(report(1000, 10), null, 0);
+  assert.deepEqual(first.readout, { kBps: 0, fps: 0, network: "Tailscale", rttMs: 12 });
+  const next = readStats(report(401000, 40), first.sample, 1000);
+  assert.deepEqual(next.readout, { kBps: 400, fps: 30, network: "Tailscale", rttMs: 12 });
+  // WebKit without a transport entry: the nominated, succeeded pair is the one in use.
+  const webkit = readStats([
+    { type: "candidate-pair", id: "p", remoteCandidateId: "r", localCandidateId: "l", nominated: true, state: "succeeded" },
+    { type: "remote-candidate", id: "r", address: "192.168.50.86" },
+    { type: "local-candidate", id: "l", candidateType: "relay" },
+  ], null, 0);
+  assert.equal(webkit.readout.network, "relay");
+});
+
+test("readoutText summarises the picture", () => {
+  assert.equal(readoutText(1408, 792, null), "1408×792");
+  assert.equal(readoutText(1408, 792, { kBps: 380, fps: 30, network: "LAN" }), "1408×792 · 30 fps · 380 kB/s · WebRTC · LAN");
+});
+
+test("WebKit's address-less stats are matched to the answer's candidates by port", () => {
+  const sdp = "v=0\r\na=candidate:1 1 udp 2130706431 192.168.50.86 55190 typ host\r\na=candidate:2 1 udp 2130706431 100.64.31.36 65336 typ host\r\n";
+  const addresses = candidateAddresses(sdp);
+  assert.equal(addresses.get("udp:65336"), "100.64.31.36");
+  const { readout } = readStats([
+    { type: "transport", id: "t", selectedCandidatePairId: "p" },
+    { type: "candidate-pair", id: "p", remoteCandidateId: "r", localCandidateId: "l" },
+    { type: "remote-candidate", id: "r", candidateType: "host", protocol: "udp", port: 65336 },
+  ], null, 0, addresses);
+  assert.equal(readout.network, "Tailscale");
 });
