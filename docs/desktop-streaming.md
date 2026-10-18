@@ -32,7 +32,7 @@ Files mainly touched: `src/lib/vnc.ts` (replaced), `src/components/preview/Previ
 | D3 | **Done.** `src/lib/liveInput.ts` + `stream.ts`: `input` (reliable) and `pointer` (unreliable, one move per frame) channels; buttons, drags, wheel, keys by `code`, composed text; points normalized inside the letterbox; held keys/buttons released on View, window blur and Command up (macOS sends no key-up for keys pressed with Command); keys in control mode never reach the app's shortcuts (Esc goes to the Mac, as before); Take control reconnects at full-screen size, then takes control | `liveInput.test.mjs`; office Mac, see below |
 | D4 | **Done.** Per-machine **Live view quality** (Auto / High / Low), switched from the live view's header (gauge menu; icon only in the panel, named in full screen) or Settings → Machines, both applying at once; stored as `liveQuality` (unset = auto); changing it reconnects an open view, keeping control. Readout from `getStats()` once a second: received kB/s, decoded fps, size, transport and network (LAN / Tailscale / Internet / relay); full in full screen, kB/s with a tooltip in the panel | `stream.test.mjs`; office Mac, see below |
 | D5 | **Done.** `src/lib/wsVideo.ts`: one `POST /stream` with the offer also returns `wsTicket`; WebRTC gets a 5 s head start (less if ICE fails; 3 s was not always enough), then the peer connection is closed and the same session continues on `/stream/ws` (mobd keeps the first transport to connect). H.264 decoded with WebCodecs into a `<canvas>`, every frame acked, decoder restarted from the next keyframe after an error; input and control JSON as text. Readout shows `WebSocket` | `wsVideo.test.mjs`; office Mac, see below |
-| D5b | With mobd M7b: send `resize` instead of reconnecting when the view changes size; remember per machine when the WebSocket was needed and try it first next time | tests; office Mac |
+| D5b | **Done.** With mobd `streamResize`: expanding, collapsing or resizing the window sends `resize` (after 150 ms of quiet) instead of reconnecting; older mobd still reconnects. Per machine, `liveWebSocket` remembers that the WebSocket carried the last session: next time WebRTC gets 1 s instead of 5 s, then the WebSocket races beside it (not instead), and whichever transport mobd sends video on wins, so a machine back on a WebRTC-capable network returns to WebRTC | tests; dev mobd, see below |
 | D6 | Remove svnc, ticket code, Desktop sign-in; store v5 migration. Together with mobd M8 and the phones' I6/A6, once they have a live view | `npm test`, typecheck |
 | D7 | Tests: signaling, message encoding, transport choice, migration | `make test` |
 
@@ -126,4 +126,21 @@ sides learn each other from the checks.
 
 Over Funnel the wait is the relay's TLS handshakes (two: the POST and the WebSocket) plus the head start (5 s), which WebRTC cannot shorten when no candidates arrive at all. mobd's deferred M7 fixes
 (open the session from the WebSocket; start at 540p) would cut it.
+
+### D5b check (2026-10-18)
+
+The app's `stream.ts` in WKWebView against a dev mobd (`7a06a64`) on the Mac Studio, through a local
+test proxy; "blocked" strips ICE candidates both ways as in the D5 check.
+
+| WebRTC | WebSocket remembered | Carried by | First picture | `resize` to 640 px |
+| --- | --- | --- | --- | --- |
+| allowed | no | WebRTC | 0.28–0.52 s | 1280×720 → 640×360, no reconnect |
+| allowed | yes | WebRTC | 0.28 s | same |
+| blocked | no | WebSocket (starts 960×540, 450 kbps) | 5.3–5.4 s | 960×540 → 640×360 |
+| blocked | yes | WebSocket | 1.4 s | same |
+
+The transport is chosen on the first frame, not when our side of ICE connects: in a race mobd may
+already have given the session to the WebSocket. A race from the very start always went to the
+WebSocket on the LAN (TCP opens faster than WebRTC), which would have kept a machine on it for good;
+hence the 1 s head start.
 

@@ -19,6 +19,8 @@ export interface Machine {
   vncUsername?: string;
   /** Live view quality; unset means auto. */
   liveQuality?: "auto" | "high" | "low";
+  /** The live view last needed mobd's WebSocket here (no UDP path): try it at once next time. */
+  liveWebSocket?: boolean;
 }
 
 export interface PairResult {
@@ -72,6 +74,8 @@ interface Actions {
   saveMachine: (m: { id: string; name: string; vncUsername?: string }) => void;
   /** Live view quality from the view itself; "auto" clears it. */
   setLiveQuality: (id: string, quality: NonNullable<Machine["liveQuality"]>) => void;
+  /** Remembers which transport the live view ended up on. */
+  setLiveWebSocket: (id: string, ws: boolean) => void;
   /** Stores the new credential, then creates or updates the machine with the paired address. */
   completePairing: (p: PairResult) => Promise<string>;
   markNeedsPairing: (id: string) => void;
@@ -155,6 +159,8 @@ export const useApp = create<AppState>()(
         }),
       setLiveQuality: (id, quality) =>
         set({ machines: get().machines.map((x) => (x.id === id ? { ...x, liveQuality: quality === "auto" ? undefined : quality } : x)) }),
+      setLiveWebSocket: (id, ws) =>
+        set({ machines: get().machines.map((x) => (x.id === id ? { ...x, liveWebSocket: ws || undefined } : x)) }),
       completePairing: async (p) => {
         const id = p.id || uid();
         // The keychain write comes first: the address and its credential change together.

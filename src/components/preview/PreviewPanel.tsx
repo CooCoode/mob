@@ -269,7 +269,7 @@ export function PreviewPanel({ machine, health, queue }: { machine: Machine; hea
       void stream.connect({ video: video.current, canvas: canvas.current }, {
         base: baseUrl(machine), health,
         maxWidth: opened.current.width, maxHeight: opened.current.height,
-        quality: machine.liveQuality ?? "auto", control,
+        quality: machine.liveQuality ?? "auto", preferWebSocket: machine.liveWebSocket, control,
       });
     } else if (host.current) {
       void vnc.connect(host.current, {
@@ -277,7 +277,9 @@ export function PreviewPanel({ machine, health, queue }: { machine: Machine; hea
       });
     }
   };
-  // The stream is sized to the view: expanding, collapsing or resizing the window reconnects at the new size.
+  // The stream is sized to the view. mobd with streamResize refits the running session; older builds
+  // are reconnected at the new size.
+  const canResize = supports(health, "streamResize");
   const reconnect = useRef(connect);
   reconnect.current = connect;
   // mobd fixes the profile per session: a new quality reconnects, keeping control if it was on.
@@ -296,10 +298,11 @@ export function PreviewPanel({ machine, health, queue }: { machine: Machine; hea
     const control = fullscreen && controlAfterResize.current;
     controlAfterResize.current = false;
     if (!streaming || stream.state.status !== "connected") return;
-    const raf = requestAnimationFrame(() => reconnect.current(control));
+    // With resize, the stage's resize observer refits the stream; only control is left to take.
+    const raf = requestAnimationFrame(() => (canResize ? control && stream.setControl(true) : reconnect.current(control)));
     return () => cancelAnimationFrame(raf);
-  }, [fullscreen, streaming]);
-  // mobd cannot resize a running stream; once the window has stopped changing size, reconnect.
+  }, [fullscreen, streaming, canResize]);
+  // Once the view has stopped changing size: refit the running stream, or reconnect for older mobd.
   useEffect(() => {
     const el = stage.current;
     if (!el || !streaming) return;
@@ -310,15 +313,24 @@ export function PreviewPanel({ machine, health, queue }: { machine: Machine; hea
         if (stream.state.status !== "connected") return;
         const width = devicePixels(el.clientWidth, window.devicePixelRatio);
         const height = devicePixels(el.clientHeight, window.devicePixelRatio);
-        if (width !== opened.current.width || height !== opened.current.height) reconnect.current(stream.state.control);
-      }, 600);
+        if (width === opened.current.width && height === opened.current.height) return;
+        if (canResize && stream.resize(width, height)) opened.current = { width, height };
+        else reconnect.current(stream.state.control);
+      }, canResize ? 150 : 600);
     });
     ro.observe(el);
     return () => {
       clearTimeout(t);
       ro.disconnect();
     };
-  }, [streaming]);
+  }, [streaming, canResize]);
+  // Remember whether this machine needed the WebSocket, so the next connect races it at once.
+  const setLiveWebSocket = useApp((s) => s.setLiveWebSocket);
+  useEffect(() => {
+    if (streamState.status !== "connected" || !streamState.transport) return;
+    const ws = streamState.transport === "WebSocket";
+    if (ws !== !!machine.liveWebSocket) setLiveWebSocket(machine.id, ws);
+  }, [streamState.status, streamState.transport]); // eslint-disable-line react-hooks/exhaustive-deps
   // Shift-Command-C: expand (connecting if needed) and take control in one step. The View/Control
   // switch in the expanded toolbar is the only other way in; the panel itself only watches.
   const takeControl = () => {

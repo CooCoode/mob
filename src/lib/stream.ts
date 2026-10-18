@@ -202,6 +202,8 @@ export interface StreamTarget {
   maxWidth: number;
   maxHeight: number;
   quality?: Quality;
+  /** The WebSocket was needed here last time: shorter head start, then race it beside WebRTC. */
+  preferWebSocket?: boolean;
   /** Take control as soon as the picture arrives (reconnecting at a new size keeps control). */
   control?: boolean;
 }
@@ -216,6 +218,10 @@ const CONNECT_TIMEOUT = 15_000;
 /** WebRTC's head start: usually under a second on the LAN or a tailnet, but a slow or relayed
  * tailnet path can take a few seconds, and losing it to the WebSocket costs quality. */
 export const WEBRTC_GRACE = 5_000;
+/** The shorter head start where the WebSocket was needed last time. Not zero: TCP opens faster than
+ * WebRTC, so a race from the start would keep such a machine on the WebSocket even on a network where
+ * WebRTC works again. Then the WebSocket races beside WebRTC instead of replacing it. */
+export const REMEMBERED_GRACE = 1_000;
 const IDLE: StreamState = { status: "idle", detail: "", width: 0, height: 0, transport: null, control: false, kbps: 0, loss: 0, readout: null };
 
 /** Resolves when ICE gathering completes, or after `ms`: host candidates take a few milliseconds. */
@@ -245,6 +251,9 @@ class StreamController {
   private surfaces: Surfaces | null = null;
   /** The element taking input: the video, or the canvas after falling back. */
   private surface: HTMLElement | null = null;
+  /** The transport that won; input and resize go there. */
+  private via: Transport | null = null;
+  private controlChannel: RTCDataChannel | null = null;
   private session: { base: string; id: string } | null = null;
   private input: RTCDataChannel | null = null;
   private pointer: RTCDataChannel | null = null;
@@ -281,7 +290,9 @@ class StreamController {
     const pc = new RTCPeerConnection();
     this.pc = pc;
     let transport: Transport | null = null;
-    let fallback: (() => void) | null = null;
+    /** The WebSocket while it is trying, before either transport has won. */
+    let player: WsPlayer | null = null;
+    let startWs: ((race: boolean) => void) | null = null;
     let graceTimer: ReturnType<typeof setTimeout> | undefined;
     let lastRtt: number | undefined;
     let timer: ReturnType<typeof setTimeout> | undefined = undefined;
@@ -294,6 +305,26 @@ class StreamController {
       this.update({ ...IDLE, status: "error", detail });
     };
     timer = setTimeout(() => fail("The live view did not start. Is the office Mac reachable from here?"), CONNECT_TIMEOUT);
+    // mobd decides: it sends video only on the transport that connected first there, so the first
+    // frame (not our side of ICE connecting) says which one carries the session; the other is closed.
+    const choose = (t: Transport) => {
+      if (transport) return;
+      transport = t;
+      this.via = t;
+      clearTimeout(graceTimer);
+      console.info(`live: ${t} carries the picture after ${ms()} ms`);
+      if (t === "WebRTC") {
+        const p = player;
+        player = null;
+        this.ws = null;
+        p?.close();
+      } else {
+        this.dropWebRTC();
+        this.surface = canvas;
+        this.detachInput = this.attachInput(canvas, () => [canvas.width, canvas.height]);
+        if (this.ws) this.watchWsStats(this.ws, attempt, () => lastRtt);
+      }
+    };
     const picture = (width: number, height: number) => {
       if (attempt !== this.attempt) return;
       if (this.state.status === "connecting") {
@@ -319,14 +350,12 @@ class StreamController {
       if (attempt !== this.attempt || this.pc !== pc) return;
       switch (pc.connectionState) {
         case "connected":
-          if (transport) return;
-          transport = "WebRTC";
-          clearTimeout(graceTimer);
-          console.info(`live: WebRTC connected after ${ms()} ms`);
+          clearTimeout(graceTimer); // the picture follows unless the racing WebSocket won at mobd
           break;
         case "failed":
           if (transport === "WebRTC") fail("The live view connection was lost");
-          else if (fallback) fallback(); // no UDP path: don't wait out the head start
+          else if (player) this.dropWebRTC(); // the WebSocket is already trying
+          else if (startWs) startWs(false); // no UDP path: don't wait out the head start
           else fail("The office Mac could not be reached over WebRTC");
           break;
         case "closed":
@@ -341,17 +370,20 @@ class StreamController {
       video.srcObject = e.streams[0] ?? new MediaStream([e.track]);
       void video.play().catch(() => {});
     });
-    const onVideo = () => picture(video.videoWidth, video.videoHeight);
+    const onVideo = () => {
+      if (!transport) choose("WebRTC");
+      if (transport === "WebRTC") picture(video.videoWidth, video.videoHeight);
+    };
     video.onloadeddata = onVideo;
     video.onresize = onVideo;
     try {
       pc.addTransceiver("video", { direction: "recvonly" });
-      const controlChannel = pc.createDataChannel("control");
+      this.controlChannel = pc.createDataChannel("control");
       this.input = pc.createDataChannel("input");
       this.pointer = pc.createDataChannel("pointer", { ordered: false, maxRetransmits: 0 });
       this.surface = video;
       this.detachInput = this.attachInput(video, () => [video.videoWidth, video.videoHeight]);
-      controlChannel.onmessage = (e) => control(e.data);
+      this.controlChannel.onmessage = (e) => control(e.data);
       await pc.setLocalDescription(await pc.createOffer());
       await gathered(pc, 2000);
       if (attempt !== this.attempt) return;
@@ -368,34 +400,40 @@ class StreamController {
       this.session = { base: target.base, id: answer.session };
       console.info(`live: answered in ${ms()} ms, ${answer.width}×${answer.height}`);
       if (answer.wsTicket && webCodecsAvailable()) {
-        const ticket = answer.wsTicket;
-        fallback = () => {
-          if (attempt !== this.attempt || transport) return;
-          transport = "WebSocket";
-          clearTimeout(graceTimer);
-          console.info(`live: no WebRTC after ${ms()} ms, using the WebSocket`);
-          // mobd keeps the session for the WebSocket once our peer connection is gone.
-          this.dropWebRTC();
-          this.surface = canvas;
-          this.detachInput = this.attachInput(canvas, () => [canvas.width, canvas.height]);
-          this.ws = new WsPlayer(streamWsUrl(target.base, answer.session, ticket), canvas, {
-            control,
-            frame: picture,
+        const url = streamWsUrl(target.base, answer.session, answer.wsTicket);
+        // After WebRTC's head start: race keeps WebRTC trying beside the WebSocket (this machine needed
+        // the WebSocket last time); otherwise WebRTC is closed and mobd keeps the session for the WebSocket.
+        startWs = (race) => {
+          if (attempt !== this.attempt || transport || player) return;
+          console.info(race ? `live: WebSocket alongside WebRTC after ${ms()} ms (needed here last time)` : `live: no WebRTC after ${ms()} ms, using the WebSocket`);
+          if (!race) this.dropWebRTC();
+          const ws: WsPlayer = new WsPlayer(url, canvas, {
+            control: (data) => transport === "WebSocket" && control(data),
+            frame: (width, height) => {
+              if (!transport) choose("WebSocket");
+              if (transport === "WebSocket") picture(width, height);
+            },
             close: (code, reason, opened) => {
-              if (attempt !== this.attempt) return;
-              if (!opened) fail("The office Mac could not be reached over WebRTC or the WebSocket fallback");
-              else if (code === 1000) {
+              if (attempt !== this.attempt || transport === "WebRTC") return;
+              if (!opened) {
+                if (player === ws) player = null;
+                if (this.ws === ws) this.ws = null;
+                // Still racing: WebRTC may yet connect.
+                if (!this.pc) fail("The office Mac could not be reached over WebRTC or the WebSocket fallback");
+              } else if (code === 1000) {
                 this.teardown();
                 this.update({ ...IDLE, detail: reason || "Disconnected" });
               } else fail("The live view connection was lost");
             },
           });
-          this.watchWsStats(this.ws, attempt, () => lastRtt);
+          player = ws;
+          this.ws = ws;
         };
-        graceTimer = setTimeout(fallback, WEBRTC_GRACE);
+        const race = !!target.preferWebSocket;
+        graceTimer = setTimeout(() => startWs?.(race), race ? REMEMBERED_GRACE : WEBRTC_GRACE);
       }
       if (!answer.answer) {
-        if (fallback) fallback();
+        if (startWs) startWs(false);
         else throw new Error("mobd answered without WebRTC; update mobd on the office Mac");
         return;
       }
@@ -406,13 +444,23 @@ class StreamController {
   }
 
   private send(kind: "input" | "pointer", messages: InputMessage[]) {
-    if (this.ws) {
-      for (const m of messages) this.ws.send(m);
+    if (this.via === "WebSocket") {
+      for (const m of messages) this.ws?.send(m);
       return;
     }
     const channel = kind === "input" ? this.input : this.pointer;
     if (channel?.readyState !== "open") return;
     for (const m of messages) channel.send(JSON.stringify(m));
+  }
+
+  /** Refits the running session to a new view (mobd with streamResize); false if it cannot be sent. */
+  resize(maxWidth: number, maxHeight: number): boolean {
+    if (this.state.status !== "connected") return false;
+    const m = { t: "resize", maxWidth, maxHeight };
+    if (this.via === "WebSocket" && this.ws) this.ws.send(m);
+    else if (this.via === "WebRTC" && this.controlChannel?.readyState === "open") this.controlChannel.send(JSON.stringify(m));
+    else return false;
+    return true;
   }
 
   private release() {
@@ -566,6 +614,8 @@ class StreamController {
     if (session) closeSession(session.base, session.id);
     this.dropWebRTC();
     this.surface = null;
+    this.via = null;
+    this.controlChannel = null;
   }
 
   disconnect(): void {
@@ -576,7 +626,7 @@ class StreamController {
 
   /** Switches between watching and controlling; only possible while connected. */
   setControl(on: boolean): void {
-    const control = on && this.state.status === "connected" && (!!this.input || !!this.ws);
+    const control = on && this.state.status === "connected" && (this.via === "WebSocket" ? !!this.ws : !!this.input);
     if (!control) this.release();
     if (control) this.surface?.focus({ preventScroll: true });
     else if (this.surface && document.activeElement === this.surface) this.surface.blur();
