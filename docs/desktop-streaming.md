@@ -32,10 +32,12 @@ Files mainly touched: `src/lib/vnc.ts` (replaced), `src/components/preview/Previ
 | D3 | **Done.** `src/lib/liveInput.ts` + `stream.ts`: `input` (reliable) and `pointer` (unreliable, one move per frame) channels; buttons, drags, wheel, keys by `code`, composed text; points normalized inside the letterbox; held keys/buttons released on View, window blur and Command up (macOS sends no key-up for keys pressed with Command); keys in control mode never reach the app's shortcuts (Esc goes to the Mac, as before); Take control reconnects at full-screen size, then takes control | `liveInput.test.mjs`; office Mac, see below |
 | D4 | **Done.** Per-machine **Live view quality** (Auto / High / Low), switched from the live view's header (gauge menu; icon only in the panel, named in full screen) or Settings → Machines, both applying at once; stored as `liveQuality` (unset = auto); changing it reconnects an open view, keeping control. Readout from `getStats()` once a second: received kB/s, decoded fps, size, transport and network (LAN / Tailscale / Internet / relay); full in full screen, kB/s with a tooltip in the panel | `stream.test.mjs`; office Mac, see below |
 | D5 | **Done.** `src/lib/wsVideo.ts`: one `POST /stream` with the offer also returns `wsTicket`; WebRTC gets a 5 s head start (less if ICE fails; 3 s was not always enough), then the peer connection is closed and the same session continues on `/stream/ws` (mobd keeps the first transport to connect). H.264 decoded with WebCodecs into a `<canvas>`, every frame acked, decoder restarted from the next keyframe after an error; input and control JSON as text. Readout shows `WebSocket` | `wsVideo.test.mjs`; office Mac, see below |
-| D6 | Remove svnc, ticket code, Desktop sign-in; store v5 migration | `npm test`, typecheck |
+| D5b | With mobd M7b: send `resize` instead of reconnecting when the view changes size; remember per machine when the WebSocket was needed and try it first next time | tests; office Mac |
+| D6 | Remove svnc, ticket code, Desktop sign-in; store v5 migration. Together with mobd M8 and the phones' I6/A6, once they have a live view | `npm test`, typecheck |
 | D7 | Tests: signaling, message encoding, transport choice, migration | `make test` |
 
-Starts after mobd M7. Merges with the other repos at release.
+Starts after mobd M7. Merges with the other repos at release. Order across repos: see mobd's plan,
+"Order". Cmd+W and Cmd+Q stay with the app menu even in Control, as in most Mac apps.
 
 ### D2 checkpoint (2026-10-18)
 
