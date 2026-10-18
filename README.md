@@ -6,7 +6,7 @@ This repository contains only the macOS desktop app. The office daemon is develo
 and released independently in [xrdavies/mobd](https://github.com/xrdavies/mobd).
 iOS, Android and the product website live in separate repositories.
 
-Home Mac **mob** client: dispatch tasks to the office agent, follow what it does step by step, and watch the office desktop — task API from office **`mobd`** (v3) + embedded **[svnc](https://github.com/xrdavies/svnc)**.
+Home Mac **mob** client: dispatch tasks to the office agent, follow what it does step by step, and watch the office desktop — task API from office **`mobd`** (v3) + its live desktop stream.
 
 Design: [docs/ui.md](docs/ui.md) · Stack decision: [ADR 0009](docs/adr/0009-app-frontend-react.md) · API: [docs/mobd-v3.md](https://github.com/xrdavies/mobd/blob/main/docs/mobd-v3.md)
 

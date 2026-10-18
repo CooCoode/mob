@@ -187,7 +187,7 @@ Steps 1 and 2 were merged: porting the old CSS to React only to replace it immed
 6. ✅ **Preview v2:** snapshot fallback, click marker, steps list, fullscreen overlay.
 7. ✅ **Polish:** ⌘K, first-run card, health popover, empty states, keyboard shortcuts.
 
-Not yet done: resizable columns, responsive drawer/floating-thumbnail layouts below 1100 px, density and font-size settings, the click marker over the live VNC canvas has only been verified against snapshots (unit-tested geometry), and the iPhone layout.
+Not yet done: resizable columns, responsive drawer/floating-thumbnail layouts below 1100 px, density and font-size settings, the click marker over the live video has only been verified against snapshots (unit-tested geometry), and the iPhone layout.
 
 Update this doc when the IA changes.
 
