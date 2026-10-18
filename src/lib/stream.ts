@@ -213,8 +213,9 @@ export interface Surfaces {
 }
 
 const CONNECT_TIMEOUT = 15_000;
-/** WebRTC's head start: on the LAN or a tailnet it connects in well under a second. */
-export const WEBRTC_GRACE = 3_000;
+/** WebRTC's head start: usually under a second on the LAN or a tailnet, but a slow or relayed
+ * tailnet path can take a few seconds, and losing it to the WebSocket costs quality. */
+export const WEBRTC_GRACE = 5_000;
 const IDLE: StreamState = { status: "idle", detail: "", width: 0, height: 0, transport: null, control: false, kbps: 0, loss: 0, readout: null };
 
 /** Resolves when ICE gathering completes, or after `ms`: host candidates take a few milliseconds. */
