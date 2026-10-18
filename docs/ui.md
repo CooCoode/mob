@@ -1,9 +1,9 @@
-# mob — UI design (v2)
+# mob — UI design
 
 **Product:** the home Mac **mob** App: dispatch tasks to the office agent, watch what it does, and monitor the office desktop.
 **Stack:** Tauri 2 + React 19 + Tailwind v4 + shadcn/ui ([ADR 0009](adr/0009-app-frontend-react.md)); the live desktop is mobd's stream (WebRTC, WebSocket + WebCodecs fallback).
-**Backend:** [mobd v3](https://github.com/xrdavies/mobd/blob/main/docs/mobd-v3.md). Each v2 feature below names the API it depends on.
-**Status:** implemented in `mob` 0.2.0 (2026-10-13). Remaining gaps are listed under "Migration plan".
+**Backend:** [mobd v3](https://github.com/xrdavies/mobd/blob/main/docs/mobd-v3.md). Features below name the API they depend on.
+**Status:** implemented. Gaps are listed under "Not yet implemented".
 
 ---
 
@@ -13,13 +13,13 @@
 2. **Calm, native, dense.** It should feel like a macOS app: inset traffic lights, a translucent sidebar, system font, 13–14 px UI text, restrained color. Accent color is used only for primary actions and running state.
 3. **The desktop is always visible.** The live view is never more than one glance (thumbnail) or one double-click (fullscreen) away.
 4. **State is explicit.** Every session row, task and machine shows whether it is queued, running, done, failed or offline, in the same visual language everywhere.
-5. **Keyboard first.** ⌘K palette, ⌘N new chat, ⌘↵ send, Esc to close or collapse, ⌘1–9 to switch sessions.
+5. **Keyboard first.** ⌘K palette, ⌘N new chat, ↵ send, Esc to close or collapse, ⌘1–9 to switch sessions.
 
-## Hard rules (unchanged from v1)
+## Hard rules
 
 - Three-column shell: sessions · timeline · preview. Connection settings live only in Settings.
 - Human input is opt-in per use: the panel is always **view only**; only the expanded view has a **View | Control** switch, which starts on View and resets to View when the view collapses. Switching sends input over the open session's data channels (or the WebSocket); it does not reconnect.
-- No auth UI until mobd has auth.
+- Auth is pairing only: paste the link from `mobd link`; the credential stays in the Keychain. No accounts or sign-in.
 - Machines are first-class; each has its own `mobd` URL (added by pairing) and its own live view quality.
 
 ---
@@ -55,11 +55,11 @@
 | Region | Width | Contents |
 | --- | --- | --- |
 | Title bar | 44 px | Traffic lights (overlay), search / ⌘K, active machine status, theme toggle, settings |
-| Sidebar | 248 px (resizable 200–360, collapsible ⌘B) | Machines → sessions tree, New chat, Settings |
+| Sidebar | 248 px (collapsible ⌘B) | Machines → sessions tree, New chat, Settings |
 | Timeline | flexible, content max 760 px centered | Session title, messages + activity cards, composer |
-| Preview | 360 px (resizable 280–560, collapsible ⌘⇧B) | Live view, queue, steps of the current turn |
+| Preview | 360 px (collapsible ⌘⇧B) | Live view, queue, steps of the current turn |
 
-Responsive: below 1100 px the preview collapses to a floating thumbnail at the bottom right of the timeline. Below 800 px the sidebar becomes a drawer.
+Planned: below 1100 px the preview collapses to a floating thumbnail at the bottom right of the timeline; below 800 px the sidebar becomes a drawer.
 
 **Fullscreen preview:** double-click the live view (or ⤢) → the live view fills the window under a toolbar in the title bar row (machine, View/Control, signal bars, quality, Collapse) and a bottom-left overlay showing the current step ("Typing 'Tokyo'…"). Esc (in View) or double-click returns. The session is refitted with `resize`, not reconnected.
 
@@ -69,7 +69,7 @@ Responsive: below 1100 px the preview collapses to a floating thumbnail at the b
 
 ### Sidebar
 
-- **Machine group:** name, status dot (green ready / amber degraded checks / grey offline), chevron. Hovering shows a `⋯` menu: Edit, Reconnect, Remove.
+- **Machine group:** name, status dot (green ready / amber degraded checks or needs pairing / grey offline), chevron. An unpaired machine shows "Needs pairing" and a link to Settings.
 - **Session row:** title (one line, truncated), relative time ("2m"), state indicator: ◉ spinning ring while running, numbered badge while queued, red dot after failure. Pinned sessions show ★ and sort first.
   - Right click / `⋯`: Rename (inline edit), Pin/Unpin, Archive, Delete (confirm dialog). API: `PATCH`/`DELETE /sessions/{id}`.
   - "Archived" lives in a collapsible group at the bottom of each machine (`GET /sessions?archived=true`).
@@ -95,14 +95,14 @@ Built by merging `messages` and `activities` from `GET /sessions/{id}`, sorted b
 | **Queued turn** | Ghost card "Waiting for the desktop · #2 in queue", with a Cancel link |
 
 Scrolling: stick to the bottom while the user is at the bottom. Otherwise show a "↓ New activity" pill.
-Empty session: centered greeting + 4 example prompt cards ("Open Safari and …", "Summarize unread Mail", …).
+Empty session: centered greeting + example prompt cards ("Open a website", "Check the screen", "Summarize mail", …).
 
 ### Composer
 
 - Auto-growing textarea (1–10 rows), placeholder "Ask mob to do something on Office-A…".
-- Toolbar: 📎 attach images (picker, drag-and-drop, paste) → `POST /uploads`; **model** dropdown (`health.models`, plus "Default"); **effort** dropdown (`health.efforts`); send ⏎ / stop ■ (stop = `POST /tasks/{id}/cancel`).
+- Toolbar: agent picker (new chats); 📎 attach images (picker, drag-and-drop, paste) → `POST /uploads`; **model** dropdown (`health.models`, plus "Default"); **effort** dropdown (`health.efforts`); send ⏎ / stop ■ (stop = `POST /tasks/{id}/cancel`).
 - ↵ sends, ⇧↵ adds a newline, IME composition is respected. Send is disabled while the session has a non-terminal turn. The input is kept so the user can edit the next prompt.
-- Model and effort are remembered per machine.
+- Agent (runner) is picked per new chat and remembered per machine; model and effort are remembered per machine and agent.
 
 ### Preview panel
 
@@ -115,20 +115,20 @@ Empty session: centered greeting + 4 example prompt cards ("Open Safari and …"
 ### Title bar & ⌘K
 
 - Machine status chip: `Office-A ● ready`. Click opens a popover listing `health.checks` with ✓/✕ and fix hints ("Grant Accessibility to Terminal in System Settings → Privacy").
-- ⌘K command palette: switch session, new chat, switch machine, toggle theme, connect/disconnect live view, open settings, search session titles.
+- ⌘K command palette: new chat, connect/disconnect live view, toggle sidebar, show/hide desktop, light/dark theme, settings, open a session (search titles), switch machine.
 
 ### Settings (dialog, 720×560)
 
 | Tab | Contents |
 | --- | --- |
 | Machines | List + form (name, pairing, live view quality), **Test connection** runs `/health` and shows the checks list |
-| Appearance | Theme (system / light / dark), density (comfortable / compact), font size |
+| Appearance | Theme (system / light / dark), system notifications for agent questions |
 | Log | Raw SSE/debug viewer (filter, pause, clear, copy). Monospace |
 | About | App version, mobd `apiVersion`, links |
 
 ### First run / setup
 
-With no machines: a centered card "Connect your office Mac" with a URL field. Test runs `/health` and shows the checks list. Save creates the machine. Failed checks link to [office-smoke-checklist.md](https://github.com/xrdavies/mobd/blob/main/docs/office-smoke-checklist.md) steps.
+With no machines: a centered card "Connect your office Mac" asking for the pairing link printed by `mobd link`. Pairing creates the machine; the health popover then shows the checks. Failed checks are explained in [office-smoke-checklist.md](https://github.com/xrdavies/mobd/blob/main/docs/office-smoke-checklist.md) steps.
 
 ---
 
@@ -157,37 +157,24 @@ With no machines: a centered card "Connect your office Mac" with a URL field. Te
 
 ---
 
-## Code structure (target)
+## Code structure
 
 ```text
 src/
-  main.tsx                 React root, providers (Query, Theme, Tooltip)
-  api/                     mobd client: types (mirror mobd-v3.md), fetchers, SSE helpers
-  store/                   Zustand: machines, selection, layout, preferences
-  lib/chat.ts              Framework-free turn lifecycle / dedup / recovery (moved from src/chat.ts, tests kept)
-  lib/timeline.ts          Merge messages + activities, grouping rules (unit-tested)
+  main.tsx, App.tsx        React root, providers, shortcuts, first-run and pairing screens
+  api/                     mobd client: types (mirror mobd-v3.md), fetchers, feature checks
+  store/                   Zustand: machines, selection, layout, preferences; migrations; updates
+  lib/                     Framework-free, unit-tested: chat, timeline, stream, wsVideo, liveInput, pairing, sse
+  hooks/                   React bindings: chat, health/queue, /events, question alerts
   components/ui/           shadcn primitives
-  components/sidebar/      MachineGroup, SessionRow, SessionMenu
-  components/timeline/     Timeline, UserMessage, AssistantMessage, ActivityCard(+kinds), ActivityGroup, TurnFooter
-  components/composer/     Composer, AttachmentTray, ModelPicker, EffortPicker
-  components/preview/      PreviewPanel (live view via lib/stream.ts), SnapshotView, ClickMarker, QueueList, StepList
-  components/settings/     SettingsDialog + tabs
-  components/command/      CommandPalette
+  components/              TitleBar, CommandPalette, UpdateNotice, sidebar/, timeline/, composer/, preview/, settings/
 ```
 
-## Migration plan
+## Not yet implemented
 
-Steps 1 and 2 were merged: porting the old CSS to React only to replace it immediately was wasted work, so the React rebuild shipped the v2 design directly.
-
-1. ✅ **Port + restyle:** React + Tailwind + shadcn primitives; tokens, typography, light/dark, sidebar rows and states; `chat.ts` tests kept (now under Node type stripping).
-2. ✅ **Native chrome:** Tauri overlay title bar, inset traffic lights, sidebar vibrancy.
-3. ✅ **Timeline v2:** markdown, activity cards and groups, turn footer.
-4. ✅ **Live data:** global `/events`, queue panel, session menus (rename/pin/archive/delete).
-5. ✅ **Composer v2:** attachments, model/effort pickers.
-6. ✅ **Preview v2:** snapshot fallback, click marker, steps list, fullscreen overlay.
-7. ✅ **Polish:** ⌘K, first-run card, health popover, empty states, keyboard shortcuts.
-
-Not yet done: resizable columns, responsive drawer/floating-thumbnail layouts below 1100 px, density and font-size settings, the click marker over the live video has only been verified against snapshots (unit-tested geometry), and the iPhone layout.
+- Resizable columns (sidebar and preview have fixed widths) and the responsive drawer / floating-thumbnail layouts below 1100 px.
+- Density and font-size settings.
+- A machine `⋯` menu in the sidebar (Edit, Reconnect, Remove); machines are managed in Settings.
 
 Update this doc when the IA changes.
 

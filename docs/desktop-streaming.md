@@ -1,146 +1,48 @@
-# Live desktop over WebRTC: desktop app plan
+# Live desktop
 
-Status: **draft**, branch `feat/webrtc-stream`. Design and protocol: [mobd desktop streaming](https://github.com/xrdavies/mobd/blob/feat/webrtc-stream/docs/desktop-streaming.md).
+The live view shows the office desktop streamed by mobd. Protocol, encoder and server side:
+[mobd desktop streaming](https://github.com/xrdavies/mobd/blob/main/docs/desktop-streaming.md).
+mobd without the `stream` feature in `/health` shows "Update mobd"; the panel then keeps showing snapshots.
 
-## Why
+## Files
 
-The live view uses svnc over mobd's `/vnc` relay and receives the office Mac's full 4K framebuffer.
-mobd now streams H.264 at the size the client shows, over WebRTC (Pion) with a WebSocket fallback.
-VNC is removed; mobd and the apps are released together.
-
-## What changes here
-
-| Area | Today | After |
-| --- | --- | --- |
-| Live view | `src/lib/vnc.ts` + `@xrdavies/svnc`, `/vnc?ticket=` | `src/lib/stream.ts`: `RTCPeerConnection` in the webview, `<video>`; signaling via `fetch` with the Bearer header |
-| Control | svnc input | data channels `input` / `pointer` / `control` (mobd design, "Data channels") |
-| Fallback | none | `/stream/ws` with the single-use `wsTicket`, decoded with WebCodecs `VideoDecoder` into a canvas |
-| Snapshot | fixed 1280 px every 30 s | panel width × devicePixelRatio, quality ≈ 65, every 3–5 s while the panel is open, `ETag` |
-| Settings | Desktop sign-in (macOS user + password in Keychain) | removed; per-machine **Live view quality: Auto / High / Low** |
-| Store | v4 | v5 drops `vncUsername`, deletes `<id>.vncPassword` from the Keychain, adds `liveQuality` |
-
-Files mainly touched: `src/lib/vnc.ts` (replaced), `src/components/preview/PreviewPanel.tsx`,
-`src/App.tsx`, `src/components/settings/SettingsDialog.tsx`, `src/store/app.ts`, `src/store/migrate.ts`,
-`src/api/client.ts`, `package.json` (drop `@xrdavies/svnc`).
-
-## Steps
-
-| Step | Content | Verified by |
-| --- | --- | --- |
-| D1 | **Done.** Snapshot at panel width × devicePixelRatio (rounded up to 64 px), quality 65, every 4 s while visible, `If-None-Match` so an unchanged screen costs a 304 | `view.test.mjs`; panel in the running app |
-| D2 | **Done.** `src/lib/stream.ts`: view-only WebRTC live view sized to the panel (reconnects at the new size on full screen), `stats`/`ended` from `control`, "Update mobd" for old builds; mobd without `stream` keeps VNC until D6. **Checkpoint passed:** H.264 plays in WKWebView | `stream.test.mjs`; office Mac, see below |
-| D3 | **Done.** `src/lib/liveInput.ts` + `stream.ts`: `input` (reliable) and `pointer` (unreliable, one move per frame) channels; buttons, drags, wheel, keys by `code`, composed text; points normalized inside the letterbox; held keys/buttons released on View, window blur and Command up (macOS sends no key-up for keys pressed with Command); keys in control mode never reach the app's shortcuts (Esc goes to the Mac, as before); Take control reconnects at full-screen size, then takes control | `liveInput.test.mjs`; office Mac, see below |
-| D4 | **Done.** Per-machine **Live view quality** (Auto / High / Low), switched from the live view's header (gauge menu; icon only in the panel, named in full screen) or Settings → Machines, both applying at once; stored as `liveQuality` (unset = auto); changing it reconnects an open view, keeping control. Readout from `getStats()` once a second: received kB/s, decoded fps, size, transport and network (LAN / Tailscale / Internet / relay); full in full screen, kB/s with a tooltip in the panel | `stream.test.mjs`; office Mac, see below |
-| D5 | **Done.** `src/lib/wsVideo.ts`: one `POST /stream` with the offer also returns `wsTicket`; WebRTC gets a 5 s head start (less if ICE fails; 3 s was not always enough), then the peer connection is closed and the same session continues on `/stream/ws` (mobd keeps the first transport to connect). H.264 decoded with WebCodecs into a `<canvas>`, every frame acked, decoder restarted from the next keyframe after an error; input and control JSON as text. Readout shows `WebSocket` | `wsVideo.test.mjs`; office Mac, see below |
-| D5b | **Done.** With mobd `streamResize`: expanding, collapsing or resizing the window sends `resize` (after 150 ms of quiet) instead of reconnecting; older mobd still reconnects. Per machine, `liveWebSocket` remembers that the WebSocket carried the last session: next time WebRTC gets 1 s instead of 5 s, then the WebSocket races beside it (not instead), and whichever transport mobd sends video on wins, so a machine back on a WebRTC-capable network returns to WebRTC | tests; dev mobd, see below |
-| D6 | **Done.** svnc, `src/lib/vnc.ts` and its ticket code, `relayUrl` and the Desktop sign-in fields removed; the live view is the stream only (mobd without `stream` shows "Update mobd"). Store v5 drops `vncUsername` and any VNC password still waiting for the Keychain, and deletes `<id>.vncPassword` from the Keychain at load. Together with mobd M8 | `migrate.test.mjs`, typecheck, build |
-| D7 | Tests: signaling, message encoding, transport choice, migration | `make test` |
-
-Starts after mobd M7. Merges with the other repos at release. Order across repos: see mobd's plan,
-"Order". Cmd+W and Cmd+Q stay with the app menu even in Control, as in most Mac apps.
-
-### D2 checkpoint (2026-10-18)
-
-The app's `stream.ts`, bundled into a page in a bare WKWebView (the engine Tauri uses on macOS) on the
-Mac Studio, against the office Mac's mobd (`433c68a`). Decoded pixels were read back from the
-`<video>` through a canvas every second.
-
-| Path | First picture | Picture | Bitrate |
-| --- | --- | --- | --- |
-| LAN | 0.24–0.41 s | 1280×720, live pixels every second | 2.3 → 3.8 Mbps |
-| Tailscale address | 1.0 s | same | 1.2–1.5 Mbps |
-
-`getVideoPlaybackQuality()` reports 0 frames for a WebRTC stream in WebKit; use pixels, not it, to
-check playback. That mobd build ends the stream on a locked screen (`ended` arrives and the app
-shows the reason); newer builds keep streaming.
-
-### D3 check (2026-10-18)
-
-Same WKWebView setup as D2. Synthetic pointer and key events on the `<video>`; mobd's `cursor`
-reports on `control` show where the office Mac's pointer went.
-
-| Step | Office Mac pointer |
+| File | Role |
 | --- | --- |
-| Move while in View | unchanged (input ignored) |
-| Control, move to (0.25, 0.25) then (0.75, 0.6) | (0.25, 0.25), then (0.75, 0.6) |
-| Back to View, move | unchanged |
+| `src/lib/stream.ts` | Session: signaling, transport race, state, stats readout, `resize` |
+| `src/lib/wsVideo.ts` | WebSocket fallback: H.264 decoded with WebCodecs into a `<canvas>` |
+| `src/lib/liveInput.ts` | Pointer, wheel and key events → normalized input messages |
+| `src/lib/view.ts` | View size in device pixels, rounded up to 64 px (snapshots and stream) |
+| `src/components/preview/PreviewPanel.tsx` | Panel, expanded view, toolbar, click marker, snapshots |
 
-Shift down/up reached mobd without an `error`, and the app's window key handler saw neither.
+## Session
 
-Then, with the office Mac unlocked, on a scratch TextEdit document of 300 numbered lines (read back
-with AppleScript and screenshots, closed without saving):
+- One non-trickle `POST /stream` with the WebRTC offer (Bearer header) returns the answer and a single-use `wsTicket`. `DELETE /stream/{id}` ends it.
+- WebRTC gets a 5 s head start (`WEBRTC_GRACE`), less if ICE fails. Then the peer connection is closed and the same session continues on `/stream/ws?ticket=…`; mobd keeps the first transport to connect.
+- Per machine, `liveWebSocket` remembers that the WebSocket carried the last session. Next time WebRTC gets 1 s (`REMEMBERED_GRACE`), then the WebSocket races beside it. The transport is chosen on the first frame, so a machine back on a UDP-capable network returns to WebRTC. Not zero: TCP opens faster than WebRTC and would win every race.
+- The WebSocket path acks every frame and restarts the decoder from the next keyframe after an error.
+- The view is requested at its size in device pixels. With mobd's `streamResize`, expanding, collapsing or resizing the window sends `resize` after 150 ms of quiet; older mobd reconnects after 600 ms.
 
-| Input | Result |
-| --- | --- |
-| Click right of a line | caret at the end of line 37 |
-| Keys `Shift`+`KeyH`, `KeyI`, `Space`, then composed text "café ✓" | line 37 became `line 37Hi café ✓` |
-| Double-click a word, then Shift+letters | `line` on line 29 selected and replaced: `WORD 29` |
-| Wheel, 8 × 100 px | view moved from line 18 to line 79 (~800 pt) |
+## Control
 
-No `error` came back from mobd. These were synthetic DOM events; real trackpad and keyboard events in
-the Tauri app, and Command shortcuts the app menu may take first, are still to try by hand.
+- Data channels: `input` (reliable), `pointer` (unordered, no retransmits, one move per frame), `control` (`stats`, `ended`, `cursor` from mobd; `resize` to mobd). On the WebSocket, input and control are JSON text.
+- Buttons, drags, wheel, keys by `code`, composed text; points normalized inside the letterbox.
+- Held keys and buttons are released on View, window blur and Command up (macOS sends no key-up for keys pressed with Command).
+- In Control, keys never reach the app's shortcuts (Esc goes to the Mac). ⌘W and ⌘Q stay with the app.
+- The panel only watches. The expanded view opens in View and has the only View/Control switch; collapsing returns to View. ⌘⇧C expands, connects if needed and takes control.
 
+## Quality and readout
 
-### D4 check (2026-10-18)
+- Per-machine `liveQuality` (Auto / High / Low; unset = Auto), switched from the view's toolbar or Settings → Machines; changing it reconnects an open view and keeps control.
+- `getStats()` once a second: kB/s, fps, size, transport, network (LAN / Tailscale / Internet / relay). WebKit leaves candidate addresses out of `getStats()`, so the selected remote candidate is matched against the `a=candidate` lines of mobd's answer.
+- `getVideoPlaybackQuality()` reports 0 frames for WebRTC in WebKit; check playback by reading pixels.
 
-Same WKWebView setup, office mobd `d3cc432`.
+## Snapshots
 
-| Quality | mobd session | Readout |
-| --- | --- | --- |
-| Low | 960×540 at 600 kbps → 1280×720, capped at 1000 kbps | `1280×720 · … · WebRTC · LAN` |
-| High | 1920×1080 at 3000 kbps → 5.5–6 Mbps | `1920×1080 · … · WebRTC · LAN` |
-| Auto | 1280×720 at 1200 kbps, ramping | `1280×720 · … · WebRTC · LAN` |
+When the stream is off: `GET /screen` at the panel width × devicePixelRatio (rounded up to 64 px), quality 65, every 4 s while the window is visible, with `If-None-Match` so an unchanged screen costs a 304.
 
-WebKit leaves candidate addresses out of `getStats()`; the selected remote candidate's protocol and
-port are matched against the `a=candidate` lines of mobd's answer instead. Signaling to the Tailscale
-address still reads LAN: ICE prefers the shared LAN, as in M6. kB/s and fps were near zero because the
-screen was idle (frames only on change). The throttled-link check is still to do.
+## Open
 
-### Expanded live view (2026-10-18)
-
-The full-size live view stays inside the app window, like UU Remote or Screen Sharing, instead of a
-layer drawn under the window buttons. Its toolbar takes the title bar row: room for the window buttons,
-drags the window, then machine, View/Control, signal bars (mobd's loss and the measured round-trip
-time) with kB/s and the full readout in a tooltip, quality, connect and **Collapse** (`Shrink`
-icon, the mirror of the panel's `Expand`; Esc in View). The green button gives real macOS full screen. mobd cannot resize a running stream, so a window
-resize reconnects once the size has been stable for 0.6 s; a `resize` control message would avoid it.
-Cmd+W / Cmd+Q stay with the app menu even in Control, as in most Mac apps.
-
-The panel only watches (its header: Live · View only · kB/s … Quality · Power · Expand); controlling
-happens in the expanded view, which always opens in View and has the only View/Control switch.
-Shift-Command-C expands (connecting if needed) and takes control in one step. Both toolbars end with
-Quality · Power · Expand/Collapse.
-
-### D5 check (2026-10-18)
-
-The app's `stream.ts` in WKWebView against the office mobd (`d3cc432`), through a local test proxy
-(the page's origin is not one mobd allows). "Blocked" removes ICE candidates from both the offer and
-the answer, like a network without UDP; removing them from the answer alone is not enough, as both
-sides learn each other from the checks.
-
-| Path | Transport | First picture | Notes |
-| --- | --- | --- | --- |
-| LAN | WebRTC | 0.5 s | |
-| LAN, WebRTC blocked | WebSocket after 3 s (now 5 s) | 3.5–4.9 s | WebCodecs decodes in WKWebView; pointer moves land exactly |
-| Funnel relay, WebRTC blocked | WebSocket after 3 s (now 5 s) | 7–10 s | 960×540 → 1280×720, RTT 0.7–1.6 s; moves arrive with that delay |
-
-Over Funnel the wait is the relay's TLS handshakes (two: the POST and the WebSocket) plus the head start (5 s), which WebRTC cannot shorten when no candidates arrive at all. mobd's deferred M7 fixes
-(open the session from the WebSocket; start at 540p) would cut it.
-
-### D5b check (2026-10-18)
-
-The app's `stream.ts` in WKWebView against a dev mobd (`7a06a64`) on the Mac Studio, through a local
-test proxy; "blocked" strips ICE candidates both ways as in the D5 check.
-
-| WebRTC | WebSocket remembered | Carried by | First picture | `resize` to 640 px |
-| --- | --- | --- | --- | --- |
-| allowed | no | WebRTC | 0.28–0.52 s | 1280×720 → 640×360, no reconnect |
-| allowed | yes | WebRTC | 0.28 s | same |
-| blocked | no | WebSocket (starts 960×540, 450 kbps) | 5.3–5.4 s | 960×540 → 640×360 |
-| blocked | yes | WebSocket | 1.4 s | same |
-
-The transport is chosen on the first frame, not when our side of ICE connects: in a race mobd may
-already have given the session to the WebSocket. A race from the very start always went to the
-WebSocket on the LAN (TCP opens faster than WebRTC), which would have kept a machine on it for good;
-hence the 1 s head start.
-
+- Real trackpad and keyboard in the Tauri app, including Command shortcuts the app menu may take first (checked so far with synthetic DOM events in a bare WKWebView).
+- A throttled-link check of Auto quality.
+- The click marker over live video (geometry is unit-tested, checked against snapshots only).
+- Relay paths beyond Tailscale Funnel: mobd's planned TURN relay (`mob-relay`) would need TURN credentials from `POST /stream`.

@@ -1,13 +1,13 @@
 # 发布与公开下载（macOS Apple Silicon）
 
-源码仓库可以保持私有。mobd 已迁到独立的 [mobd 仓库](https://github.com/xrdavies/mobd)，
+源码仓库可以保持私有。mobd 在独立的 [mobd 仓库](https://github.com/xrdavies/mobd)，
 其签名、安装器和发布配置见该仓库的 [发布文档](https://github.com/xrdavies/mobd/blob/main/docs/releases.md)。
 本仓库的 GitHub Actions 构建、签名并公证 mob 桌面应用，GitHub
 Release 保存构建产物；发布正式 Release 后，独立工作流将产物上传到 Cloudflare
 R2，用户通过自定义域名下载。官网在同级目录 `../mob-site`，独立构建和部署。
 
 当前只发布 **macOS 13+ / Apple Silicon**，不提供 Intel Mac、Windows、Linux
-或 iPhone 安装包。桌面版尚未公开发布，因此直接使用 R2 更新源，没有旧更新源迁移步骤。
+或 iPhone 安装包。更新源只有 R2。
 
 ## 1. 准备 Cloudflare R2
 
@@ -68,6 +68,7 @@ Tauri 原生更新请求及 curl 不依赖浏览器 CORS，官网获取发布清
 | `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` | 更新私钥密码 |
 | `R2_ACCESS_KEY_ID` | 限定到发布桶的 R2 Access Key ID |
 | `R2_SECRET_ACCESS_KEY` | 对应的 R2 Secret Access Key |
+| `SITE_DISPATCH_TOKEN` | 可选。能向 `xrdavies/mob-site` 发送 `repository_dispatch` 的令牌；R2 发布后触发官网重建。未配置时官网在每小时构建时获取新版本 |
 
 ### Variables
 
@@ -81,7 +82,8 @@ Tauri 原生更新请求及 curl 不依赖浏览器 CORS，官网获取发布清
 `TAURI_UPDATER_PUBLIC_KEY` 和 `DOWNLOAD_BASE_URL` 是公开配置，也支持存为同名
 Secret，与 mobd 的下载域名读取方式一致。构建和 R2 发布均优先读取 Variable，
 为空时读取 Secret；只需配置一处。R2 发布对 `R2_ACCOUNT_ID` 和 `R2_BUCKET` 也支持
-同名 Secret。mobd 仓库的配置不会自动继承到 mob 仓库。
+同名 Secret。mobd 仓库需要单独配置自己的 `release` 环境，GitHub 不会在仓库间复制；
+Apple/R2 凭据可以复用，Tauri 更新密钥只在 mob 配置。
 
 Apple 证书与 Tauri 更新密钥是独立的。导出证书并生成更新密钥：
 
@@ -144,6 +146,7 @@ Actions 中执行。本地可先运行 `make check`；只测试发布工具使�
 4. 拒绝覆盖内容不同的版本文件，拒绝把 stable 指向更低版本。
 5. 上传缺少的版本文件，经公开 HTTPS 下载并重新校验全部文件。
 6. 最后更新 `mob/releases.json` 和 `mob/latest.json`。
+7. 配置了 `SITE_DISPATCH_TOKEN` 时触发官网重建；失败不影响发布。
 
 也可以手动运行发布工作流，输入已发布的 `vX.Y.Z`，用于重试或补发。
 同一仓库的 R2 发布任务串行执行；本仓库只读写 `mob/`。完全相同的文件允许重试；已发布文件或说明变化时需要新版本。
@@ -259,7 +262,7 @@ Settings → Domains & Routes 添加官网自定义域名。没有版本时显�
 
 - [ ] R2 下载域名已生效；可公开访问，不触发登录/浏览器挑战。
 - [ ] CORS 允许官网，缓存规则区分版本文件和动态入口。
-- [ ] `release` 环境的 10 个 Secrets、4 项公开配置完整（公钥和下载域名可存为同名 Secret）。
+- [ ] `release` 环境的 10 个必需 Secrets、4 项公开配置完整（公钥和下载域名可存为同名 Secret）；可选 `SITE_DISPATCH_TOKEN`。
 - [ ] 生成并备份 Tauri 密钥，Apple 签名/公证检查通过。
 - [ ] 在其他 Apple Silicon Mac 上试装草稿中的 DMG。
 - [ ] 发布 GitHub 稳定 Release，确认 R2 工作流完成。

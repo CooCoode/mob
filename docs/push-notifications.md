@@ -1,6 +1,6 @@
 # Instant notifications without a live connection (postponed)
 
-Status: **postponed** (2026-10-15). Recorded so the decision can be picked up later.
+Status: **planned, postponed**. Not implemented in mobd or the apps; recorded so the decision can be picked up later.
 
 ## What we have today
 

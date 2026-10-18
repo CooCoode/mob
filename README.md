@@ -8,7 +8,7 @@ iOS, Android and the product website live in separate repositories.
 
 Home Mac **mob** client: dispatch tasks to the office agent, follow what it does step by step, and watch the office desktop — task API from office **`mobd`** (v3) + its live desktop stream.
 
-Design: [docs/ui.md](docs/ui.md) · Stack decision: [ADR 0009](docs/adr/0009-app-frontend-react.md) · API: [docs/mobd-v3.md](https://github.com/xrdavies/mobd/blob/main/docs/mobd-v3.md)
+Design: [docs/ui.md](docs/ui.md) · Live view: [docs/desktop-streaming.md](docs/desktop-streaming.md) · Stack decision: [ADR 0009](docs/adr/0009-app-frontend-react.md) · API: [docs/mobd-v3.md](https://github.com/xrdavies/mobd/blob/main/docs/mobd-v3.md)
 
 Logo: **Screen Buddy** — editable SVG sources, app icons and regeneration commands are in the [brand guide](docs/brand/README.md).
 
@@ -52,7 +52,7 @@ cp .env.example .env
 # edit MOBD_URL
 ```
 
-Env values prefill the first **machine**; machines are added by pasting the pairing link from `mobd link`. Manage machines (name, pairing, live view quality) in **Settings → Machines**, where **Test connection** shows the office readiness checks. Settings from the v1 client are migrated on first start.
+`MOBD_URL` only prefills a first machine when none is stored; it still needs pairing. Machines are added by pasting the pairing link from `mobd link`. Manage machines (name, pairing, live view quality) in **Settings → Machines**, where **Test connection** shows the office readiness checks.
 
 | Variable | Meaning |
 | --- | --- |
@@ -67,7 +67,7 @@ npm run tauri dev    # desktop App (recommended on Mac)
 npm run tauri build -- --target aarch64-apple-darwin  # production bundle
 ```
 
-Checks: `npm test` (conversation lifecycle, reconnect recovery, timeline grouping), `npm run typecheck`, `npm run build`.
+Checks: `npm test` (conversation lifecycle, timeline, pairing, SSE, live stream and input, migrations), `npm run typecheck`, `npm run build`; `make check` runs the tests, typecheck and release tests.
 
 ## Using the App
 
@@ -76,7 +76,7 @@ Checks: `npm test` (conversation lifecycle, reconnect recovery, timeline groupin
 - **Questions from the agent:** when the agent needs a decision (`ask_user`) or wants approval before a risky action (`request_approval`), a card appears in the timeline with the options, a text box, or **Approve / Deny** with an optional note. The conversation shows a **?** badge in the sidebar, the window title shows the count, and a toast appears (Settings → Appearance can enable system notifications). The turn keeps the desktop while it waits; unanswered questions time out on the office Mac (`MOBD_QUESTION_TIMEOUT`, default 30 min) and unanswered approvals count as denied.
 - **Agent:** a new chat can use any agent the office Mac has (Codex, Claude Code); pick it in the composer. A conversation keeps its agent; start a new chat to switch. Model and effort are remembered per agent, and Claude turns show their cost.
 - **While the agent works:** with Codex (app-server mode) you can type in the composer and press ↵ to add to what it is doing, e.g. "also check the spam folder"; your message appears in the timeline and the agent picks it up in the same turn. **Stop** interrupts the turn. Replies stream in as they are written.
-- **Composer:** ↵ send, ⇧↵ newline. Attach images (button, paste or drag-and-drop), pick model and reasoning effort (remembered per machine; offered per runner, e.g. `MOBD_CODEX_MODELS` on the office Mac). The send button becomes **Stop** while the agent works.
+- **Composer:** ↵ send, ⇧↵ newline. Attach images (button, paste or drag-and-drop), pick model and reasoning effort (remembered per machine and agent; offered per runner, e.g. `MOBD_CODEX_MODELS` on the office Mac). The send button becomes **Stop** while the agent works.
 - **Live view (right):** the office desktop streamed by mobd (⏻), or, when not connected, a snapshot refreshed every 4 s. Clicks by the agent flash at their position. Double-click or ⤢ expands it to fill the window (the green button gives macOS full screen); the expanded toolbar has View/Control, quality (Auto/High/Low), signal bars with kB/s, and Collapse. Resizing the window refits the stream without reconnecting. Below: the desktop queue and the current turn's steps.
 - **Title bar:** machine status chip opens the readiness checks (agents, actuation, Accessibility, Screen Recording, display).
 - **Shortcuts:** ⌘K command palette · ⌘N new chat · ⌘B sidebar · ⌘⇧B live view · ⌘⇧C expand and take control · ⌘, settings · ⌘1–9 switch conversation.
@@ -84,7 +84,7 @@ Checks: `npm test` (conversation lifecycle, reconnect recovery, timeline groupin
 - **Transport:** WebRTC on the LAN or a tailnet. Where UDP cannot pass (Tailscale Funnel, an HTTPS gateway), the app falls back to mobd's WebSocket after 5 s and remembers that per machine (1 s next time); the readout shows which one is in use.
 - **Auth:** every machine is paired (`mobd link`); the device credential is kept in the Keychain.
 
-Older office daemons (API v2) still work for chat; activities, queue, uploads, model/effort and session management appear once mobd reports API v3 on `/health`.
+Features follow mobd's `/health`: queue, uploads, model/effort, steering, session management, snapshots and the live view appear only when mobd reports API v3 and lists the feature.
 
 ### CORS note
 
@@ -112,14 +112,14 @@ src/            React frontend, API client and tests
 src-tauri/      Rust shell, macOS bundle configuration and icons
 public/         Browser assets
 .github/        Desktop signing, Tauri updater and R2 publication
-docs/          UI design, branding, release and migration guides
+docs/           UI design, live desktop, branding, releases, ADRs, postponed plans
 ```
 
 Run commands from this repository root: `make install`, `make dev`, `make desktop`,
 `make test`, `make build`, `make bundle`, `make check`, `make release VERSION=vX.Y.Z`.
 No Go toolchain or sibling checkout is required to build the desktop app; a running
-office daemon is required to dispatch tasks. See [repository split notes](docs/repository-split.md)
-for old command mappings and independent release configuration.
+office daemon is required to dispatch tasks. mob and mobd are versioned and released
+independently; they agree through the API version and features in `/health`.
 
 ## License
 

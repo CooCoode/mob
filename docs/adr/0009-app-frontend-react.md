@@ -2,7 +2,7 @@
 
 ## Status
 
-Accepted
+Accepted. Implemented; the live view row was updated when VNC was replaced by mobd's stream.
 
 ## Context
 
@@ -26,13 +26,13 @@ The UI should look like a modern agent client (Grok, ChatGPT desktop, Manus) and
 | Server state | **TanStack Query** for REST snapshots; a small SSE layer pushes into the query cache |
 | UI state | **Zustand** (selected machine/session, layout, preview mode) |
 | Domain logic | Keep `chat.ts` as framework-free, unit-tested logic (turn lifecycle, dedup, recovery). React calls into it. |
-| API types | Typed client in `src/api/` mirroring [mobd-v3.md](https://github.com/xrdavies/mobd/blob/main/docs/mobd-v3.md); generated from OpenAPI once the spec exists |
-| Native chrome | Tauri `titleBarStyle: "Overlay"` + `hiddenTitle`, macOS sidebar vibrancy via `window-vibrancy` |
-| svnc | Unchanged: `@xrdavies/svnc` mounted inside a React component that owns the RFB lifecycle |
+| API types | Hand-written typed client in `src/api/` mirroring [mobd-v3.md](https://github.com/xrdavies/mobd/blob/main/docs/mobd-v3.md) |
+| Native chrome | Tauri `titleBarStyle: "Overlay"` + `hiddenTitle`, macOS sidebar vibrancy via Tauri `windowEffects` on a transparent window |
+| Live view | Framework-free session in `src/lib/stream.ts` (WebRTC, WebSocket + WebCodecs fallback); `PreviewPanel` owns its lifecycle. See [desktop-streaming.md](../desktop-streaming.md) |
 
 ## Consequences
 
-- Migrate in two steps. First port to React with the same look and behaviour (a reviewable diff, existing tests keep passing). Then apply the new design from [ui.md](../ui.md).
+- The React rebuild shipped the [ui.md](../ui.md) design directly, with `chat.ts` tests kept.
 - The bundle grows (React + Radix + markdown/shiki, roughly 300–500 KB gzipped). That is acceptable for a desktop Tauri app; shiki languages are loaded lazily.
 - shadcn components live in the repo (`src/components/ui`) and are owned and edited locally, not imported as a versioned dependency.
-- The iPhone client can reuse the same React code through a Tauri mobile target or a PWA. That choice is deferred.
+- The phone clients are native apps in their own repositories (mob-ios, mob-android) and do not share this code.
