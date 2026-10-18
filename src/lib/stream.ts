@@ -2,9 +2,11 @@ import { useSyncExternalStore } from "react";
 import { supports } from "../api/client.ts";
 import type { Health } from "../api/types.ts";
 import { authFetch } from "./auth.ts";
+import { buttonName, HeldInput, normalizePoint, wheelPixels, type InputMessage } from "./liveInput.ts";
 
 // The live desktop over WebRTC (mobd docs/desktop-streaming.md): one non-trickle POST /stream with
-// the offer, a receive-only H.264 track and the `control` data channel for stats and `ended`.
+// the offer, a receive-only H.264 track, the `control` data channel for stats and `ended`, and the
+// `input` (reliable) and `pointer` (unreliable, latest wins) channels for control mode.
 
 export const UPDATE_MOBD = "Update mobd on the office Mac to use the live desktop";
 
@@ -83,7 +85,7 @@ export interface StreamState {
   /** Encoded size of the picture. */
   width: number;
   height: number;
-  /** Always false until control over data channels (D3). */
+  /** Mouse and keyboard on the video reach the office Mac only while true. */
   control: boolean;
   kbps: number;
   fps: number;
@@ -96,6 +98,8 @@ export interface StreamTarget {
   maxWidth: number;
   maxHeight: number;
   quality?: Quality;
+  /** Take control as soon as the picture arrives (reconnecting at a new size keeps control). */
+  control?: boolean;
 }
 
 const CONNECT_TIMEOUT = 15_000;
@@ -123,6 +127,10 @@ class StreamController {
   private pc: RTCPeerConnection | null = null;
   private video: HTMLVideoElement | null = null;
   private session: { base: string; id: string } | null = null;
+  private input: RTCDataChannel | null = null;
+  private pointer: RTCDataChannel | null = null;
+  private held = new HeldInput();
+  private detachInput: (() => void) | null = null;
 
   subscribe = (l: () => void) => {
     this.listeners.add(l);
@@ -178,6 +186,7 @@ class StreamController {
         clearTimeout(timer);
         console.info(`live: first picture after ${Math.round(performance.now() - started)} ms`);
         this.update({ status: "connected", detail: "" });
+        if (target.control) this.setControl(true);
       }
       this.update({ width: video.videoWidth, height: video.videoHeight });
     };
@@ -186,6 +195,9 @@ class StreamController {
     try {
       pc.addTransceiver("video", { direction: "recvonly" });
       const control = pc.createDataChannel("control");
+      this.input = pc.createDataChannel("input");
+      this.pointer = pc.createDataChannel("pointer", { ordered: false, maxRetransmits: 0 });
+      this.detachInput = this.attachInput(video);
       control.onmessage = (e) => {
         if (attempt !== this.attempt) return;
         const m = parseControl(e.data);
@@ -215,7 +227,100 @@ class StreamController {
     }
   }
 
+  private send(channel: RTCDataChannel | null, messages: InputMessage[]) {
+    if (channel?.readyState !== "open") return;
+    for (const m of messages) channel.send(JSON.stringify(m));
+  }
+
+  private release() {
+    this.send(this.input, this.held.releaseAll());
+  }
+
+  // Events on the video become input while control is on; otherwise they are left alone, so
+  // double-click still toggles full screen and keys reach the app.
+  private attachInput(video: HTMLVideoElement): () => void {
+    const at = (e: MouseEvent) => normalizePoint(e.clientX, e.clientY, video.getBoundingClientRect(), video.videoWidth, video.videoHeight);
+    let pending: { x: number; y: number } | null = null;
+    let frame = 0;
+    const on = <K extends keyof HTMLElementEventMap>(type: K, fn: (e: HTMLElementEventMap[K]) => void, opts?: AddEventListenerOptions) => {
+      video.addEventListener(type, fn, opts);
+      return () => video.removeEventListener(type, fn, opts);
+    };
+    const off = [
+      on("pointerdown", (e) => {
+        const button = buttonName(e.button);
+        const p = at(e);
+        if (!this.state.control || !button || !p?.inside) return;
+        e.preventDefault();
+        video.focus({ preventScroll: true });
+        video.setPointerCapture(e.pointerId);
+        this.send(this.input, this.held.buttonDown(button, p.x, p.y));
+      }),
+      on("pointerup", (e) => {
+        const button = buttonName(e.button);
+        const p = at(e);
+        if (!button || !p || !this.held.holding(button)) return;
+        e.preventDefault();
+        this.send(this.input, this.held.buttonUp(button, p.x, p.y));
+      }),
+      on("pointermove", (e) => {
+        const p = at(e);
+        if (!this.state.control || !p || (!p.inside && !this.held.dragging)) return;
+        this.held.point(p.x, p.y);
+        // One move per animation frame; mobd only needs the latest position.
+        pending = { x: p.x, y: p.y };
+        if (!frame) {
+          frame = requestAnimationFrame(() => {
+            frame = 0;
+            if (pending) this.send(this.pointer, [{ t: "move", ...pending }]);
+            pending = null;
+          });
+        }
+      }),
+      on("wheel", (e) => {
+        const p = at(e);
+        if (!this.state.control || !p?.inside) return;
+        e.preventDefault();
+        this.send(this.input, [{ t: "scroll", x: p.x, y: p.y, ...wheelPixels(e, video.clientHeight) }]);
+      }, { passive: false }),
+      on("contextmenu", (e) => this.state.control && e.preventDefault()),
+      on("keydown", (e) => {
+        if (!this.state.control) return;
+        // Keys belong to the office Mac, including Esc and the app's own shortcuts.
+        e.preventDefault();
+        e.stopPropagation();
+        if (e.isComposing || e.key === "Process") return;
+        if (!e.code || e.code === "Unidentified") {
+          if ([...e.key].length === 1) this.send(this.input, [{ t: "text", text: e.key }]);
+          return;
+        }
+        this.send(this.input, this.held.keyDown(e.code));
+      }),
+      on("keyup", (e) => {
+        if (!this.state.control) return;
+        e.preventDefault();
+        e.stopPropagation();
+        this.send(this.input, this.held.keyUp(e.code));
+      }),
+      // Composed text (accents, input methods) arrives whole; the keys that built it were not sent.
+      on("compositionend", (e) => this.state.control && e.data && this.send(this.input, [{ t: "text", text: e.data }])),
+      on("blur", () => this.release()),
+    ];
+    const onWindowBlur = () => this.release();
+    window.addEventListener("blur", onWindowBlur);
+    return () => {
+      for (const f of off) f();
+      window.removeEventListener("blur", onWindowBlur);
+      cancelAnimationFrame(frame);
+    };
+  }
+
   private teardown() {
+    this.detachInput?.();
+    this.detachInput = null;
+    this.release();
+    this.input = null;
+    this.pointer = null;
     const pc = this.pc;
     const session = this.session;
     this.pc = null;
@@ -235,8 +340,14 @@ class StreamController {
     if (this.state.status !== "idle") this.update({ ...IDLE, detail: "Disconnected" });
   }
 
-  /** View-only for now; control over data channels comes in D3. */
-  setControl(_on: boolean): void {}
+  /** Switches between watching and controlling; only possible while connected. */
+  setControl(on: boolean): void {
+    const control = on && this.state.status === "connected" && !!this.input;
+    if (!control) this.release();
+    if (control) this.video?.focus({ preventScroll: true });
+    else if (this.video && document.activeElement === this.video) this.video.blur();
+    if (control !== this.state.control) this.update({ control });
+  }
 }
 
 export const stream = new StreamController();

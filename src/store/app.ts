@@ -57,6 +57,8 @@ interface Ephemeral {
   editMachineId: string | null;
   paletteOpen: boolean;
   fullscreen: boolean;
+  /** Set to ask the desktop panel to connect the live view (from the command palette). */
+  liveConnect: number;
 }
 
 interface Actions {
@@ -136,6 +138,7 @@ export const useApp = create<AppState>()(
       editMachineId: null,
       paletteOpen: false,
       fullscreen: false,
+      liveConnect: 0,
       set: (patch) => set(patch),
       selectMachine: (id) => set({ activeMachineId: id, fullscreen: false }),
       togglePreview: (open = !get().previewOpen) => set(open ? { previewOpen: true } : { previewOpen: false, fullscreen: false }),

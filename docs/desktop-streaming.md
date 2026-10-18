@@ -29,7 +29,7 @@ Files mainly touched: `src/lib/vnc.ts` (replaced), `src/components/preview/Previ
 | --- | --- | --- |
 | D1 | **Done.** Snapshot at panel width × devicePixelRatio (rounded up to 64 px), quality 65, every 4 s while visible, `If-None-Match` so an unchanged screen costs a 304 | `view.test.mjs`; panel in the running app |
 | D2 | **Done.** `src/lib/stream.ts`: view-only WebRTC live view sized to the panel (reconnects at the new size on full screen), `stats`/`ended` from `control`, "Update mobd" for old builds; mobd without `stream` keeps VNC until D6. **Checkpoint passed:** H.264 plays in WKWebView | `stream.test.mjs`; office Mac, see below |
-| D3 | Control mode: mouse, keyboard, scroll, modifiers over data channels; Esc/View behaviour unchanged | manual input checks |
+| D3 | **Done.** `src/lib/liveInput.ts` + `stream.ts`: `input` (reliable) and `pointer` (unreliable, one move per frame) channels; buttons, drags, wheel, keys by `code`, composed text; points normalized inside the letterbox; held keys/buttons released on View, window blur and Command up (macOS sends no key-up for keys pressed with Command); keys in control mode never reach the app's shortcuts (Esc goes to the Mac, as before); Take control reconnects at full-screen size, then takes control | `liveInput.test.mjs`; office Mac, see below |
 | D4 | Quality setting; readout of kB/s, fps, resolution, transport | throttled link |
 | D5 | WebSocket fallback, raced against WebRTC (keep WebRTC if connected within ~3 s) | Funnel address |
 | D6 | Remove svnc, ticket code, Desktop sign-in; store v5 migration | `npm test`, typecheck |
@@ -51,3 +51,18 @@ Mac Studio, against the office Mac's mobd (`433c68a`). Decoded pixels were read 
 `getVideoPlaybackQuality()` reports 0 frames for a WebRTC stream in WebKit; use pixels, not it, to
 check playback. That mobd build ends the stream on a locked screen (`ended` arrives and the app
 shows the reason); newer builds keep streaming.
+
+### D3 check (2026-10-18)
+
+Same WKWebView setup as D2. Synthetic pointer and key events on the `<video>`; mobd's `cursor`
+reports on `control` show where the office Mac's pointer went.
+
+| Step | Office Mac pointer |
+| --- | --- |
+| Move while in View | unchanged (input ignored) |
+| Control, move to (0.25, 0.25) then (0.75, 0.6) | (0.25, 0.25), then (0.75, 0.6) |
+| Back to View, move | unchanged |
+
+Shift down/up reached mobd without an `error`, and the app's window key handler saw neither. Clicks,
+typing and scrolling were not sent (the office Mac was at its lock screen); try them in the running
+app.

@@ -14,8 +14,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { chat, useChat } from "@/hooks/useChat";
 import { useHealth, useMachineEvents, useQueue } from "@/hooks/useMachine";
 import { useQuestionAlerts } from "@/hooks/useQuestionAlerts";
-import { vnc } from "@/lib/vnc";
-import { baseUrl, useActiveMachine, useApp, vncPassword, vncUrl, type Machine } from "@/store/app";
+import { baseUrl, useActiveMachine, useApp, type Machine } from "@/store/app";
 import { useComposer } from "@/store/composer";
 import { log } from "@/store/log";
 
@@ -98,19 +97,10 @@ export default function App() {
     }
   }, [chatState.sessionId, chatState.ready]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // The live view needs the panel's host element, so connecting from the palette opens the panel first.
-  const [connectRequested, setConnectRequested] = useState(false);
-  useEffect(() => {
-    if (!connectRequested || !previewOpen) return;
-    setConnectRequested(false);
-    const host = document.querySelector<HTMLElement>(".vnc-host");
-    if (machine && host) {
-      void vnc.connect(host, { base, url: vncUrl(machine), health: health.data, password: vncPassword(machine), username: machine.vncUsername });
-    }
-  }, [connectRequested, previewOpen]); // eslint-disable-line react-hooks/exhaustive-deps
-  const connectVnc = () => {
+  // The panel owns the view, so it does the connecting; opening it first if needed.
+  const connectLive = () => {
     togglePreview(true);
-    setConnectRequested(true);
+    set({ liveConnect: Date.now() });
   };
 
   useEffect(() => {
@@ -174,7 +164,7 @@ export default function App() {
         </div>
       </div>
       <SettingsDialog />
-      <CommandPalette onConnect={connectVnc} />
+      <CommandPalette onConnect={connectLive} />
       <Toaster theme={dark ? "dark" : "light"} position="bottom-center" />
     </TooltipProvider>
   );
