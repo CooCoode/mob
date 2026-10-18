@@ -1,4 +1,4 @@
-import { ChevronDown, Eye, Expand, Gauge, MessageSquare, MousePointer2, Power, RefreshCw } from "lucide-react";
+import { ChevronDown, Eye, Expand, Gauge, MousePointer2, Power, RefreshCw, Shrink } from "lucide-react";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { screenUrl, supports } from "@/api/client";
 import type { Health, Queue } from "@/api/types";
@@ -356,7 +356,7 @@ export function PreviewPanel({ machine, health, queue }: { machine: Machine; hea
             )}
             <div data-tauri-drag-region className="h-full flex-1" />
             <span data-tauri-drag-region className="mr-1 flex items-center gap-1 text-[11px] text-white/45">
-              {control ? <>Keys go to the Mac · switch to View, then <Kbd>Esc</Kbd></> : <><Kbd>Esc</Kbd> back to chat</>}
+              {control ? <>Keys go to the Mac · switch to View, then <Kbd>Esc</Kbd></> : <><Kbd>Esc</Kbd> to collapse</>}
             </span>
             {streaming && <QualityMenu machine={machine} dark />}
             <Tooltip content={connected ? "Disconnect live view" : "Connect live view"}>
@@ -366,10 +366,12 @@ export function PreviewPanel({ machine, health, queue }: { machine: Machine; hea
                 {state.status === "connecting" ? <Spinner /> : <Power />}
               </Button>
             </Tooltip>
-            <Button variant="ghost" size="sm" className="h-7 gap-1 px-2 text-white/80 hover:bg-white/10 hover:text-white"
-              onClick={() => set({ fullscreen: false })}>
-              <MessageSquare className="size-3.5" /> Back to chat
-            </Button>
+            <Tooltip content="Collapse to the panel">
+              <Button variant="ghost" size="icon-sm" aria-label="Collapse live view"
+                className="text-white/80 hover:bg-white/10 hover:text-white" onClick={() => set({ fullscreen: false })}>
+                <Shrink />
+              </Button>
+            </Tooltip>
           </div>
         )}
         {!fullscreen && (

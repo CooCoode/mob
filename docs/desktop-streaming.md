@@ -99,7 +99,7 @@ screen was idle (frames only on change). The throttled-link check is still to do
 The full-size live view stays inside the app window, like UU Remote or Screen Sharing, instead of a
 layer drawn under the window buttons. Its toolbar takes the title bar row: room for the window buttons,
 drags the window, then machine, View/Control, signal bars (mobd's loss and the measured round-trip
-time) with kB/s and the full readout in a tooltip, quality, connect and **Back to chat** (Esc in
-View). The green button gives real macOS full screen. mobd cannot resize a running stream, so a window
+time) with kB/s and the full readout in a tooltip, quality, connect and **Collapse** (`Shrink`
+icon, the mirror of the panel's `Expand`; Esc in View). The green button gives real macOS full screen. mobd cannot resize a running stream, so a window
 resize reconnects once the size has been stable for 0.6 s; a `resize` control message would avoid it.
 Cmd+W / Cmd+Q stay with the app menu even in Control, as in most Mac apps.
