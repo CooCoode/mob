@@ -1,9 +1,10 @@
-import { ChevronDown, Eye, Expand, Gauge, Minimize2, MousePointer2, Power, RefreshCw } from "lucide-react";
+import { ChevronDown, Eye, Expand, Gauge, MessageSquare, MousePointer2, Power, RefreshCw } from "lucide-react";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { screenUrl, supports } from "@/api/client";
 import type { Health, Queue } from "@/api/types";
 import { activityIcon } from "@/components/timeline/activity";
 import { Spinner, StatusIcon } from "@/components/StatusIcon";
+import { isTauri } from "@/components/TitleBar";
 import { Button } from "@/components/ui/button";
 import { Kbd } from "@/components/ui/kbd";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuLabel, DropdownMenuRadioGroup, DropdownMenuRadioItem, DropdownMenuTrigger } from "@/components/ui/menu";
@@ -11,7 +12,7 @@ import { Tooltip } from "@/components/ui/tooltip";
 import { useAuthedImage } from "@/hooks/useAuthedImage";
 import { chat, useChat } from "@/hooks/useChat";
 import { latestClick, screenGeometry } from "@/lib/timeline";
-import { QUALITIES, readoutText, stream, useStream, type Quality } from "@/lib/stream";
+import { QUALITIES, readoutText, signalBars, stream, useStream, type Quality } from "@/lib/stream";
 import { cn } from "@/lib/utils";
 import { devicePixels } from "@/lib/view";
 import { useVnc, vnc } from "@/lib/vnc";
@@ -124,6 +125,18 @@ function QualityMenu({ machine, dark }: { machine: Machine; dark: boolean }) {
         </DropdownMenuRadioGroup>
       </DropdownMenuContent>
     </DropdownMenu>
+  );
+}
+
+/** Connection quality as three bars, coloured when it degrades. */
+function SignalBars({ bars }: { bars: 1 | 2 | 3 }) {
+  const on = bars === 3 ? "bg-success" : bars === 2 ? "bg-warning" : "bg-danger";
+  return (
+    <span className="flex h-3 items-end gap-px" aria-hidden>
+      {[1, 2, 3].map((i) => (
+        <span key={i} className={cn("w-[3px] rounded-[1px]", i <= bars ? on : "bg-white/20")} style={{ height: `${i * 4}px` }} />
+      ))}
+    </span>
   );
 }
 
@@ -246,13 +259,15 @@ export function PreviewPanel({ machine, health, queue }: { machine: Machine; hea
     return () => ro.disconnect();
   }, []);
 
+  const opened = useRef({ width: 0, height: 0 });
   const connect = (control = false) => {
     if (streaming) {
       const box = stage.current?.getBoundingClientRect();
       if (!video.current || !box) return;
+      opened.current = { width: devicePixels(box.width, window.devicePixelRatio), height: devicePixels(box.height, window.devicePixelRatio) };
       void stream.connect(video.current, {
         base: baseUrl(machine), health,
-        maxWidth: devicePixels(box.width, window.devicePixelRatio), maxHeight: devicePixels(box.height, window.devicePixelRatio),
+        maxWidth: opened.current.width, maxHeight: opened.current.height,
         quality: machine.liveQuality ?? "auto", control,
       });
     } else if (host.current) {
@@ -261,7 +276,7 @@ export function PreviewPanel({ machine, health, queue }: { machine: Machine; hea
       });
     }
   };
-  // The stream is sized to the view: entering or leaving full screen reconnects at the new size.
+  // The stream is sized to the view: expanding, collapsing or resizing the window reconnects at the new size.
   const reconnect = useRef(connect);
   reconnect.current = connect;
   // mobd fixes the profile per session: a new quality reconnects, keeping control if it was on.
@@ -283,6 +298,26 @@ export function PreviewPanel({ machine, health, queue }: { machine: Machine; hea
     const raf = requestAnimationFrame(() => reconnect.current(control));
     return () => cancelAnimationFrame(raf);
   }, [fullscreen, streaming]);
+  // mobd cannot resize a running stream; once the window has stopped changing size, reconnect.
+  useEffect(() => {
+    const el = stage.current;
+    if (!el || !streaming) return;
+    let t: ReturnType<typeof setTimeout> | undefined;
+    const ro = new ResizeObserver(() => {
+      clearTimeout(t);
+      t = setTimeout(() => {
+        if (stream.state.status !== "connected") return;
+        const width = devicePixels(el.clientWidth, window.devicePixelRatio);
+        const height = devicePixels(el.clientHeight, window.devicePixelRatio);
+        if (width !== opened.current.width || height !== opened.current.height) reconnect.current(stream.state.control);
+      }, 600);
+    });
+    ro.observe(el);
+    return () => {
+      clearTimeout(t);
+      ro.disconnect();
+    };
+  }, [streaming]);
   // Connect requests from the command palette, which has no access to the view.
   const { liveConnect } = useApp();
   useEffect(() => {
@@ -291,6 +326,7 @@ export function PreviewPanel({ machine, health, queue }: { machine: Machine; hea
     reconnect.current();
   }, [liveConnect]);
   const control = connected && state.control;
+  const bars = signalBars(streamState.loss, streamState.readout?.rttMs);
   const dot = { idle: "bg-muted-foreground/40", connecting: "bg-warning", connected: "bg-success", error: "bg-danger" }[state.status];
 
   return (
@@ -298,25 +334,53 @@ export function PreviewPanel({ machine, health, queue }: { machine: Machine; hea
       className="flex h-full w-[360px] shrink-0 flex-col border-l bg-panel"
       aria-label="Office desktop"
     >
-      <div
-        className={cn("flex flex-col", fullscreen ? "fixed inset-0 z-40 bg-black" : "px-3 pt-3")}
-        onDoubleClick={(e) => {
-          // While controlling, double-clicks belong to the office Mac.
-          if (control || (e.target as HTMLElement).closest("button")) return;
-          if (connected || canSnapshot) set({ fullscreen: !fullscreen });
-        }}
-      >
-        <div className={cn("flex h-8 items-center gap-2", fullscreen ? "px-4 text-white/85" : "mb-2")}>
-          <span className={cn("size-2 rounded-full", dot)} />
-          <span className="text-[13px] font-medium">{fullscreen ? `Live · ${machine.name}` : "Live"}</span>
-          {!fullscreen && <span className="rounded bg-muted px-1.5 py-px text-[10.5px] font-medium text-muted-foreground">View only</span>}
-          {fullscreen && <ModeSwitch control={control} canControl={canControl} onChange={(on) => live.setControl(on)} />}
-          {connected && state.width > 0 && (fullscreen || !streaming) && (
-            <span className={cn("text-[11px] tabular-nums", fullscreen ? "text-white/50" : "text-muted-foreground")}>
-              {streaming ? readoutText(state.width, state.height, streamState.readout) : `${state.width}×${state.height}`}
+      {/* Expanded, the live view fills the app window like a remote desktop app: its toolbar takes the title
+          bar row (room for the window buttons, drags the window), the picture everything below. */}
+      <div className={cn("flex flex-col", fullscreen ? "fixed inset-0 z-40 bg-black" : "px-3 pt-3")}>
+        {fullscreen && (
+          <div data-tauri-drag-region
+            className={cn("flex h-11 shrink-0 select-none items-center gap-2 border-b border-white/10 bg-[#1b1c21] pr-2 text-white/85", isTauri ? "pl-[78px]" : "pl-3")}>
+            <span className={cn("size-2 shrink-0 rounded-full", dot)} />
+            <span data-tauri-drag-region className="text-[13px] font-semibold">{machine.name}</span>
+            <ModeSwitch control={control} canControl={canControl} onChange={(on) => live.setControl(on)} />
+            {connected && streaming && state.width > 0 && (
+              <Tooltip content={readoutText(state.width, state.height, streamState.readout)}>
+                <span className="flex items-center gap-1.5 text-[11px] tabular-nums text-white/60">
+                  <SignalBars bars={bars} />
+                  {streamState.readout ? `${streamState.readout.kBps} kB/s` : `${state.width}×${state.height}`}
+                </span>
+              </Tooltip>
+            )}
+            {connected && !streaming && state.width > 0 && (
+              <span className="text-[11px] tabular-nums text-white/50">{state.width}×{state.height}</span>
+            )}
+            <div data-tauri-drag-region className="h-full flex-1" />
+            <span data-tauri-drag-region className="mr-1 flex items-center gap-1 text-[11px] text-white/45">
+              {control ? <>Keys go to the Mac · switch to View, then <Kbd>Esc</Kbd></> : <><Kbd>Esc</Kbd> back to chat</>}
             </span>
+            {streaming && <QualityMenu machine={machine} dark />}
+            <Tooltip content={connected ? "Disconnect live view" : "Connect live view"}>
+              <Button variant="ghost" size="icon-sm" aria-label={connected ? "Disconnect" : "Connect"}
+                className={cn("hover:bg-white/10", connected ? "text-success" : "text-white/80")}
+                disabled={state.status === "connecting"} onClick={() => (connected ? live.disconnect() : connect())}>
+                {state.status === "connecting" ? <Spinner /> : <Power />}
+              </Button>
+            </Tooltip>
+            <Button variant="ghost" size="sm" className="h-7 gap-1 px-2 text-white/80 hover:bg-white/10 hover:text-white"
+              onClick={() => set({ fullscreen: false })}>
+              <MessageSquare className="size-3.5" /> Back to chat
+            </Button>
+          </div>
+        )}
+        {!fullscreen && (
+        <div className="mb-2 flex h-8 items-center gap-2">
+          <span className={cn("size-2 rounded-full", dot)} />
+          <span className="text-[13px] font-medium">Live</span>
+          <span className="rounded bg-muted px-1.5 py-px text-[10.5px] font-medium text-muted-foreground">View only</span>
+          {connected && state.width > 0 && !streaming && (
+            <span className="text-[11px] tabular-nums text-muted-foreground">{state.width}×{state.height}</span>
           )}
-          {connected && state.width > 0 && !fullscreen && streaming && (
+          {connected && state.width > 0 && streaming && (
             <Tooltip content={readoutText(state.width, state.height, streamState.readout)}>
               <span className="text-[11px] tabular-nums text-muted-foreground">
                 {streamState.readout ? `${streamState.readout.kBps} kB/s` : `${state.width}×${state.height}`}
@@ -324,42 +388,40 @@ export function PreviewPanel({ machine, health, queue }: { machine: Machine; hea
             </Tooltip>
           )}
           <div className="flex-1" />
-          {streaming && <QualityMenu machine={machine} dark={fullscreen} />}
-          {fullscreen && (
-            <span className="mr-2 flex items-center gap-1 text-[11px] text-white/50">
-              {control ? <>Keys go to the Mac · switch to View, then <Kbd>Esc</Kbd></> : <><Kbd>Esc</Kbd> to exit</>}
-            </span>
-          )}
-          {!fullscreen && (
-            <Tooltip content={canControl ? "Take control (opens full screen)" : connected ? "Control is not available on this live view yet" : "Connect the live view to take control"}>
-              <Button variant="ghost" size="sm" className="h-7 gap-1 px-2" aria-label="Take control" disabled={!canControl}
-                onClick={() => {
-                  // The stream reconnects at full-screen size, then takes control.
-                  if (streaming) controlAfterResize.current = true;
-                  else vnc.setControl(true);
-                  set({ fullscreen: true });
-                }}>
-                <MousePointer2 className="size-3.5" /> Control
-              </Button>
-            </Tooltip>
-          )}
-          <Tooltip content={fullscreen ? "Exit full screen" : "Full screen (double-click)"}>
-            <Button variant="ghost" size="icon-sm" aria-label="Toggle full screen" disabled={!connected && !canSnapshot}
-              className={fullscreen ? "text-white/80 hover:bg-white/10 hover:text-white" : undefined}
-              onClick={() => set({ fullscreen: !fullscreen })}>
-              {fullscreen ? <Minimize2 /> : <Expand />}
+          {streaming && <QualityMenu machine={machine} dark={false} />}
+          <Tooltip content={canControl ? "Take control (expands the view)" : connected ? "Control is not available on this live view yet" : "Connect the live view to take control"}>
+            <Button variant="ghost" size="sm" className="h-7 gap-1 px-2" aria-label="Take control" disabled={!canControl}
+              onClick={() => {
+                // The stream reconnects at the expanded size, then takes control.
+                if (streaming) controlAfterResize.current = true;
+                else vnc.setControl(true);
+                set({ fullscreen: true });
+              }}>
+              <MousePointer2 className="size-3.5" /> Control
+            </Button>
+          </Tooltip>
+          <Tooltip content="Expand in the window (double-click)">
+            <Button variant="ghost" size="icon-sm" aria-label="Expand live view" disabled={!connected && !canSnapshot}
+              onClick={() => set({ fullscreen: true })}>
+              <Expand />
             </Button>
           </Tooltip>
           <Tooltip content={connected ? "Disconnect live view" : "Connect live view"}>
             <Button variant="ghost" size="icon-sm" aria-label={connected ? "Disconnect" : "Connect"}
-              className={cn(connected && "text-success", fullscreen && "hover:bg-white/10")}
+              className={cn(connected && "text-success")}
               disabled={state.status === "connecting"} onClick={() => (connected ? live.disconnect() : connect())}>
               {state.status === "connecting" ? <Spinner /> : <Power />}
             </Button>
           </Tooltip>
         </div>
+        )}
         <div
           ref={stage}
+          onDoubleClick={(e) => {
+            // While controlling, double-clicks belong to the office Mac.
+            if (control || (e.target as HTMLElement).closest("button")) return;
+            if (connected || canSnapshot) set({ fullscreen: !fullscreen });
+          }}
           className={cn(
             "relative overflow-hidden bg-[#0d0e12]",
             fullscreen ? "min-h-0 flex-1" : "aspect-[16/10] rounded-[10px] border",

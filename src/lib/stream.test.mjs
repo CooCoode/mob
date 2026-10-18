@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { configureAuth } from "./auth.ts";
-import { candidateAddresses, networkOf, openSession, parseControl, readoutText, readStats, UPDATE_MOBD } from "./stream.ts";
+import { candidateAddresses, networkOf, openSession, parseControl, readoutText, readStats, signalBars, UPDATE_MOBD } from "./stream.ts";
 
 function mockFetch(t, status, body) {
   const calls = [];
@@ -95,4 +95,13 @@ test("WebKit's address-less stats are matched to the answer's candidates by port
     { type: "remote-candidate", id: "r", candidateType: "host", protocol: "udp", port: 65336 },
   ], null, 0, addresses);
   assert.equal(readout.network, "Tailscale");
+});
+
+test("signalBars drops a bar for some loss or delay and two for heavy", () => {
+  assert.equal(signalBars(0, 12), 3);
+  assert.equal(signalBars(0), 3);
+  assert.equal(signalBars(0.05, 12), 2);
+  assert.equal(signalBars(0, 200), 2);
+  assert.equal(signalBars(0.2, 12), 1);
+  assert.equal(signalBars(0, 600), 1);
 });

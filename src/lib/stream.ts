@@ -160,6 +160,14 @@ export function readoutText(width: number, height: number, r: Readout | null): s
   return parts.join(" · ");
 }
 
+/** Signal bars (1-3) like other remote desktop tools: loss reported by mobd, round-trip time measured here. */
+export function signalBars(loss: number, rttMs?: number): 1 | 2 | 3 {
+  const rtt = rttMs ?? 0;
+  if (loss > 0.1 || rtt > 400) return 1;
+  if (loss > 0.02 || rtt > 150) return 2;
+  return 3;
+}
+
 export type LiveStatus = "idle" | "connecting" | "connected" | "error";
 
 export interface StreamState {
@@ -172,6 +180,8 @@ export interface StreamState {
   control: boolean;
   /** mobd's encoder target. */
   kbps: number;
+  /** Fraction of packets mobd's viewer reports lost, 0..1. */
+  loss: number;
   /** Measured once a second while connected. */
   readout: Readout | null;
 }
@@ -188,7 +198,7 @@ export interface StreamTarget {
 }
 
 const CONNECT_TIMEOUT = 15_000;
-const IDLE: StreamState = { status: "idle", detail: "", width: 0, height: 0, control: false, kbps: 0, readout: null };
+const IDLE: StreamState = { status: "idle", detail: "", width: 0, height: 0, control: false, kbps: 0, loss: 0, readout: null };
 
 /** Resolves when ICE gathering completes, or after `ms`: host candidates take a few milliseconds. */
 function gathered(pc: RTCPeerConnection, ms: number): Promise<void> {
@@ -287,7 +297,7 @@ class StreamController {
       control.onmessage = (e) => {
         if (attempt !== this.attempt) return;
         const m = parseControl(e.data);
-        if (m?.t === "stats") this.update({ kbps: m.kbps });
+        if (m?.t === "stats") this.update({ kbps: m.kbps, loss: m.loss ?? 0 });
         else if (m?.t === "ended") fail(m.message);
         else if (m?.t === "error") console.warn(`live: ${m.about}: ${m.message}`);
       };
