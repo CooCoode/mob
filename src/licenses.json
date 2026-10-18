@@ -1,0 +1,3439 @@
+[
+ {
+  "name": "@floating-ui/core",
+  "version": "1.8.0",
+  "license": "MIT",
+  "url": "https://floating-ui.com",
+  "source": "npm"
+ },
+ {
+  "name": "@floating-ui/dom",
+  "version": "1.8.0",
+  "license": "MIT",
+  "url": "https://floating-ui.com",
+  "source": "npm"
+ },
+ {
+  "name": "@floating-ui/react-dom",
+  "version": "2.1.9",
+  "license": "MIT",
+  "url": "https://floating-ui.com/docs/react-dom",
+  "source": "npm"
+ },
+ {
+  "name": "@floating-ui/utils",
+  "version": "0.2.12",
+  "license": "MIT",
+  "url": "https://floating-ui.com",
+  "source": "npm"
+ },
+ {
+  "name": "@radix-ui/number",
+  "version": "1.1.3",
+  "license": "MIT",
+  "url": "https://radix-ui.com/primitives",
+  "source": "npm"
+ },
+ {
+  "name": "@radix-ui/primitive",
+  "version": "1.2.0",
+  "license": "MIT",
+  "url": "https://radix-ui.com/primitives",
+  "source": "npm"
+ },
+ {
+  "name": "@radix-ui/react-accessible-icon",
+  "version": "1.2.0",
+  "license": "MIT",
+  "url": "https://radix-ui.com/primitives",
+  "source": "npm"
+ },
+ {
+  "name": "@radix-ui/react-accordion",
+  "version": "1.3.1",
+  "license": "MIT",
+  "url": "https://radix-ui.com/primitives",
+  "source": "npm"
+ },
+ {
+  "name": "@radix-ui/react-alert-dialog",
+  "version": "1.2.1",
+  "license": "MIT",
+  "url": "https://radix-ui.com/primitives",
+  "source": "npm"
+ },
+ {
+  "name": "@radix-ui/react-arrow",
+  "version": "1.1.17",
+  "license": "MIT",
+  "url": "https://radix-ui.com/primitives",
+  "source": "npm"
+ },
+ {
+  "name": "@radix-ui/react-aspect-ratio",
+  "version": "1.2.0",
+  "license": "MIT",
+  "url": "https://radix-ui.com/primitives",
+  "source": "npm"
+ },
+ {
+  "name": "@radix-ui/react-avatar",
+  "version": "1.3.1",
+  "license": "MIT",
+  "url": "https://radix-ui.com/primitives",
+  "source": "npm"
+ },
+ {
+  "name": "@radix-ui/react-checkbox",
+  "version": "1.4.1",
+  "license": "MIT",
+  "url": "https://radix-ui.com/primitives",
+  "source": "npm"
+ },
+ {
+  "name": "@radix-ui/react-collapsible",
+  "version": "1.2.1",
+  "license": "MIT",
+  "url": "https://radix-ui.com/primitives",
+  "source": "npm"
+ },
+ {
+  "name": "@radix-ui/react-collection",
+  "version": "1.2.0",
+  "license": "MIT",
+  "url": "https://radix-ui.com/primitives",
+  "source": "npm"
+ },
+ {
+  "name": "@radix-ui/react-compose-refs",
+  "version": "1.1.5",
+  "license": "MIT",
+  "url": "https://radix-ui.com/primitives",
+  "source": "npm"
+ },
+ {
+  "name": "@radix-ui/react-context",
+  "version": "1.3.0",
+  "license": "MIT",
+  "url": "https://radix-ui.com/primitives",
+  "source": "npm"
+ },
+ {
+  "name": "@radix-ui/react-context-menu",
+  "version": "2.4.1",
+  "license": "MIT",
+  "url": "https://radix-ui.com/primitives",
+  "source": "npm"
+ },
+ {
+  "name": "@radix-ui/react-dialog",
+  "version": "1.3.1",
+  "license": "MIT",
+  "url": "https://radix-ui.com/primitives",
+  "source": "npm"
+ },
+ {
+  "name": "@radix-ui/react-direction",
+  "version": "1.2.0",
+  "license": "MIT",
+  "url": "https://radix-ui.com/primitives",
+  "source": "npm"
+ },
+ {
+  "name": "@radix-ui/react-dismissable-layer",
+  "version": "1.2.1",
+  "license": "MIT",
+  "url": "https://radix-ui.com/primitives",
+  "source": "npm"
+ },
+ {
+  "name": "@radix-ui/react-dropdown-menu",
+  "version": "2.2.1",
+  "license": "MIT",
+  "url": "https://radix-ui.com/primitives",
+  "source": "npm"
+ },
+ {
+  "name": "@radix-ui/react-focus-guards",
+  "version": "1.2.0",
+  "license": "MIT",
+  "url": "https://radix-ui.com/primitives",
+  "source": "npm"
+ },
+ {
+  "name": "@radix-ui/react-focus-scope",
+  "version": "1.3.1",
+  "license": "MIT",
+  "url": "https://radix-ui.com/primitives",
+  "source": "npm"
+ },
+ {
+  "name": "@radix-ui/react-form",
+  "version": "0.3.0",
+  "license": "MIT",
+  "url": "https://radix-ui.com/primitives",
+  "source": "npm"
+ },
+ {
+  "name": "@radix-ui/react-hover-card",
+  "version": "1.2.1",
+  "license": "MIT",
+  "url": "https://radix-ui.com/primitives",
+  "source": "npm"
+ },
+ {
+  "name": "@radix-ui/react-id",
+  "version": "1.1.4",
+  "license": "MIT",
+  "url": "https://radix-ui.com/primitives",
+  "source": "npm"
+ },
+ {
+  "name": "@radix-ui/react-label",
+  "version": "2.1.17",
+  "license": "MIT",
+  "url": "https://radix-ui.com/primitives",
+  "source": "npm"
+ },
+ {
+  "name": "@radix-ui/react-menu",
+  "version": "2.2.1",
+  "license": "MIT",
+  "url": "https://radix-ui.com/primitives",
+  "source": "npm"
+ },
+ {
+  "name": "@radix-ui/react-menubar",
+  "version": "1.2.1",
+  "license": "MIT",
+  "url": "https://radix-ui.com/primitives",
+  "source": "npm"
+ },
+ {
+  "name": "@radix-ui/react-navigation-menu",
+  "version": "1.4.1",
+  "license": "MIT",
+  "url": "https://radix-ui.com/primitives",
+  "source": "npm"
+ },
+ {
+  "name": "@radix-ui/react-one-time-password-field",
+  "version": "0.2.1",
+  "license": "MIT",
+  "url": "https://radix-ui.com/primitives",
+  "source": "npm"
+ },
+ {
+  "name": "@radix-ui/react-password-toggle-field",
+  "version": "0.2.1",
+  "license": "MIT",
+  "url": "https://radix-ui.com/primitives",
+  "source": "npm"
+ },
+ {
+  "name": "@radix-ui/react-popover",
+  "version": "1.3.1",
+  "license": "MIT",
+  "url": "https://radix-ui.com/primitives",
+  "source": "npm"
+ },
+ {
+  "name": "@radix-ui/react-popper",
+  "version": "1.4.0",
+  "license": "MIT",
+  "url": "https://radix-ui.com/primitives",
+  "source": "npm"
+ },
+ {
+  "name": "@radix-ui/react-portal",
+  "version": "1.2.0",
+  "license": "MIT",
+  "url": "https://radix-ui.com/primitives",
+  "source": "npm"
+ },
+ {
+  "name": "@radix-ui/react-presence",
+  "version": "1.1.11",
+  "license": "MIT",
+  "url": "https://radix-ui.com/primitives",
+  "source": "npm"
+ },
+ {
+  "name": "@radix-ui/react-primitive",
+  "version": "2.2.0",
+  "license": "MIT",
+  "url": "https://radix-ui.com/primitives",
+  "source": "npm"
+ },
+ {
+  "name": "@radix-ui/react-progress",
+  "version": "1.2.1",
+  "license": "MIT",
+  "url": "https://radix-ui.com/primitives",
+  "source": "npm"
+ },
+ {
+  "name": "@radix-ui/react-radio-group",
+  "version": "1.5.1",
+  "license": "MIT",
+  "url": "https://radix-ui.com/primitives",
+  "source": "npm"
+ },
+ {
+  "name": "@radix-ui/react-roving-focus",
+  "version": "1.2.1",
+  "license": "MIT",
+  "url": "https://radix-ui.com/primitives",
+  "source": "npm"
+ },
+ {
+  "name": "@radix-ui/react-scroll-area",
+  "version": "1.4.0",
+  "license": "MIT",
+  "url": "https://radix-ui.com/primitives",
+  "source": "npm"
+ },
+ {
+  "name": "@radix-ui/react-select",
+  "version": "2.4.1",
+  "license": "MIT",
+  "url": "https://radix-ui.com/primitives",
+  "source": "npm"
+ },
+ {
+  "name": "@radix-ui/react-separator",
+  "version": "1.2.0",
+  "license": "MIT",
+  "url": "https://radix-ui.com/primitives",
+  "source": "npm"
+ },
+ {
+  "name": "@radix-ui/react-slider",
+  "version": "1.6.1",
+  "license": "MIT",
+  "url": "https://radix-ui.com/primitives",
+  "source": "npm"
+ },
+ {
+  "name": "@radix-ui/react-slot",
+  "version": "1.5.0",
+  "license": "MIT",
+  "url": "https://radix-ui.com/primitives",
+  "source": "npm"
+ },
+ {
+  "name": "@radix-ui/react-switch",
+  "version": "1.4.1",
+  "license": "MIT",
+  "url": "https://radix-ui.com/primitives",
+  "source": "npm"
+ },
+ {
+  "name": "@radix-ui/react-tabs",
+  "version": "1.2.1",
+  "license": "MIT",
+  "url": "https://radix-ui.com/primitives",
+  "source": "npm"
+ },
+ {
+  "name": "@radix-ui/react-toast",
+  "version": "1.3.1",
+  "license": "MIT",
+  "url": "https://radix-ui.com/primitives",
+  "source": "npm"
+ },
+ {
+  "name": "@radix-ui/react-toggle",
+  "version": "1.2.1",
+  "license": "MIT",
+  "url": "https://radix-ui.com/primitives",
+  "source": "npm"
+ },
+ {
+  "name": "@radix-ui/react-toggle-group",
+  "version": "1.2.1",
+  "license": "MIT",
+  "url": "https://radix-ui.com/primitives",
+  "source": "npm"
+ },
+ {
+  "name": "@radix-ui/react-toolbar",
+  "version": "1.2.1",
+  "license": "MIT",
+  "url": "https://radix-ui.com/primitives",
+  "source": "npm"
+ },
+ {
+  "name": "@radix-ui/react-tooltip",
+  "version": "1.4.1",
+  "license": "MIT",
+  "url": "https://radix-ui.com/primitives",
+  "source": "npm"
+ },
+ {
+  "name": "@radix-ui/react-use-callback-ref",
+  "version": "1.1.5",
+  "license": "MIT",
+  "url": "https://radix-ui.com/primitives",
+  "source": "npm"
+ },
+ {
+  "name": "@radix-ui/react-use-controllable-state",
+  "version": "1.3.0",
+  "license": "MIT",
+  "url": "https://radix-ui.com/primitives",
+  "source": "npm"
+ },
+ {
+  "name": "@radix-ui/react-use-effect-event",
+  "version": "0.0.5",
+  "license": "MIT",
+  "url": "https://radix-ui.com/primitives",
+  "source": "npm"
+ },
+ {
+  "name": "@radix-ui/react-use-escape-keydown",
+  "version": "1.1.6",
+  "license": "MIT",
+  "url": "https://radix-ui.com/primitives",
+  "source": "npm"
+ },
+ {
+  "name": "@radix-ui/react-use-is-hydrated",
+  "version": "0.1.3",
+  "license": "MIT",
+  "url": "https://radix-ui.com/primitives",
+  "source": "npm"
+ },
+ {
+  "name": "@radix-ui/react-use-layout-effect",
+  "version": "1.1.4",
+  "license": "MIT",
+  "url": "https://radix-ui.com/primitives",
+  "source": "npm"
+ },
+ {
+  "name": "@radix-ui/react-use-previous",
+  "version": "1.1.4",
+  "license": "MIT",
+  "url": "https://radix-ui.com/primitives",
+  "source": "npm"
+ },
+ {
+  "name": "@radix-ui/react-use-rect",
+  "version": "1.1.4",
+  "license": "MIT",
+  "url": "https://radix-ui.com/primitives",
+  "source": "npm"
+ },
+ {
+  "name": "@radix-ui/react-use-size",
+  "version": "1.1.5",
+  "license": "MIT",
+  "url": "https://radix-ui.com/primitives",
+  "source": "npm"
+ },
+ {
+  "name": "@radix-ui/react-visually-hidden",
+  "version": "1.2.13",
+  "license": "MIT",
+  "url": "https://radix-ui.com/primitives",
+  "source": "npm"
+ },
+ {
+  "name": "@radix-ui/rect",
+  "version": "1.1.3",
+  "license": "MIT",
+  "url": "https://radix-ui.com/primitives",
+  "source": "npm"
+ },
+ {
+  "name": "@shikijs/core",
+  "version": "4.5.0",
+  "license": "MIT",
+  "url": "https://github.com/shikijs/shiki#readme",
+  "source": "npm"
+ },
+ {
+  "name": "@shikijs/engine-javascript",
+  "version": "4.5.0",
+  "license": "MIT",
+  "url": "https://github.com/shikijs/shiki#readme",
+  "source": "npm"
+ },
+ {
+  "name": "@shikijs/engine-oniguruma",
+  "version": "4.5.0",
+  "license": "MIT",
+  "url": "https://github.com/shikijs/shiki#readme",
+  "source": "npm"
+ },
+ {
+  "name": "@shikijs/langs",
+  "version": "4.5.0",
+  "license": "MIT",
+  "url": "https://github.com/shikijs/shiki#readme",
+  "source": "npm"
+ },
+ {
+  "name": "@shikijs/primitive",
+  "version": "4.5.0",
+  "license": "MIT",
+  "url": "https://github.com/shikijs/shiki#readme",
+  "source": "npm"
+ },
+ {
+  "name": "@shikijs/themes",
+  "version": "4.5.0",
+  "license": "MIT",
+  "url": "https://github.com/shikijs/shiki#readme",
+  "source": "npm"
+ },
+ {
+  "name": "@shikijs/types",
+  "version": "4.5.0",
+  "license": "MIT",
+  "url": "https://github.com/shikijs/shiki#readme",
+  "source": "npm"
+ },
+ {
+  "name": "@shikijs/vscode-textmate",
+  "version": "10.0.2",
+  "license": "MIT",
+  "url": "https://github.com/shikijs/vscode-textmate",
+  "source": "npm"
+ },
+ {
+  "name": "@tanstack/query-core",
+  "version": "5.104.2",
+  "license": "MIT",
+  "url": "https://tanstack.com/query",
+  "source": "npm"
+ },
+ {
+  "name": "@tanstack/react-query",
+  "version": "5.104.2",
+  "license": "MIT",
+  "url": "https://tanstack.com/query",
+  "source": "npm"
+ },
+ {
+  "name": "@tauri-apps/api",
+  "version": "2.12.3",
+  "license": "Apache-2.0 OR MIT",
+  "url": "https://github.com/tauri-apps/tauri#readme",
+  "source": "npm"
+ },
+ {
+  "name": "@tauri-apps/plugin-process",
+  "version": "2.4.0",
+  "license": "MIT OR Apache-2.0",
+  "url": "https://github.com/tauri-apps/plugins-workspace",
+  "source": "npm"
+ },
+ {
+  "name": "@tauri-apps/plugin-updater",
+  "version": "2.13.3",
+  "license": "MIT OR Apache-2.0",
+  "url": "https://github.com/tauri-apps/plugins-workspace",
+  "source": "npm"
+ },
+ {
+  "name": "@types/debug",
+  "version": "4.1.13",
+  "license": "MIT",
+  "url": "https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/debug",
+  "source": "npm"
+ },
+ {
+  "name": "@types/estree",
+  "version": "1.0.9",
+  "license": "MIT",
+  "url": "https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/estree",
+  "source": "npm"
+ },
+ {
+  "name": "@types/estree-jsx",
+  "version": "1.0.5",
+  "license": "MIT",
+  "url": "https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/estree-jsx",
+  "source": "npm"
+ },
+ {
+  "name": "@types/hast",
+  "version": "3.0.5",
+  "license": "MIT",
+  "url": "https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/hast",
+  "source": "npm"
+ },
+ {
+  "name": "@types/mdast",
+  "version": "4.0.4",
+  "license": "MIT",
+  "url": "https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/mdast",
+  "source": "npm"
+ },
+ {
+  "name": "@types/ms",
+  "version": "2.1.0",
+  "license": "MIT",
+  "url": "https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/ms",
+  "source": "npm"
+ },
+ {
+  "name": "@types/react",
+  "version": "19.3.0",
+  "license": "MIT",
+  "url": "https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/react",
+  "source": "npm"
+ },
+ {
+  "name": "@types/react-dom",
+  "version": "19.3.0",
+  "license": "MIT",
+  "url": "https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/react-dom",
+  "source": "npm"
+ },
+ {
+  "name": "@types/unist",
+  "version": "2.0.11",
+  "license": "MIT",
+  "url": "https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/unist",
+  "source": "npm"
+ },
+ {
+  "name": "@types/unist",
+  "version": "3.0.3",
+  "license": "MIT",
+  "url": "https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/unist",
+  "source": "npm"
+ },
+ {
+  "name": "@ungap/structured-clone",
+  "version": "1.4.0",
+  "license": "ISC",
+  "url": "https://github.com/ungap/structured-clone#readme",
+  "source": "npm"
+ },
+ {
+  "name": "adler2",
+  "version": "2.0.1",
+  "license": "0BSD OR MIT OR Apache-2.0",
+  "url": "https://github.com/oyvindln/adler2",
+  "source": "crate"
+ },
+ {
+  "name": "aho-corasick",
+  "version": "1.1.5",
+  "license": "Unlicense OR MIT",
+  "url": "https://github.com/BurntSushi/aho-corasick",
+  "source": "crate"
+ },
+ {
+  "name": "alloc-no-stdlib",
+  "version": "3.0.0",
+  "license": "BSD-3-Clause",
+  "url": "https://github.com/dropbox/rust-alloc-no-stdlib",
+  "source": "crate"
+ },
+ {
+  "name": "alloc-stdlib",
+  "version": "0.3.0",
+  "license": "BSD-3-Clause",
+  "url": "https://github.com/dropbox/rust-alloc-no-stdlib",
+  "source": "crate"
+ },
+ {
+  "name": "anyhow",
+  "version": "1.0.104",
+  "license": "MIT OR Apache-2.0",
+  "url": "https://github.com/dtolnay/anyhow",
+  "source": "crate"
+ },
+ {
+  "name": "aria-hidden",
+  "version": "1.2.6",
+  "license": "MIT",
+  "url": "https://github.com/theKashey/aria-hidden#readme",
+  "source": "npm"
+ },
+ {
+  "name": "atomic-waker",
+  "version": "1.1.2",
+  "license": "Apache-2.0 OR MIT",
+  "url": "https://github.com/smol-rs/atomic-waker",
+  "source": "crate"
+ },
+ {
+  "name": "bail",
+  "version": "2.0.2",
+  "license": "MIT",
+  "url": "wooorm/bail",
+  "source": "npm"
+ },
+ {
+  "name": "base64",
+  "version": "0.21.7",
+  "license": "MIT OR Apache-2.0",
+  "url": "https://github.com/marshallpierce/rust-base64",
+  "source": "crate"
+ },
+ {
+  "name": "base64",
+  "version": "0.22.1",
+  "license": "MIT OR Apache-2.0",
+  "url": "https://github.com/marshallpierce/rust-base64",
+  "source": "crate"
+ },
+ {
+  "name": "base64",
+  "version": "0.23.1",
+  "license": "MIT OR Apache-2.0",
+  "url": "https://github.com/marshallpierce/rust-base64",
+  "source": "crate"
+ },
+ {
+  "name": "bit-set",
+  "version": "0.8.0",
+  "license": "Apache-2.0 OR MIT",
+  "url": "https://github.com/contain-rs/bit-set",
+  "source": "crate"
+ },
+ {
+  "name": "bit-vec",
+  "version": "0.8.0",
+  "license": "Apache-2.0 OR MIT",
+  "url": "https://github.com/contain-rs/bit-vec",
+  "source": "crate"
+ },
+ {
+  "name": "bitflags",
+  "version": "1.3.2",
+  "license": "MIT/Apache-2.0",
+  "url": "https://github.com/bitflags/bitflags",
+  "source": "crate"
+ },
+ {
+  "name": "bitflags",
+  "version": "2.13.2",
+  "license": "MIT OR Apache-2.0",
+  "url": "https://github.com/bitflags/bitflags",
+  "source": "crate"
+ },
+ {
+  "name": "block-buffer",
+  "version": "0.10.4",
+  "license": "MIT OR Apache-2.0",
+  "url": "https://github.com/RustCrypto/utils",
+  "source": "crate"
+ },
+ {
+  "name": "block2",
+  "version": "0.6.2",
+  "license": "MIT",
+  "url": "https://github.com/madsmtm/objc2",
+  "source": "crate"
+ },
+ {
+  "name": "brotli",
+  "version": "9.0.0",
+  "license": "BSD-3-Clause AND MIT",
+  "url": "https://github.com/dropbox/rust-brotli",
+  "source": "crate"
+ },
+ {
+  "name": "brotli-decompressor",
+  "version": "6.0.1",
+  "license": "BSD-3-Clause/MIT",
+  "url": "https://github.com/dropbox/rust-brotli-decompressor",
+  "source": "crate"
+ },
+ {
+  "name": "bs58",
+  "version": "0.5.1",
+  "license": "MIT/Apache-2.0",
+  "url": "https://github.com/Nullus157/bs58-rs",
+  "source": "crate"
+ },
+ {
+  "name": "byteorder",
+  "version": "1.5.0",
+  "license": "Unlicense OR MIT",
+  "url": "https://github.com/BurntSushi/byteorder",
+  "source": "crate"
+ },
+ {
+  "name": "bytes",
+  "version": "1.12.1",
+  "license": "MIT",
+  "url": "https://github.com/tokio-rs/bytes",
+  "source": "crate"
+ },
+ {
+  "name": "camino",
+  "version": "1.2.6",
+  "license": "MIT OR Apache-2.0",
+  "url": "https://github.com/camino-rs/camino",
+  "source": "crate"
+ },
+ {
+  "name": "cargo_metadata",
+  "version": "0.19.2",
+  "license": "MIT",
+  "url": "https://github.com/oli-obk/cargo_metadata",
+  "source": "crate"
+ },
+ {
+  "name": "cargo-platform",
+  "version": "0.1.9",
+  "license": "MIT OR Apache-2.0",
+  "url": "https://github.com/rust-lang/cargo",
+  "source": "crate"
+ },
+ {
+  "name": "ccount",
+  "version": "2.0.1",
+  "license": "MIT",
+  "url": "wooorm/ccount",
+  "source": "npm"
+ },
+ {
+  "name": "cfb",
+  "version": "0.14.0",
+  "license": "MIT",
+  "url": "https://github.com/mdsteele/rust-cfb",
+  "source": "crate"
+ },
+ {
+  "name": "cfg-if",
+  "version": "1.0.5",
+  "license": "MIT OR Apache-2.0",
+  "url": "https://github.com/rust-lang/cfg-if",
+  "source": "crate"
+ },
+ {
+  "name": "character-entities",
+  "version": "2.0.2",
+  "license": "MIT",
+  "url": "wooorm/character-entities",
+  "source": "npm"
+ },
+ {
+  "name": "character-entities-html4",
+  "version": "2.1.0",
+  "license": "MIT",
+  "url": "wooorm/character-entities-html4",
+  "source": "npm"
+ },
+ {
+  "name": "character-entities-legacy",
+  "version": "3.0.0",
+  "license": "MIT",
+  "url": "wooorm/character-entities-legacy",
+  "source": "npm"
+ },
+ {
+  "name": "character-reference-invalid",
+  "version": "2.0.1",
+  "license": "MIT",
+  "url": "wooorm/character-reference-invalid",
+  "source": "npm"
+ },
+ {
+  "name": "chrono",
+  "version": "0.4.45",
+  "license": "MIT OR Apache-2.0",
+  "url": "https://github.com/chronotope/chrono",
+  "source": "crate"
+ },
+ {
+  "name": "class-variance-authority",
+  "version": "0.7.1",
+  "license": "Apache-2.0",
+  "url": "https://github.com/joe-bell/cva#readme",
+  "source": "npm"
+ },
+ {
+  "name": "clsx",
+  "version": "2.1.1",
+  "license": "MIT",
+  "url": "lukeed/clsx",
+  "source": "npm"
+ },
+ {
+  "name": "cmdk",
+  "version": "1.1.1",
+  "license": "MIT",
+  "url": "https://github.com/pacocoursey/cmdk#readme",
+  "source": "npm"
+ },
+ {
+  "name": "comma-separated-tokens",
+  "version": "2.0.3",
+  "license": "MIT",
+  "url": "wooorm/comma-separated-tokens",
+  "source": "npm"
+ },
+ {
+  "name": "cookie",
+  "version": "0.18.2",
+  "license": "MIT OR Apache-2.0",
+  "url": "https://github.com/SergioBenitez/cookie-rs",
+  "source": "crate"
+ },
+ {
+  "name": "core-foundation",
+  "version": "0.10.1",
+  "license": "MIT OR Apache-2.0",
+  "url": "https://github.com/servo/core-foundation-rs",
+  "source": "crate"
+ },
+ {
+  "name": "core-foundation",
+  "version": "0.9.4",
+  "license": "MIT OR Apache-2.0",
+  "url": "https://github.com/servo/core-foundation-rs",
+  "source": "crate"
+ },
+ {
+  "name": "core-foundation-sys",
+  "version": "0.8.7",
+  "license": "MIT OR Apache-2.0",
+  "url": "https://github.com/servo/core-foundation-rs",
+  "source": "crate"
+ },
+ {
+  "name": "core-graphics",
+  "version": "0.25.0",
+  "license": "MIT OR Apache-2.0",
+  "url": "https://github.com/servo/core-foundation-rs",
+  "source": "crate"
+ },
+ {
+  "name": "core-graphics-types",
+  "version": "0.2.0",
+  "license": "MIT OR Apache-2.0",
+  "url": "https://github.com/servo/core-foundation-rs",
+  "source": "crate"
+ },
+ {
+  "name": "cpufeatures",
+  "version": "0.2.17",
+  "license": "MIT OR Apache-2.0",
+  "url": "https://github.com/RustCrypto/utils",
+  "source": "crate"
+ },
+ {
+  "name": "crc32fast",
+  "version": "1.5.2",
+  "license": "MIT OR Apache-2.0",
+  "url": "https://github.com/srijs/rust-crc32fast",
+  "source": "crate"
+ },
+ {
+  "name": "crossbeam-channel",
+  "version": "0.5.17",
+  "license": "MIT OR Apache-2.0",
+  "url": "https://github.com/crossbeam-rs/crossbeam",
+  "source": "crate"
+ },
+ {
+  "name": "crossbeam-utils",
+  "version": "0.8.23",
+  "license": "MIT OR Apache-2.0",
+  "url": "https://github.com/crossbeam-rs/crossbeam",
+  "source": "crate"
+ },
+ {
+  "name": "crypto-common",
+  "version": "0.1.7",
+  "license": "MIT OR Apache-2.0",
+  "url": "https://github.com/RustCrypto/traits",
+  "source": "crate"
+ },
+ {
+  "name": "cssparser",
+  "version": "0.37.0",
+  "license": "MPL-2.0",
+  "url": "https://github.com/servo/rust-cssparser",
+  "source": "crate"
+ },
+ {
+  "name": "cssparser-macros",
+  "version": "0.7.1",
+  "license": "MPL-2.0",
+  "url": "https://github.com/servo/rust-cssparser",
+  "source": "crate"
+ },
+ {
+  "name": "csstype",
+  "version": "3.2.3",
+  "license": "MIT",
+  "url": "https://github.com/frenic/csstype",
+  "source": "npm"
+ },
+ {
+  "name": "ctor",
+  "version": "1.0.13",
+  "license": "Apache-2.0 OR MIT",
+  "url": "https://github.com/mmastrac/linktime",
+  "source": "crate"
+ },
+ {
+  "name": "darling",
+  "version": "0.24.1",
+  "license": "MIT",
+  "url": "https://github.com/TedDriggs/darling",
+  "source": "crate"
+ },
+ {
+  "name": "darling_core",
+  "version": "0.24.1",
+  "license": "MIT",
+  "url": "https://github.com/TedDriggs/darling",
+  "source": "crate"
+ },
+ {
+  "name": "darling_macro",
+  "version": "0.24.1",
+  "license": "MIT",
+  "url": "https://github.com/TedDriggs/darling",
+  "source": "crate"
+ },
+ {
+  "name": "debug",
+  "version": "4.4.3",
+  "license": "MIT",
+  "url": "https://github.com/debug-js/debug",
+  "source": "npm"
+ },
+ {
+  "name": "decode-named-character-reference",
+  "version": "1.3.0",
+  "license": "MIT",
+  "url": "wooorm/decode-named-character-reference",
+  "source": "npm"
+ },
+ {
+  "name": "defmt",
+  "version": "1.1.1",
+  "license": "MIT OR Apache-2.0",
+  "url": "https://github.com/knurling-rs/defmt",
+  "source": "crate"
+ },
+ {
+  "name": "defmt-macros",
+  "version": "1.1.1",
+  "license": "MIT OR Apache-2.0",
+  "url": "https://github.com/knurling-rs/defmt",
+  "source": "crate"
+ },
+ {
+  "name": "defmt-parser",
+  "version": "1.0.0",
+  "license": "MIT OR Apache-2.0",
+  "url": "https://github.com/knurling-rs/defmt",
+  "source": "crate"
+ },
+ {
+  "name": "dequal",
+  "version": "2.0.3",
+  "license": "MIT",
+  "url": "lukeed/dequal",
+  "source": "npm"
+ },
+ {
+  "name": "deranged",
+  "version": "0.5.8",
+  "license": "MIT OR Apache-2.0",
+  "url": "https://github.com/jhpratt/deranged",
+  "source": "crate"
+ },
+ {
+  "name": "derive_more",
+  "version": "2.1.1",
+  "license": "MIT",
+  "url": "https://github.com/JelteF/derive_more",
+  "source": "crate"
+ },
+ {
+  "name": "derive_more-impl",
+  "version": "2.1.1",
+  "license": "MIT",
+  "url": "https://github.com/JelteF/derive_more",
+  "source": "crate"
+ },
+ {
+  "name": "detect-node-es",
+  "version": "1.1.0",
+  "license": "MIT",
+  "url": "https://github.com/thekashey/detect-node",
+  "source": "npm"
+ },
+ {
+  "name": "devlop",
+  "version": "1.1.0",
+  "license": "MIT",
+  "url": "wooorm/devlop",
+  "source": "npm"
+ },
+ {
+  "name": "digest",
+  "version": "0.10.7",
+  "license": "MIT OR Apache-2.0",
+  "url": "https://github.com/RustCrypto/traits",
+  "source": "crate"
+ },
+ {
+  "name": "dirs",
+  "version": "7.0.0",
+  "license": "MIT OR Apache-2.0",
+  "url": "https://codeberg.org/dirs/dirs-rs",
+  "source": "crate"
+ },
+ {
+  "name": "dirs-sys",
+  "version": "0.5.0",
+  "license": "MIT OR Apache-2.0",
+  "url": "https://github.com/dirs-dev/dirs-sys-rs",
+  "source": "crate"
+ },
+ {
+  "name": "dispatch2",
+  "version": "0.3.1",
+  "license": "Zlib OR Apache-2.0 OR MIT",
+  "url": "https://github.com/madsmtm/objc2",
+  "source": "crate"
+ },
+ {
+  "name": "displaydoc",
+  "version": "0.2.7",
+  "license": "MIT OR Apache-2.0",
+  "url": "https://github.com/yaahc/displaydoc",
+  "source": "crate"
+ },
+ {
+  "name": "dom_query",
+  "version": "0.28.0",
+  "license": "MIT",
+  "url": "https://github.com/niklak/dom_query",
+  "source": "crate"
+ },
+ {
+  "name": "dpi",
+  "version": "0.1.2",
+  "license": "Apache-2.0 AND MIT",
+  "url": "https://github.com/rust-windowing/winit",
+  "source": "crate"
+ },
+ {
+  "name": "dtoa",
+  "version": "1.0.11",
+  "license": "MIT OR Apache-2.0",
+  "url": "https://github.com/dtolnay/dtoa",
+  "source": "crate"
+ },
+ {
+  "name": "dtoa-short",
+  "version": "0.3.5",
+  "license": "MPL-2.0",
+  "url": "https://github.com/upsuper/dtoa-short",
+  "source": "crate"
+ },
+ {
+  "name": "dunce",
+  "version": "1.0.5",
+  "license": "CC0-1.0 OR MIT-0 OR Apache-2.0",
+  "url": "https://gitlab.com/kornelski/dunce",
+  "source": "crate"
+ },
+ {
+  "name": "dyn-clone",
+  "version": "1.0.20",
+  "license": "MIT OR Apache-2.0",
+  "url": "https://github.com/dtolnay/dyn-clone",
+  "source": "crate"
+ },
+ {
+  "name": "embed_plist",
+  "version": "1.2.2",
+  "license": "MIT OR Apache-2.0",
+  "url": "https://github.com/nvzqz/embed-plist-rs",
+  "source": "crate"
+ },
+ {
+  "name": "equivalent",
+  "version": "1.0.2",
+  "license": "Apache-2.0 OR MIT",
+  "url": "https://github.com/indexmap-rs/equivalent",
+  "source": "crate"
+ },
+ {
+  "name": "erased-serde",
+  "version": "0.4.10",
+  "license": "MIT OR Apache-2.0",
+  "url": "https://github.com/dtolnay/erased-serde",
+  "source": "crate"
+ },
+ {
+  "name": "errno",
+  "version": "0.3.14",
+  "license": "MIT OR Apache-2.0",
+  "url": "https://github.com/lambda-fairy/rust-errno",
+  "source": "crate"
+ },
+ {
+  "name": "escape-string-regexp",
+  "version": "5.0.0",
+  "license": "MIT",
+  "url": "sindresorhus/escape-string-regexp",
+  "source": "npm"
+ },
+ {
+  "name": "estree-util-is-identifier-name",
+  "version": "3.0.0",
+  "license": "MIT",
+  "url": "syntax-tree/estree-util-is-identifier-name",
+  "source": "npm"
+ },
+ {
+  "name": "extend",
+  "version": "3.0.2",
+  "license": "MIT",
+  "url": "https://github.com/justmoon/node-extend",
+  "source": "npm"
+ },
+ {
+  "name": "fastrand",
+  "version": "2.5.0",
+  "license": "Apache-2.0 OR MIT",
+  "url": "https://github.com/smol-rs/fastrand",
+  "source": "crate"
+ },
+ {
+  "name": "fdeflate",
+  "version": "0.3.7",
+  "license": "MIT OR Apache-2.0",
+  "url": "https://github.com/image-rs/fdeflate",
+  "source": "crate"
+ },
+ {
+  "name": "filetime",
+  "version": "0.2.29",
+  "license": "MIT/Apache-2.0",
+  "url": "https://github.com/alexcrichton/filetime",
+  "source": "crate"
+ },
+ {
+  "name": "flate2",
+  "version": "1.1.10",
+  "license": "MIT OR Apache-2.0",
+  "url": "https://github.com/rust-lang/flate2-rs",
+  "source": "crate"
+ },
+ {
+  "name": "fnv",
+  "version": "1.0.7",
+  "license": "Apache-2.0 / MIT",
+  "url": "https://github.com/servo/rust-fnv",
+  "source": "crate"
+ },
+ {
+  "name": "foldhash",
+  "version": "0.2.0",
+  "license": "Zlib",
+  "url": "https://github.com/orlp/foldhash",
+  "source": "crate"
+ },
+ {
+  "name": "foreign-types",
+  "version": "0.5.0",
+  "license": "MIT/Apache-2.0",
+  "url": "https://github.com/sfackler/foreign-types",
+  "source": "crate"
+ },
+ {
+  "name": "foreign-types-macros",
+  "version": "0.2.4",
+  "license": "MIT/Apache-2.0",
+  "url": "https://github.com/sfackler/foreign-types",
+  "source": "crate"
+ },
+ {
+  "name": "foreign-types-shared",
+  "version": "0.3.1",
+  "license": "MIT/Apache-2.0",
+  "url": "https://github.com/sfackler/foreign-types",
+  "source": "crate"
+ },
+ {
+  "name": "form_urlencoded",
+  "version": "1.2.2",
+  "license": "MIT OR Apache-2.0",
+  "url": "https://github.com/servo/rust-url",
+  "source": "crate"
+ },
+ {
+  "name": "futures-channel",
+  "version": "0.3.34",
+  "license": "MIT OR Apache-2.0",
+  "url": "https://github.com/rust-lang/futures-rs",
+  "source": "crate"
+ },
+ {
+  "name": "futures-core",
+  "version": "0.3.34",
+  "license": "MIT OR Apache-2.0",
+  "url": "https://github.com/rust-lang/futures-rs",
+  "source": "crate"
+ },
+ {
+  "name": "futures-io",
+  "version": "0.3.34",
+  "license": "MIT OR Apache-2.0",
+  "url": "https://github.com/rust-lang/futures-rs",
+  "source": "crate"
+ },
+ {
+  "name": "futures-macro",
+  "version": "0.3.34",
+  "license": "MIT OR Apache-2.0",
+  "url": "https://github.com/rust-lang/futures-rs",
+  "source": "crate"
+ },
+ {
+  "name": "futures-sink",
+  "version": "0.3.34",
+  "license": "MIT OR Apache-2.0",
+  "url": "https://github.com/rust-lang/futures-rs",
+  "source": "crate"
+ },
+ {
+  "name": "futures-task",
+  "version": "0.3.34",
+  "license": "MIT OR Apache-2.0",
+  "url": "https://github.com/rust-lang/futures-rs",
+  "source": "crate"
+ },
+ {
+  "name": "futures-util",
+  "version": "0.3.34",
+  "license": "MIT OR Apache-2.0",
+  "url": "https://github.com/rust-lang/futures-rs",
+  "source": "crate"
+ },
+ {
+  "name": "generic-array",
+  "version": "0.14.7",
+  "license": "MIT",
+  "url": "https://github.com/fizyk20/generic-array.git",
+  "source": "crate"
+ },
+ {
+  "name": "get-nonce",
+  "version": "1.0.1",
+  "license": "MIT",
+  "url": "https://github.com/theKashey/get-nonce",
+  "source": "npm"
+ },
+ {
+  "name": "getrandom",
+  "version": "0.2.17",
+  "license": "MIT OR Apache-2.0",
+  "url": "https://github.com/rust-random/getrandom",
+  "source": "crate"
+ },
+ {
+  "name": "getrandom",
+  "version": "0.3.4",
+  "license": "MIT OR Apache-2.0",
+  "url": "https://github.com/rust-random/getrandom",
+  "source": "crate"
+ },
+ {
+  "name": "getrandom",
+  "version": "0.4.3",
+  "license": "MIT OR Apache-2.0",
+  "url": "https://github.com/rust-random/getrandom",
+  "source": "crate"
+ },
+ {
+  "name": "glob",
+  "version": "0.3.4",
+  "license": "MIT OR Apache-2.0",
+  "url": "https://github.com/rust-lang/glob",
+  "source": "crate"
+ },
+ {
+  "name": "hashbrown",
+  "version": "0.12.3",
+  "license": "MIT OR Apache-2.0",
+  "url": "https://github.com/rust-lang/hashbrown",
+  "source": "crate"
+ },
+ {
+  "name": "hashbrown",
+  "version": "0.17.1",
+  "license": "MIT OR Apache-2.0",
+  "url": "https://github.com/rust-lang/hashbrown",
+  "source": "crate"
+ },
+ {
+  "name": "hast-util-to-html",
+  "version": "9.0.5",
+  "license": "MIT",
+  "url": "syntax-tree/hast-util-to-html",
+  "source": "npm"
+ },
+ {
+  "name": "hast-util-to-jsx-runtime",
+  "version": "2.3.6",
+  "license": "MIT",
+  "url": "syntax-tree/hast-util-to-jsx-runtime",
+  "source": "npm"
+ },
+ {
+  "name": "hast-util-whitespace",
+  "version": "3.0.0",
+  "license": "MIT",
+  "url": "syntax-tree/hast-util-whitespace",
+  "source": "npm"
+ },
+ {
+  "name": "heck",
+  "version": "0.5.0",
+  "license": "MIT OR Apache-2.0",
+  "url": "https://github.com/withoutboats/heck",
+  "source": "crate"
+ },
+ {
+  "name": "hex",
+  "version": "0.4.3",
+  "license": "MIT OR Apache-2.0",
+  "url": "https://github.com/KokaKiwi/rust-hex",
+  "source": "crate"
+ },
+ {
+  "name": "html-url-attributes",
+  "version": "3.0.1",
+  "license": "MIT",
+  "url": "https://github.com/rehypejs/rehype-minify/tree/main/packages/html-url-attributes",
+  "source": "npm"
+ },
+ {
+  "name": "html-void-elements",
+  "version": "3.0.0",
+  "license": "MIT",
+  "url": "wooorm/html-void-elements",
+  "source": "npm"
+ },
+ {
+  "name": "html5ever",
+  "version": "0.39.0",
+  "license": "MIT OR Apache-2.0",
+  "url": "https://github.com/servo/html5ever",
+  "source": "crate"
+ },
+ {
+  "name": "http",
+  "version": "1.5.0",
+  "license": "MIT OR Apache-2.0",
+  "url": "https://github.com/hyperium/http",
+  "source": "crate"
+ },
+ {
+  "name": "http-body",
+  "version": "1.1.0",
+  "license": "MIT",
+  "url": "https://github.com/hyperium/http-body",
+  "source": "crate"
+ },
+ {
+  "name": "http-body-util",
+  "version": "0.1.5",
+  "license": "MIT",
+  "url": "https://github.com/hyperium/http-body",
+  "source": "crate"
+ },
+ {
+  "name": "httparse",
+  "version": "1.10.1",
+  "license": "MIT OR Apache-2.0",
+  "url": "https://github.com/seanmonstar/httparse",
+  "source": "crate"
+ },
+ {
+  "name": "hyper",
+  "version": "1.12.0",
+  "license": "MIT",
+  "url": "https://github.com/hyperium/hyper",
+  "source": "crate"
+ },
+ {
+  "name": "hyper-rustls",
+  "version": "0.27.10",
+  "license": "Apache-2.0 OR ISC OR MIT",
+  "url": "https://github.com/rustls/hyper-rustls",
+  "source": "crate"
+ },
+ {
+  "name": "hyper-util",
+  "version": "0.1.21",
+  "license": "MIT",
+  "url": "https://github.com/hyperium/hyper-util",
+  "source": "crate"
+ },
+ {
+  "name": "iana-time-zone",
+  "version": "0.1.65",
+  "license": "MIT OR Apache-2.0",
+  "url": "https://github.com/strawlab/iana-time-zone",
+  "source": "crate"
+ },
+ {
+  "name": "ico",
+  "version": "0.5.0",
+  "license": "MIT",
+  "url": "https://github.com/mdsteele/rust-ico",
+  "source": "crate"
+ },
+ {
+  "name": "icu_collections",
+  "version": "2.3.0",
+  "license": "Unicode-3.0",
+  "url": "https://github.com/unicode-org/icu4x",
+  "source": "crate"
+ },
+ {
+  "name": "icu_locale_core",
+  "version": "2.3.0",
+  "license": "Unicode-3.0",
+  "url": "https://github.com/unicode-org/icu4x",
+  "source": "crate"
+ },
+ {
+  "name": "icu_normalizer",
+  "version": "2.3.0",
+  "license": "Unicode-3.0",
+  "url": "https://github.com/unicode-org/icu4x",
+  "source": "crate"
+ },
+ {
+  "name": "icu_normalizer_data",
+  "version": "2.3.0",
+  "license": "Unicode-3.0",
+  "url": "https://github.com/unicode-org/icu4x",
+  "source": "crate"
+ },
+ {
+  "name": "icu_properties",
+  "version": "2.3.0",
+  "license": "Unicode-3.0",
+  "url": "https://github.com/unicode-org/icu4x",
+  "source": "crate"
+ },
+ {
+  "name": "icu_properties_data",
+  "version": "2.3.0",
+  "license": "Unicode-3.0",
+  "url": "https://github.com/unicode-org/icu4x",
+  "source": "crate"
+ },
+ {
+  "name": "icu_provider",
+  "version": "2.3.1",
+  "license": "Unicode-3.0",
+  "url": "https://github.com/unicode-org/icu4x",
+  "source": "crate"
+ },
+ {
+  "name": "ident_case",
+  "version": "1.0.1",
+  "license": "MIT/Apache-2.0",
+  "url": "https://github.com/TedDriggs/ident_case",
+  "source": "crate"
+ },
+ {
+  "name": "idna",
+  "version": "1.1.0",
+  "license": "MIT OR Apache-2.0",
+  "url": "https://github.com/servo/rust-url/",
+  "source": "crate"
+ },
+ {
+  "name": "idna_adapter",
+  "version": "1.2.2",
+  "license": "Apache-2.0 OR MIT",
+  "url": "https://github.com/hsivonen/idna_adapter",
+  "source": "crate"
+ },
+ {
+  "name": "indexmap",
+  "version": "1.9.3",
+  "license": "Apache-2.0 OR MIT",
+  "url": "https://github.com/bluss/indexmap",
+  "source": "crate"
+ },
+ {
+  "name": "indexmap",
+  "version": "2.14.2",
+  "license": "Apache-2.0 OR MIT",
+  "url": "https://github.com/indexmap-rs/indexmap",
+  "source": "crate"
+ },
+ {
+  "name": "infer",
+  "version": "0.22.0",
+  "license": "MIT",
+  "url": "https://github.com/bojand/infer",
+  "source": "crate"
+ },
+ {
+  "name": "inline-style-parser",
+  "version": "0.2.7",
+  "license": "MIT",
+  "url": "https://github.com/remarkablemark/inline-style-parser",
+  "source": "npm"
+ },
+ {
+  "name": "ipnet",
+  "version": "2.12.2",
+  "license": "MIT OR Apache-2.0",
+  "url": "https://github.com/krisprice/ipnet",
+  "source": "crate"
+ },
+ {
+  "name": "is-alphabetical",
+  "version": "2.0.1",
+  "license": "MIT",
+  "url": "wooorm/is-alphabetical",
+  "source": "npm"
+ },
+ {
+  "name": "is-alphanumerical",
+  "version": "2.0.1",
+  "license": "MIT",
+  "url": "wooorm/is-alphanumerical",
+  "source": "npm"
+ },
+ {
+  "name": "is-decimal",
+  "version": "2.0.1",
+  "license": "MIT",
+  "url": "wooorm/is-decimal",
+  "source": "npm"
+ },
+ {
+  "name": "is-hexadecimal",
+  "version": "2.0.1",
+  "license": "MIT",
+  "url": "wooorm/is-hexadecimal",
+  "source": "npm"
+ },
+ {
+  "name": "is-plain-obj",
+  "version": "4.1.0",
+  "license": "MIT",
+  "url": "sindresorhus/is-plain-obj",
+  "source": "npm"
+ },
+ {
+  "name": "itoa",
+  "version": "1.0.18",
+  "license": "MIT OR Apache-2.0",
+  "url": "https://github.com/dtolnay/itoa",
+  "source": "crate"
+ },
+ {
+  "name": "jiff",
+  "version": "0.2.38",
+  "license": "Unlicense OR MIT",
+  "url": "https://github.com/BurntSushi/jiff",
+  "source": "crate"
+ },
+ {
+  "name": "jiff-core",
+  "version": "0.1.1",
+  "license": "Unlicense OR MIT",
+  "url": "https://github.com/BurntSushi/jiff",
+  "source": "crate"
+ },
+ {
+  "name": "json-patch",
+  "version": "4.2.0",
+  "license": "MIT/Apache-2.0",
+  "url": "https://github.com/idubrov/json-patch",
+  "source": "crate"
+ },
+ {
+  "name": "jsonptr",
+  "version": "0.7.1",
+  "license": "MIT OR Apache-2.0",
+  "url": "https://github.com/chanced/jsonptr",
+  "source": "crate"
+ },
+ {
+  "name": "keyboard-types",
+  "version": "0.8.3",
+  "license": "MIT OR Apache-2.0",
+  "url": "https://github.com/rust-windowing/keyboard-types",
+  "source": "crate"
+ },
+ {
+  "name": "keyring",
+  "version": "3.6.3",
+  "license": "MIT OR Apache-2.0",
+  "url": "https://github.com/hwchen/keyring-rs.git",
+  "source": "crate"
+ },
+ {
+  "name": "libc",
+  "version": "0.2.190",
+  "license": "MIT OR Apache-2.0",
+  "url": "https://github.com/rust-lang/libc",
+  "source": "crate"
+ },
+ {
+  "name": "litemap",
+  "version": "0.8.3",
+  "license": "Unicode-3.0",
+  "url": "https://github.com/unicode-org/icu4x",
+  "source": "crate"
+ },
+ {
+  "name": "lock_api",
+  "version": "0.4.14",
+  "license": "MIT OR Apache-2.0",
+  "url": "https://github.com/Amanieu/parking_lot",
+  "source": "crate"
+ },
+ {
+  "name": "log",
+  "version": "0.4.34",
+  "license": "MIT OR Apache-2.0",
+  "url": "https://github.com/rust-lang/log",
+  "source": "crate"
+ },
+ {
+  "name": "longest-streak",
+  "version": "3.1.0",
+  "license": "MIT",
+  "url": "wooorm/longest-streak",
+  "source": "npm"
+ },
+ {
+  "name": "lucide-react",
+  "version": "1.55.0",
+  "license": "ISC",
+  "url": "https://lucide.dev",
+  "source": "npm"
+ },
+ {
+  "name": "markdown-table",
+  "version": "3.0.4",
+  "license": "MIT",
+  "url": "wooorm/markdown-table",
+  "source": "npm"
+ },
+ {
+  "name": "markup5ever",
+  "version": "0.39.0",
+  "license": "MIT OR Apache-2.0",
+  "url": "https://github.com/servo/html5ever",
+  "source": "crate"
+ },
+ {
+  "name": "mdast-util-find-and-replace",
+  "version": "3.0.3",
+  "license": "MIT",
+  "url": "syntax-tree/mdast-util-find-and-replace",
+  "source": "npm"
+ },
+ {
+  "name": "mdast-util-from-markdown",
+  "version": "2.1.0",
+  "license": "MIT",
+  "url": "syntax-tree/mdast-util-from-markdown",
+  "source": "npm"
+ },
+ {
+  "name": "mdast-util-gfm",
+  "version": "3.1.0",
+  "license": "MIT",
+  "url": "syntax-tree/mdast-util-gfm",
+  "source": "npm"
+ },
+ {
+  "name": "mdast-util-gfm-autolink-literal",
+  "version": "2.0.1",
+  "license": "MIT",
+  "url": "syntax-tree/mdast-util-gfm-autolink-literal",
+  "source": "npm"
+ },
+ {
+  "name": "mdast-util-gfm-footnote",
+  "version": "2.1.0",
+  "license": "MIT",
+  "url": "syntax-tree/mdast-util-gfm-footnote",
+  "source": "npm"
+ },
+ {
+  "name": "mdast-util-gfm-strikethrough",
+  "version": "2.0.1",
+  "license": "MIT",
+  "url": "syntax-tree/mdast-util-gfm-strikethrough",
+  "source": "npm"
+ },
+ {
+  "name": "mdast-util-gfm-table",
+  "version": "2.0.0",
+  "license": "MIT",
+  "url": "syntax-tree/mdast-util-gfm-table",
+  "source": "npm"
+ },
+ {
+  "name": "mdast-util-gfm-task-list-item",
+  "version": "2.0.0",
+  "license": "MIT",
+  "url": "syntax-tree/mdast-util-gfm-task-list-item",
+  "source": "npm"
+ },
+ {
+  "name": "mdast-util-mdx-expression",
+  "version": "2.0.1",
+  "license": "MIT",
+  "url": "syntax-tree/mdast-util-mdx-expression",
+  "source": "npm"
+ },
+ {
+  "name": "mdast-util-mdx-jsx",
+  "version": "3.2.0",
+  "license": "MIT",
+  "url": "syntax-tree/mdast-util-mdx-jsx",
+  "source": "npm"
+ },
+ {
+  "name": "mdast-util-mdxjs-esm",
+  "version": "2.0.1",
+  "license": "MIT",
+  "url": "syntax-tree/mdast-util-mdxjs-esm",
+  "source": "npm"
+ },
+ {
+  "name": "mdast-util-phrasing",
+  "version": "4.1.0",
+  "license": "MIT",
+  "url": "syntax-tree/mdast-util-phrasing",
+  "source": "npm"
+ },
+ {
+  "name": "mdast-util-to-hast",
+  "version": "13.2.1",
+  "license": "MIT",
+  "url": "syntax-tree/mdast-util-to-hast",
+  "source": "npm"
+ },
+ {
+  "name": "mdast-util-to-markdown",
+  "version": "2.2.0",
+  "license": "MIT",
+  "url": "syntax-tree/mdast-util-to-markdown",
+  "source": "npm"
+ },
+ {
+  "name": "mdast-util-to-string",
+  "version": "4.0.0",
+  "license": "MIT",
+  "url": "syntax-tree/mdast-util-to-string",
+  "source": "npm"
+ },
+ {
+  "name": "memchr",
+  "version": "2.8.3",
+  "license": "Unlicense OR MIT",
+  "url": "https://github.com/BurntSushi/memchr",
+  "source": "crate"
+ },
+ {
+  "name": "micromark",
+  "version": "4.0.3",
+  "license": "MIT",
+  "url": "https://github.com/micromark/micromark/tree/main/packages/micromark",
+  "source": "npm"
+ },
+ {
+  "name": "micromark-core-commonmark",
+  "version": "2.0.4",
+  "license": "MIT",
+  "url": "https://github.com/micromark/micromark/tree/main/packages/micromark-core-commonmark",
+  "source": "npm"
+ },
+ {
+  "name": "micromark-extension-gfm",
+  "version": "3.0.0",
+  "license": "MIT",
+  "url": "micromark/micromark-extension-gfm",
+  "source": "npm"
+ },
+ {
+  "name": "micromark-extension-gfm-autolink-literal",
+  "version": "2.1.0",
+  "license": "MIT",
+  "url": "micromark/micromark-extension-gfm-autolink-literal",
+  "source": "npm"
+ },
+ {
+  "name": "micromark-extension-gfm-footnote",
+  "version": "2.1.0",
+  "license": "MIT",
+  "url": "micromark/micromark-extension-gfm-footnote",
+  "source": "npm"
+ },
+ {
+  "name": "micromark-extension-gfm-strikethrough",
+  "version": "2.1.0",
+  "license": "MIT",
+  "url": "micromark/micromark-extension-gfm-strikethrough",
+  "source": "npm"
+ },
+ {
+  "name": "micromark-extension-gfm-table",
+  "version": "2.1.2",
+  "license": "MIT",
+  "url": "micromark/micromark-extension-gfm-table",
+  "source": "npm"
+ },
+ {
+  "name": "micromark-extension-gfm-tagfilter",
+  "version": "2.0.0",
+  "license": "MIT",
+  "url": "micromark/micromark-extension-gfm-tagfilter",
+  "source": "npm"
+ },
+ {
+  "name": "micromark-extension-gfm-task-list-item",
+  "version": "2.1.0",
+  "license": "MIT",
+  "url": "micromark/micromark-extension-gfm-task-list-item",
+  "source": "npm"
+ },
+ {
+  "name": "micromark-factory-destination",
+  "version": "2.0.1",
+  "license": "MIT",
+  "url": "https://github.com/micromark/micromark/tree/main/packages/micromark-factory-destination",
+  "source": "npm"
+ },
+ {
+  "name": "micromark-factory-label",
+  "version": "2.0.1",
+  "license": "MIT",
+  "url": "https://github.com/micromark/micromark/tree/main/packages/micromark-factory-label",
+  "source": "npm"
+ },
+ {
+  "name": "micromark-factory-space",
+  "version": "2.1.0",
+  "license": "MIT",
+  "url": "https://github.com/micromark/micromark/tree/main/packages/micromark-factory-space",
+  "source": "npm"
+ },
+ {
+  "name": "micromark-factory-title",
+  "version": "2.0.1",
+  "license": "MIT",
+  "url": "https://github.com/micromark/micromark/tree/main/packages/micromark-factory-title",
+  "source": "npm"
+ },
+ {
+  "name": "micromark-factory-whitespace",
+  "version": "2.0.1",
+  "license": "MIT",
+  "url": "https://github.com/micromark/micromark/tree/main/packages/micromark-factory-whitespace",
+  "source": "npm"
+ },
+ {
+  "name": "micromark-util-character",
+  "version": "2.1.1",
+  "license": "MIT",
+  "url": "https://github.com/micromark/micromark/tree/main/packages/micromark-util-character",
+  "source": "npm"
+ },
+ {
+  "name": "micromark-util-chunked",
+  "version": "2.0.1",
+  "license": "MIT",
+  "url": "https://github.com/micromark/micromark/tree/main/packages/micromark-util-chunked",
+  "source": "npm"
+ },
+ {
+  "name": "micromark-util-classify-character",
+  "version": "2.0.1",
+  "license": "MIT",
+  "url": "https://github.com/micromark/micromark/tree/main/packages/micromark-util-classify-character",
+  "source": "npm"
+ },
+ {
+  "name": "micromark-util-combine-extensions",
+  "version": "2.0.1",
+  "license": "MIT",
+  "url": "https://github.com/micromark/micromark/tree/main/packages/micromark-util-combine-extensions",
+  "source": "npm"
+ },
+ {
+  "name": "micromark-util-decode-numeric-character-reference",
+  "version": "2.0.2",
+  "license": "MIT",
+  "url": "https://github.com/micromark/micromark/tree/main/packages/micromark-util-decode-numeric-character-reference",
+  "source": "npm"
+ },
+ {
+  "name": "micromark-util-decode-string",
+  "version": "2.0.1",
+  "license": "MIT",
+  "url": "https://github.com/micromark/micromark/tree/main/packages/micromark-util-decode-string",
+  "source": "npm"
+ },
+ {
+  "name": "micromark-util-edit-map",
+  "version": "1.0.0",
+  "license": "MIT",
+  "url": "https://github.com/micromark/micromark/tree/main/packages/micromark-util-edit-map",
+  "source": "npm"
+ },
+ {
+  "name": "micromark-util-encode",
+  "version": "2.0.1",
+  "license": "MIT",
+  "url": "https://github.com/micromark/micromark/tree/main/packages/micromark-util-encode",
+  "source": "npm"
+ },
+ {
+  "name": "micromark-util-html-tag-name",
+  "version": "2.0.1",
+  "license": "MIT",
+  "url": "https://github.com/micromark/micromark/tree/main/packages/micromark-util-html-tag-name",
+  "source": "npm"
+ },
+ {
+  "name": "micromark-util-normalize-identifier",
+  "version": "2.0.1",
+  "license": "MIT",
+  "url": "https://github.com/micromark/micromark/tree/main/packages/micromark-util-normalize-identifier",
+  "source": "npm"
+ },
+ {
+  "name": "micromark-util-resolve-all",
+  "version": "2.0.1",
+  "license": "MIT",
+  "url": "https://github.com/micromark/micromark/tree/main/packages/micromark-util-resolve-all",
+  "source": "npm"
+ },
+ {
+  "name": "micromark-util-sanitize-uri",
+  "version": "2.0.1",
+  "license": "MIT",
+  "url": "https://github.com/micromark/micromark/tree/main/packages/micromark-util-sanitize-uri",
+  "source": "npm"
+ },
+ {
+  "name": "micromark-util-subtokenize",
+  "version": "2.1.0",
+  "license": "MIT",
+  "url": "https://github.com/micromark/micromark/tree/main/packages/micromark-util-subtokenize",
+  "source": "npm"
+ },
+ {
+  "name": "micromark-util-symbol",
+  "version": "2.0.1",
+  "license": "MIT",
+  "url": "https://github.com/micromark/micromark/tree/main/packages/micromark-util-symbol",
+  "source": "npm"
+ },
+ {
+  "name": "micromark-util-types",
+  "version": "2.0.3",
+  "license": "MIT",
+  "url": "https://github.com/micromark/micromark/tree/main/packages/micromark-util-types",
+  "source": "npm"
+ },
+ {
+  "name": "mime",
+  "version": "0.3.17",
+  "license": "MIT OR Apache-2.0",
+  "url": "https://github.com/hyperium/mime",
+  "source": "crate"
+ },
+ {
+  "name": "minisign-verify",
+  "version": "0.3.0",
+  "license": "MIT",
+  "url": "https://github.com/jedisct1/rust-minisign-verify",
+  "source": "crate"
+ },
+ {
+  "name": "miniz_oxide",
+  "version": "0.8.9",
+  "license": "MIT OR Zlib OR Apache-2.0",
+  "url": "https://github.com/Frommi/miniz_oxide/tree/master/miniz_oxide",
+  "source": "crate"
+ },
+ {
+  "name": "miniz_oxide",
+  "version": "0.9.1",
+  "license": "MIT OR Zlib OR Apache-2.0",
+  "url": "https://github.com/Frommi/miniz_oxide/tree/master/miniz_oxide",
+  "source": "crate"
+ },
+ {
+  "name": "mio",
+  "version": "1.2.4",
+  "license": "MIT",
+  "url": "https://github.com/tokio-rs/mio",
+  "source": "crate"
+ },
+ {
+  "name": "ms",
+  "version": "2.1.3",
+  "license": "MIT",
+  "url": "vercel/ms",
+  "source": "npm"
+ },
+ {
+  "name": "muda",
+  "version": "0.20.0",
+  "license": "Apache-2.0 OR MIT",
+  "url": "https://github.com/tauri-apps/muda",
+  "source": "crate"
+ },
+ {
+  "name": "new_debug_unreachable",
+  "version": "1.0.6",
+  "license": "MIT",
+  "url": "https://github.com/mbrubeck/rust-debug-unreachable",
+  "source": "crate"
+ },
+ {
+  "name": "num-conv",
+  "version": "0.2.2",
+  "license": "MIT OR Apache-2.0",
+  "url": "https://github.com/jhpratt/num-conv",
+  "source": "crate"
+ },
+ {
+  "name": "num-traits",
+  "version": "0.2.19",
+  "license": "MIT OR Apache-2.0",
+  "url": "https://github.com/rust-num/num-traits",
+  "source": "crate"
+ },
+ {
+  "name": "objc2",
+  "version": "0.6.5",
+  "license": "MIT",
+  "url": "https://github.com/madsmtm/objc2",
+  "source": "crate"
+ },
+ {
+  "name": "objc2-app-kit",
+  "version": "0.3.2",
+  "license": "Zlib OR Apache-2.0 OR MIT",
+  "url": "https://github.com/madsmtm/objc2",
+  "source": "crate"
+ },
+ {
+  "name": "objc2-core-foundation",
+  "version": "0.3.2",
+  "license": "Zlib OR Apache-2.0 OR MIT",
+  "url": "https://github.com/madsmtm/objc2",
+  "source": "crate"
+ },
+ {
+  "name": "objc2-core-graphics",
+  "version": "0.3.2",
+  "license": "Zlib OR Apache-2.0 OR MIT",
+  "url": "https://github.com/madsmtm/objc2",
+  "source": "crate"
+ },
+ {
+  "name": "objc2-encode",
+  "version": "4.1.0",
+  "license": "MIT",
+  "url": "https://github.com/madsmtm/objc2",
+  "source": "crate"
+ },
+ {
+  "name": "objc2-exception-helper",
+  "version": "0.1.1",
+  "license": "Zlib OR Apache-2.0 OR MIT",
+  "url": "https://github.com/madsmtm/objc2",
+  "source": "crate"
+ },
+ {
+  "name": "objc2-foundation",
+  "version": "0.3.2",
+  "license": "MIT",
+  "url": "https://github.com/madsmtm/objc2",
+  "source": "crate"
+ },
+ {
+  "name": "objc2-io-surface",
+  "version": "0.3.2",
+  "license": "Zlib OR Apache-2.0 OR MIT",
+  "url": "https://github.com/madsmtm/objc2",
+  "source": "crate"
+ },
+ {
+  "name": "objc2-osa-kit",
+  "version": "0.3.2",
+  "license": "Zlib OR Apache-2.0 OR MIT",
+  "url": "https://github.com/madsmtm/objc2",
+  "source": "crate"
+ },
+ {
+  "name": "objc2-quartz-core",
+  "version": "0.3.2",
+  "license": "Zlib OR Apache-2.0 OR MIT",
+  "url": "https://github.com/madsmtm/objc2",
+  "source": "crate"
+ },
+ {
+  "name": "objc2-web-kit",
+  "version": "0.3.2",
+  "license": "Zlib OR Apache-2.0 OR MIT",
+  "url": "https://github.com/madsmtm/objc2",
+  "source": "crate"
+ },
+ {
+  "name": "once_cell",
+  "version": "1.21.4",
+  "license": "MIT OR Apache-2.0",
+  "url": "https://github.com/matklad/once_cell",
+  "source": "crate"
+ },
+ {
+  "name": "oniguruma-parser",
+  "version": "0.12.2",
+  "license": "MIT",
+  "url": "https://github.com/slevithan/oniguruma-parser",
+  "source": "npm"
+ },
+ {
+  "name": "oniguruma-to-es",
+  "version": "4.3.6",
+  "license": "MIT",
+  "url": "https://github.com/slevithan/oniguruma-to-es",
+  "source": "npm"
+ },
+ {
+  "name": "option-ext",
+  "version": "0.2.0",
+  "license": "MPL-2.0",
+  "url": "https://github.com/soc/option-ext.git",
+  "source": "crate"
+ },
+ {
+  "name": "osakit",
+  "version": "0.3.1",
+  "license": "MIT OR Apache-2.0",
+  "url": "https://github.com/mdevils/rust-osakit",
+  "source": "crate"
+ },
+ {
+  "name": "parking_lot",
+  "version": "0.12.5",
+  "license": "MIT OR Apache-2.0",
+  "url": "https://github.com/Amanieu/parking_lot",
+  "source": "crate"
+ },
+ {
+  "name": "parking_lot_core",
+  "version": "0.9.12",
+  "license": "MIT OR Apache-2.0",
+  "url": "https://github.com/Amanieu/parking_lot",
+  "source": "crate"
+ },
+ {
+  "name": "parse-entities",
+  "version": "4.0.2",
+  "license": "MIT",
+  "url": "wooorm/parse-entities",
+  "source": "npm"
+ },
+ {
+  "name": "percent-encoding",
+  "version": "2.3.2",
+  "license": "MIT OR Apache-2.0",
+  "url": "https://github.com/servo/rust-url/",
+  "source": "crate"
+ },
+ {
+  "name": "phf",
+  "version": "0.13.1",
+  "license": "MIT",
+  "url": "https://github.com/rust-phf/rust-phf",
+  "source": "crate"
+ },
+ {
+  "name": "phf_generator",
+  "version": "0.13.1",
+  "license": "MIT",
+  "url": "https://github.com/rust-phf/rust-phf",
+  "source": "crate"
+ },
+ {
+  "name": "phf_macros",
+  "version": "0.13.1",
+  "license": "MIT",
+  "url": "https://github.com/rust-phf/rust-phf",
+  "source": "crate"
+ },
+ {
+  "name": "phf_shared",
+  "version": "0.13.1",
+  "license": "MIT",
+  "url": "https://github.com/rust-phf/rust-phf",
+  "source": "crate"
+ },
+ {
+  "name": "pin-project-lite",
+  "version": "0.2.17",
+  "license": "Apache-2.0 OR MIT",
+  "url": "https://github.com/taiki-e/pin-project-lite",
+  "source": "crate"
+ },
+ {
+  "name": "plist",
+  "version": "1.10.1",
+  "license": "MIT",
+  "url": "https://github.com/ebarnard/rust-plist/",
+  "source": "crate"
+ },
+ {
+  "name": "png",
+  "version": "0.17.16",
+  "license": "MIT OR Apache-2.0",
+  "url": "https://github.com/image-rs/image-png",
+  "source": "crate"
+ },
+ {
+  "name": "png",
+  "version": "0.18.1",
+  "license": "MIT OR Apache-2.0",
+  "url": "https://github.com/image-rs/image-png",
+  "source": "crate"
+ },
+ {
+  "name": "potential_utf",
+  "version": "0.1.6",
+  "license": "Unicode-3.0",
+  "url": "https://github.com/unicode-org/icu4x",
+  "source": "crate"
+ },
+ {
+  "name": "powerfmt",
+  "version": "0.2.1",
+  "license": "MIT OR Apache-2.0",
+  "url": "https://github.com/jhpratt/powerfmt",
+  "source": "crate"
+ },
+ {
+  "name": "precomputed-hash",
+  "version": "0.1.1",
+  "license": "MIT",
+  "url": "https://github.com/emilio/precomputed-hash",
+  "source": "crate"
+ },
+ {
+  "name": "proc-macro2",
+  "version": "1.0.107",
+  "license": "MIT OR Apache-2.0",
+  "url": "https://github.com/dtolnay/proc-macro2",
+  "source": "crate"
+ },
+ {
+  "name": "property-information",
+  "version": "7.2.0",
+  "license": "MIT",
+  "url": "wooorm/property-information",
+  "source": "npm"
+ },
+ {
+  "name": "quick-xml",
+  "version": "0.42.0",
+  "license": "MIT",
+  "url": "https://github.com/tafia/quick-xml",
+  "source": "crate"
+ },
+ {
+  "name": "quote",
+  "version": "1.0.47",
+  "license": "MIT OR Apache-2.0",
+  "url": "https://github.com/dtolnay/quote",
+  "source": "crate"
+ },
+ {
+  "name": "radix-ui",
+  "version": "1.8.1",
+  "license": "MIT",
+  "url": "https://radix-ui.com/primitives",
+  "source": "npm"
+ },
+ {
+  "name": "raw-window-handle",
+  "version": "0.6.2",
+  "license": "MIT OR Apache-2.0 OR Zlib",
+  "url": "https://github.com/rust-windowing/raw-window-handle",
+  "source": "crate"
+ },
+ {
+  "name": "react",
+  "version": "19.3.0",
+  "license": "MIT",
+  "url": "https://react.dev/",
+  "source": "npm"
+ },
+ {
+  "name": "react-dom",
+  "version": "19.3.0",
+  "license": "MIT",
+  "url": "https://react.dev/",
+  "source": "npm"
+ },
+ {
+  "name": "react-markdown",
+  "version": "10.1.0",
+  "license": "MIT",
+  "url": "remarkjs/react-markdown",
+  "source": "npm"
+ },
+ {
+  "name": "react-remove-scroll",
+  "version": "2.7.2",
+  "license": "MIT",
+  "url": "https://github.com/theKashey/react-remove-scroll",
+  "source": "npm"
+ },
+ {
+  "name": "react-remove-scroll-bar",
+  "version": "2.3.8",
+  "license": "MIT",
+  "url": "https://github.com/theKashey/react-remove-scroll-bar",
+  "source": "npm"
+ },
+ {
+  "name": "react-style-singleton",
+  "version": "2.2.3",
+  "license": "MIT",
+  "url": "https://github.com/theKashey/react-style-singleton#readme",
+  "source": "npm"
+ },
+ {
+  "name": "ref-cast",
+  "version": "1.0.27",
+  "license": "MIT OR Apache-2.0",
+  "url": "https://github.com/dtolnay/ref-cast",
+  "source": "crate"
+ },
+ {
+  "name": "ref-cast-impl",
+  "version": "1.0.27",
+  "license": "MIT OR Apache-2.0",
+  "url": "https://github.com/dtolnay/ref-cast",
+  "source": "crate"
+ },
+ {
+  "name": "regex",
+  "version": "1.13.1",
+  "license": "MIT OR Apache-2.0",
+  "url": "https://github.com/rust-lang/regex",
+  "source": "crate"
+ },
+ {
+  "name": "regex",
+  "version": "6.1.0",
+  "license": "MIT",
+  "url": "https://github.com/slevithan/regex",
+  "source": "npm"
+ },
+ {
+  "name": "regex-automata",
+  "version": "0.4.18",
+  "license": "MIT OR Apache-2.0",
+  "url": "https://github.com/rust-lang/regex",
+  "source": "crate"
+ },
+ {
+  "name": "regex-recursion",
+  "version": "6.0.2",
+  "license": "MIT",
+  "url": "https://github.com/slevithan/regex-recursion",
+  "source": "npm"
+ },
+ {
+  "name": "regex-syntax",
+  "version": "0.8.11",
+  "license": "MIT OR Apache-2.0",
+  "url": "https://github.com/rust-lang/regex",
+  "source": "crate"
+ },
+ {
+  "name": "regex-utilities",
+  "version": "2.3.0",
+  "license": "MIT",
+  "url": "https://github.com/slevithan/regex-utilities",
+  "source": "npm"
+ },
+ {
+  "name": "remark-gfm",
+  "version": "4.0.1",
+  "license": "MIT",
+  "url": "remarkjs/remark-gfm",
+  "source": "npm"
+ },
+ {
+  "name": "remark-parse",
+  "version": "11.0.0",
+  "license": "MIT",
+  "url": "https://remark.js.org",
+  "source": "npm"
+ },
+ {
+  "name": "remark-rehype",
+  "version": "11.1.2",
+  "license": "MIT",
+  "url": "remarkjs/remark-rehype",
+  "source": "npm"
+ },
+ {
+  "name": "remark-stringify",
+  "version": "11.0.0",
+  "license": "MIT",
+  "url": "https://remark.js.org",
+  "source": "npm"
+ },
+ {
+  "name": "reqwest",
+  "version": "0.13.5",
+  "license": "MIT OR Apache-2.0",
+  "url": "https://github.com/seanmonstar/reqwest",
+  "source": "crate"
+ },
+ {
+  "name": "ring",
+  "version": "0.17.14",
+  "license": "Apache-2.0 AND ISC",
+  "url": "https://github.com/briansmith/ring",
+  "source": "crate"
+ },
+ {
+  "name": "rustc-hash",
+  "version": "2.1.3",
+  "license": "Apache-2.0 OR MIT",
+  "url": "https://github.com/rust-lang/rustc-hash",
+  "source": "crate"
+ },
+ {
+  "name": "rustix",
+  "version": "1.1.5",
+  "license": "Apache-2.0 WITH LLVM-exception OR Apache-2.0 OR MIT",
+  "url": "https://github.com/bytecodealliance/rustix",
+  "source": "crate"
+ },
+ {
+  "name": "rustls",
+  "version": "0.23.45",
+  "license": "Apache-2.0 OR ISC OR MIT",
+  "url": "https://github.com/rustls/rustls",
+  "source": "crate"
+ },
+ {
+  "name": "rustls-pki-types",
+  "version": "1.15.1",
+  "license": "MIT OR Apache-2.0",
+  "url": "https://github.com/rustls/pki-types",
+  "source": "crate"
+ },
+ {
+  "name": "rustls-platform-verifier",
+  "version": "0.7.1",
+  "license": "MIT OR Apache-2.0",
+  "url": "https://github.com/rustls/rustls-platform-verifier",
+  "source": "crate"
+ },
+ {
+  "name": "rustls-webpki",
+  "version": "0.103.15",
+  "license": "ISC",
+  "url": "https://github.com/rustls/webpki",
+  "source": "crate"
+ },
+ {
+  "name": "same-file",
+  "version": "1.0.6",
+  "license": "Unlicense/MIT",
+  "url": "https://github.com/BurntSushi/same-file",
+  "source": "crate"
+ },
+ {
+  "name": "scheduler",
+  "version": "0.28.0",
+  "license": "MIT",
+  "url": "https://react.dev/",
+  "source": "npm"
+ },
+ {
+  "name": "schemars",
+  "version": "0.8.22",
+  "license": "MIT",
+  "url": "https://github.com/GREsau/schemars",
+  "source": "crate"
+ },
+ {
+  "name": "schemars",
+  "version": "0.9.0",
+  "license": "MIT",
+  "url": "https://github.com/GREsau/schemars",
+  "source": "crate"
+ },
+ {
+  "name": "schemars",
+  "version": "1.2.2",
+  "license": "MIT",
+  "url": "https://github.com/GREsau/schemars",
+  "source": "crate"
+ },
+ {
+  "name": "schemars_derive",
+  "version": "0.8.22",
+  "license": "MIT",
+  "url": "https://github.com/GREsau/schemars",
+  "source": "crate"
+ },
+ {
+  "name": "scopeguard",
+  "version": "1.2.0",
+  "license": "MIT OR Apache-2.0",
+  "url": "https://github.com/bluss/scopeguard",
+  "source": "crate"
+ },
+ {
+  "name": "security-framework",
+  "version": "3.7.0",
+  "license": "MIT OR Apache-2.0",
+  "url": "https://github.com/kornelski/rust-security-framework",
+  "source": "crate"
+ },
+ {
+  "name": "security-framework-sys",
+  "version": "2.17.0",
+  "license": "MIT OR Apache-2.0",
+  "url": "https://github.com/kornelski/rust-security-framework",
+  "source": "crate"
+ },
+ {
+  "name": "selectors",
+  "version": "0.38.0",
+  "license": "MPL-2.0",
+  "url": "https://github.com/servo/stylo",
+  "source": "crate"
+ },
+ {
+  "name": "semver",
+  "version": "1.0.28",
+  "license": "MIT OR Apache-2.0",
+  "url": "https://github.com/dtolnay/semver",
+  "source": "crate"
+ },
+ {
+  "name": "serde",
+  "version": "1.0.229",
+  "license": "MIT OR Apache-2.0",
+  "url": "https://github.com/serde-rs/serde",
+  "source": "crate"
+ },
+ {
+  "name": "serde_core",
+  "version": "1.0.229",
+  "license": "MIT OR Apache-2.0",
+  "url": "https://github.com/serde-rs/serde",
+  "source": "crate"
+ },
+ {
+  "name": "serde_derive",
+  "version": "1.0.229",
+  "license": "MIT OR Apache-2.0",
+  "url": "https://github.com/serde-rs/serde",
+  "source": "crate"
+ },
+ {
+  "name": "serde_derive_internals",
+  "version": "0.29.1",
+  "license": "MIT OR Apache-2.0",
+  "url": "https://github.com/serde-rs/serde",
+  "source": "crate"
+ },
+ {
+  "name": "serde_json",
+  "version": "1.0.154",
+  "license": "MIT OR Apache-2.0",
+  "url": "https://github.com/serde-rs/json",
+  "source": "crate"
+ },
+ {
+  "name": "serde_repr",
+  "version": "0.1.21",
+  "license": "MIT OR Apache-2.0",
+  "url": "https://github.com/dtolnay/serde-repr",
+  "source": "crate"
+ },
+ {
+  "name": "serde_spanned",
+  "version": "1.1.2",
+  "license": "MIT OR Apache-2.0",
+  "url": "https://github.com/toml-rs/toml",
+  "source": "crate"
+ },
+ {
+  "name": "serde_with",
+  "version": "3.24.0",
+  "license": "MIT OR Apache-2.0",
+  "url": "https://github.com/jonasbb/serde_with/",
+  "source": "crate"
+ },
+ {
+  "name": "serde_with_macros",
+  "version": "3.24.0",
+  "license": "MIT OR Apache-2.0",
+  "url": "https://github.com/jonasbb/serde_with/",
+  "source": "crate"
+ },
+ {
+  "name": "serde-untagged",
+  "version": "0.1.9",
+  "license": "MIT OR Apache-2.0",
+  "url": "https://github.com/dtolnay/serde-untagged",
+  "source": "crate"
+ },
+ {
+  "name": "serialize-to-javascript",
+  "version": "0.1.2",
+  "license": "MIT OR Apache-2.0",
+  "url": "https://github.com/chippers/serialize-to-javascript",
+  "source": "crate"
+ },
+ {
+  "name": "serialize-to-javascript-impl",
+  "version": "0.1.2",
+  "license": "MIT OR Apache-2.0",
+  "url": "https://github.com/chippers/serialize-to-javascript",
+  "source": "crate"
+ },
+ {
+  "name": "servo_arc",
+  "version": "0.4.3",
+  "license": "MIT OR Apache-2.0",
+  "url": "https://github.com/servo/stylo",
+  "source": "crate"
+ },
+ {
+  "name": "sha2",
+  "version": "0.10.9",
+  "license": "MIT OR Apache-2.0",
+  "url": "https://github.com/RustCrypto/hashes",
+  "source": "crate"
+ },
+ {
+  "name": "shiki",
+  "version": "4.5.0",
+  "license": "MIT",
+  "url": "https://github.com/shikijs/shiki#readme",
+  "source": "npm"
+ },
+ {
+  "name": "simd-adler32",
+  "version": "0.3.10",
+  "license": "MIT",
+  "url": "https://github.com/mcountryman/simd-adler32",
+  "source": "crate"
+ },
+ {
+  "name": "siphasher",
+  "version": "1.0.4",
+  "license": "MIT OR Apache-2.0",
+  "url": "https://github.com/jedisct1/rust-siphash",
+  "source": "crate"
+ },
+ {
+  "name": "slab",
+  "version": "0.4.12",
+  "license": "MIT",
+  "url": "https://github.com/tokio-rs/slab",
+  "source": "crate"
+ },
+ {
+  "name": "smallvec",
+  "version": "1.16.3",
+  "license": "MIT OR Apache-2.0",
+  "url": "https://github.com/servo/rust-smallvec",
+  "source": "crate"
+ },
+ {
+  "name": "socket2",
+  "version": "0.6.5",
+  "license": "MIT OR Apache-2.0",
+  "url": "https://github.com/rust-lang/socket2",
+  "source": "crate"
+ },
+ {
+  "name": "sonner",
+  "version": "2.0.8",
+  "license": "MIT",
+  "url": "https://sonner.emilkowal.ski/",
+  "source": "npm"
+ },
+ {
+  "name": "space-separated-tokens",
+  "version": "2.0.2",
+  "license": "MIT",
+  "url": "wooorm/space-separated-tokens",
+  "source": "npm"
+ },
+ {
+  "name": "stable_deref_trait",
+  "version": "1.2.1",
+  "license": "MIT OR Apache-2.0",
+  "url": "https://github.com/storyyeller/stable_deref_trait",
+  "source": "crate"
+ },
+ {
+  "name": "string_cache",
+  "version": "0.9.0",
+  "license": "MIT OR Apache-2.0",
+  "url": "https://github.com/servo/string-cache",
+  "source": "crate"
+ },
+ {
+  "name": "stringify-entities",
+  "version": "4.0.4",
+  "license": "MIT",
+  "url": "wooorm/stringify-entities",
+  "source": "npm"
+ },
+ {
+  "name": "strsim",
+  "version": "0.11.1",
+  "license": "MIT",
+  "url": "https://github.com/rapidfuzz/strsim-rs",
+  "source": "crate"
+ },
+ {
+  "name": "style-to-js",
+  "version": "1.1.21",
+  "license": "MIT",
+  "url": "https://github.com/remarkablemark/style-to-js",
+  "source": "npm"
+ },
+ {
+  "name": "style-to-object",
+  "version": "1.0.14",
+  "license": "MIT",
+  "url": "https://github.com/remarkablemark/style-to-object",
+  "source": "npm"
+ },
+ {
+  "name": "subtle",
+  "version": "2.6.1",
+  "license": "BSD-3-Clause",
+  "url": "https://github.com/dalek-cryptography/subtle",
+  "source": "crate"
+ },
+ {
+  "name": "swift-rs",
+  "version": "1.0.9",
+  "license": "MIT OR Apache-2.0",
+  "url": "https://github.com/Brendonovich/swift-rs",
+  "source": "crate"
+ },
+ {
+  "name": "syn",
+  "version": "2.0.119",
+  "license": "MIT OR Apache-2.0",
+  "url": "https://github.com/dtolnay/syn",
+  "source": "crate"
+ },
+ {
+  "name": "syn",
+  "version": "3.0.8",
+  "license": "MIT OR Apache-2.0",
+  "url": "https://github.com/dtolnay/syn",
+  "source": "crate"
+ },
+ {
+  "name": "sync_wrapper",
+  "version": "1.0.2",
+  "license": "Apache-2.0",
+  "url": "https://github.com/Actyx/sync_wrapper",
+  "source": "crate"
+ },
+ {
+  "name": "synstructure",
+  "version": "0.14.0",
+  "license": "MIT",
+  "url": "https://github.com/mystor/synstructure",
+  "source": "crate"
+ },
+ {
+  "name": "system-configuration",
+  "version": "0.7.0",
+  "license": "MIT OR Apache-2.0",
+  "url": "https://github.com/mullvad/system-configuration-rs",
+  "source": "crate"
+ },
+ {
+  "name": "system-configuration-sys",
+  "version": "0.6.0",
+  "license": "MIT OR Apache-2.0",
+  "url": "https://github.com/mullvad/system-configuration-rs",
+  "source": "crate"
+ },
+ {
+  "name": "tailwind-merge",
+  "version": "3.7.0",
+  "license": "MIT",
+  "url": "https://github.com/dcastil/tailwind-merge",
+  "source": "npm"
+ },
+ {
+  "name": "tao",
+  "version": "0.37.1",
+  "license": "Apache-2.0",
+  "url": "https://github.com/tauri-apps/tao",
+  "source": "crate"
+ },
+ {
+  "name": "tar",
+  "version": "0.4.46",
+  "license": "MIT OR Apache-2.0",
+  "url": "https://github.com/composefs/tar-rs",
+  "source": "crate"
+ },
+ {
+  "name": "tauri",
+  "version": "2.12.3",
+  "license": "Apache-2.0 OR MIT",
+  "url": "https://github.com/tauri-apps/tauri",
+  "source": "crate"
+ },
+ {
+  "name": "tauri-codegen",
+  "version": "2.7.2",
+  "license": "Apache-2.0 OR MIT",
+  "url": "https://github.com/tauri-apps/tauri",
+  "source": "crate"
+ },
+ {
+  "name": "tauri-macros",
+  "version": "2.7.2",
+  "license": "Apache-2.0 OR MIT",
+  "url": "https://github.com/tauri-apps/tauri",
+  "source": "crate"
+ },
+ {
+  "name": "tauri-plugin-process",
+  "version": "2.4.0",
+  "license": "Apache-2.0 OR MIT",
+  "url": "https://github.com/tauri-apps/plugins-workspace",
+  "source": "crate"
+ },
+ {
+  "name": "tauri-plugin-updater",
+  "version": "2.13.3",
+  "license": "Apache-2.0 OR MIT",
+  "url": "https://github.com/tauri-apps/plugins-workspace",
+  "source": "crate"
+ },
+ {
+  "name": "tauri-runtime",
+  "version": "2.12.1",
+  "license": "Apache-2.0 OR MIT",
+  "url": "https://github.com/tauri-apps/tauri",
+  "source": "crate"
+ },
+ {
+  "name": "tauri-runtime-wry",
+  "version": "2.12.1",
+  "license": "Apache-2.0 OR MIT",
+  "url": "https://github.com/tauri-apps/tauri",
+  "source": "crate"
+ },
+ {
+  "name": "tauri-utils",
+  "version": "2.10.1",
+  "license": "Apache-2.0 OR MIT",
+  "url": "https://github.com/tauri-apps/tauri",
+  "source": "crate"
+ },
+ {
+  "name": "tempfile",
+  "version": "3.27.0",
+  "license": "MIT OR Apache-2.0",
+  "url": "https://github.com/Stebalien/tempfile",
+  "source": "crate"
+ },
+ {
+  "name": "tendril",
+  "version": "0.5.1",
+  "license": "MIT OR Apache-2.0",
+  "url": "https://github.com/servo/html5ever",
+  "source": "crate"
+ },
+ {
+  "name": "thiserror",
+  "version": "2.0.21",
+  "license": "MIT OR Apache-2.0",
+  "url": "https://github.com/dtolnay/thiserror",
+  "source": "crate"
+ },
+ {
+  "name": "thiserror-impl",
+  "version": "2.0.21",
+  "license": "MIT OR Apache-2.0",
+  "url": "https://github.com/dtolnay/thiserror",
+  "source": "crate"
+ },
+ {
+  "name": "time",
+  "version": "0.3.55",
+  "license": "MIT OR Apache-2.0",
+  "url": "https://github.com/time-rs/time",
+  "source": "crate"
+ },
+ {
+  "name": "time-core",
+  "version": "0.1.9",
+  "license": "MIT OR Apache-2.0",
+  "url": "https://github.com/time-rs/time",
+  "source": "crate"
+ },
+ {
+  "name": "time-macros",
+  "version": "0.2.32",
+  "license": "MIT OR Apache-2.0",
+  "url": "https://github.com/time-rs/time",
+  "source": "crate"
+ },
+ {
+  "name": "tinystr",
+  "version": "0.8.4",
+  "license": "Unicode-3.0",
+  "url": "https://github.com/unicode-org/icu4x",
+  "source": "crate"
+ },
+ {
+  "name": "tinyvec",
+  "version": "1.13.3",
+  "license": "Zlib OR Apache-2.0 OR MIT",
+  "url": "https://github.com/Lokathor/tinyvec",
+  "source": "crate"
+ },
+ {
+  "name": "tokio",
+  "version": "1.53.2",
+  "license": "MIT",
+  "url": "https://github.com/tokio-rs/tokio",
+  "source": "crate"
+ },
+ {
+  "name": "tokio-rustls",
+  "version": "0.26.6",
+  "license": "MIT OR Apache-2.0",
+  "url": "https://github.com/rustls/tokio-rustls",
+  "source": "crate"
+ },
+ {
+  "name": "tokio-util",
+  "version": "0.7.20",
+  "license": "MIT",
+  "url": "https://github.com/tokio-rs/tokio",
+  "source": "crate"
+ },
+ {
+  "name": "toml",
+  "version": "1.1.8+spec-1.1.0",
+  "license": "MIT OR Apache-2.0",
+  "url": "https://github.com/toml-rs/toml",
+  "source": "crate"
+ },
+ {
+  "name": "toml_datetime",
+  "version": "1.1.2+spec-1.1.0",
+  "license": "MIT OR Apache-2.0",
+  "url": "https://github.com/toml-rs/toml",
+  "source": "crate"
+ },
+ {
+  "name": "toml_parser",
+  "version": "1.1.5+spec-1.1.0",
+  "license": "MIT OR Apache-2.0",
+  "url": "https://github.com/toml-rs/toml",
+  "source": "crate"
+ },
+ {
+  "name": "toml_writer",
+  "version": "1.1.3+spec-1.1.0",
+  "license": "MIT OR Apache-2.0",
+  "url": "https://github.com/toml-rs/toml",
+  "source": "crate"
+ },
+ {
+  "name": "tower",
+  "version": "0.5.3",
+  "license": "MIT",
+  "url": "https://github.com/tower-rs/tower",
+  "source": "crate"
+ },
+ {
+  "name": "tower-http",
+  "version": "0.6.11",
+  "license": "MIT",
+  "url": "https://github.com/tower-rs/tower-http",
+  "source": "crate"
+ },
+ {
+  "name": "tower-layer",
+  "version": "0.3.3",
+  "license": "MIT",
+  "url": "https://github.com/tower-rs/tower",
+  "source": "crate"
+ },
+ {
+  "name": "tower-service",
+  "version": "0.3.3",
+  "license": "MIT",
+  "url": "https://github.com/tower-rs/tower",
+  "source": "crate"
+ },
+ {
+  "name": "tracing",
+  "version": "0.1.44",
+  "license": "MIT",
+  "url": "https://github.com/tokio-rs/tracing",
+  "source": "crate"
+ },
+ {
+  "name": "tracing-core",
+  "version": "0.1.36",
+  "license": "MIT",
+  "url": "https://github.com/tokio-rs/tracing",
+  "source": "crate"
+ },
+ {
+  "name": "tray-icon",
+  "version": "0.25.1",
+  "license": "MIT OR Apache-2.0",
+  "url": "https://github.com/tauri-apps/tray-icon",
+  "source": "crate"
+ },
+ {
+  "name": "trim-lines",
+  "version": "3.0.1",
+  "license": "MIT",
+  "url": "wooorm/trim-lines",
+  "source": "npm"
+ },
+ {
+  "name": "trough",
+  "version": "2.2.0",
+  "license": "MIT",
+  "url": "wooorm/trough",
+  "source": "npm"
+ },
+ {
+  "name": "try-lock",
+  "version": "0.2.5",
+  "license": "MIT",
+  "url": "https://github.com/seanmonstar/try-lock",
+  "source": "crate"
+ },
+ {
+  "name": "tslib",
+  "version": "2.8.1",
+  "license": "0BSD",
+  "url": "https://www.typescriptlang.org/",
+  "source": "npm"
+ },
+ {
+  "name": "typeid",
+  "version": "1.0.3",
+  "license": "MIT OR Apache-2.0",
+  "url": "https://github.com/dtolnay/typeid",
+  "source": "crate"
+ },
+ {
+  "name": "typenum",
+  "version": "1.20.1",
+  "license": "MIT OR Apache-2.0",
+  "url": "https://github.com/paholg/typenum",
+  "source": "crate"
+ },
+ {
+  "name": "unicode-ident",
+  "version": "1.0.26",
+  "license": "(MIT OR Apache-2.0) AND Unicode-3.0",
+  "url": "https://github.com/dtolnay/unicode-ident",
+  "source": "crate"
+ },
+ {
+  "name": "unified",
+  "version": "11.0.5",
+  "license": "MIT",
+  "url": "https://unifiedjs.com",
+  "source": "npm"
+ },
+ {
+  "name": "unist-util-is",
+  "version": "6.0.1",
+  "license": "MIT",
+  "url": "syntax-tree/unist-util-is",
+  "source": "npm"
+ },
+ {
+  "name": "unist-util-position",
+  "version": "5.0.0",
+  "license": "MIT",
+  "url": "syntax-tree/unist-util-position",
+  "source": "npm"
+ },
+ {
+  "name": "unist-util-stringify-position",
+  "version": "4.0.0",
+  "license": "MIT",
+  "url": "syntax-tree/unist-util-stringify-position",
+  "source": "npm"
+ },
+ {
+  "name": "unist-util-visit",
+  "version": "5.1.0",
+  "license": "MIT",
+  "url": "syntax-tree/unist-util-visit",
+  "source": "npm"
+ },
+ {
+  "name": "unist-util-visit-parents",
+  "version": "6.0.2",
+  "license": "MIT",
+  "url": "syntax-tree/unist-util-visit-parents",
+  "source": "npm"
+ },
+ {
+  "name": "untrusted",
+  "version": "0.9.0",
+  "license": "ISC",
+  "url": "https://github.com/briansmith/untrusted",
+  "source": "crate"
+ },
+ {
+  "name": "url",
+  "version": "2.5.8",
+  "license": "MIT OR Apache-2.0",
+  "url": "https://github.com/servo/rust-url",
+  "source": "crate"
+ },
+ {
+  "name": "urlpattern",
+  "version": "0.6.0",
+  "license": "MIT",
+  "url": "https://github.com/denoland/rust-urlpattern",
+  "source": "crate"
+ },
+ {
+  "name": "use-callback-ref",
+  "version": "1.3.3",
+  "license": "MIT",
+  "url": "https://github.com/theKashey/use-callback-ref/",
+  "source": "npm"
+ },
+ {
+  "name": "use-sidecar",
+  "version": "1.1.3",
+  "license": "MIT",
+  "url": "https://github.com/theKashey/use-sidecar",
+  "source": "npm"
+ },
+ {
+  "name": "utf8_iter",
+  "version": "1.0.4",
+  "license": "Apache-2.0 OR MIT",
+  "url": "https://github.com/hsivonen/utf8_iter",
+  "source": "crate"
+ },
+ {
+  "name": "uuid",
+  "version": "1.28.0",
+  "license": "Apache-2.0 OR MIT",
+  "url": "https://github.com/uuid-rs/uuid",
+  "source": "crate"
+ },
+ {
+  "name": "vfile",
+  "version": "6.0.3",
+  "license": "MIT",
+  "url": "vfile/vfile",
+  "source": "npm"
+ },
+ {
+  "name": "vfile-message",
+  "version": "4.0.3",
+  "license": "MIT",
+  "url": "vfile/vfile-message",
+  "source": "npm"
+ },
+ {
+  "name": "walkdir",
+  "version": "2.5.0",
+  "license": "Unlicense/MIT",
+  "url": "https://github.com/BurntSushi/walkdir",
+  "source": "crate"
+ },
+ {
+  "name": "want",
+  "version": "0.3.2",
+  "license": "MIT",
+  "url": "https://github.com/seanmonstar/want",
+  "source": "crate"
+ },
+ {
+  "name": "web_atoms",
+  "version": "0.2.6",
+  "license": "MIT OR Apache-2.0",
+  "url": "https://github.com/servo/html5ever",
+  "source": "crate"
+ },
+ {
+  "name": "web-time",
+  "version": "1.1.0",
+  "license": "MIT OR Apache-2.0",
+  "url": "https://github.com/daxpedda/web-time",
+  "source": "crate"
+ },
+ {
+  "name": "window-vibrancy",
+  "version": "0.8.1",
+  "license": "Apache-2.0 OR MIT",
+  "url": "https://github.com/tauri-apps/tauri-plugin-vibrancy",
+  "source": "crate"
+ },
+ {
+  "name": "winnow",
+  "version": "1.0.4",
+  "license": "MIT",
+  "url": "https://github.com/winnow-rs/winnow",
+  "source": "crate"
+ },
+ {
+  "name": "writeable",
+  "version": "0.6.4",
+  "license": "Unicode-3.0",
+  "url": "https://github.com/unicode-org/icu4x",
+  "source": "crate"
+ },
+ {
+  "name": "wry",
+  "version": "0.57.0",
+  "license": "Apache-2.0 OR MIT",
+  "url": "https://github.com/tauri-apps/wry",
+  "source": "crate"
+ },
+ {
+  "name": "xattr",
+  "version": "1.6.1",
+  "license": "MIT OR Apache-2.0",
+  "url": "https://github.com/Stebalien/xattr",
+  "source": "crate"
+ },
+ {
+  "name": "yoke",
+  "version": "0.8.3",
+  "license": "Unicode-3.0",
+  "url": "https://github.com/unicode-org/icu4x",
+  "source": "crate"
+ },
+ {
+  "name": "yoke-derive",
+  "version": "0.8.4",
+  "license": "Unicode-3.0",
+  "url": "https://github.com/unicode-org/icu4x",
+  "source": "crate"
+ },
+ {
+  "name": "zerofrom",
+  "version": "0.1.8",
+  "license": "Unicode-3.0",
+  "url": "https://github.com/unicode-org/icu4x",
+  "source": "crate"
+ },
+ {
+  "name": "zerofrom-derive",
+  "version": "0.1.8",
+  "license": "Unicode-3.0",
+  "url": "https://github.com/unicode-org/icu4x",
+  "source": "crate"
+ },
+ {
+  "name": "zeroize",
+  "version": "1.9.1",
+  "license": "Apache-2.0 OR MIT",
+  "url": "https://github.com/RustCrypto/utils",
+  "source": "crate"
+ },
+ {
+  "name": "zerotrie",
+  "version": "0.2.5",
+  "license": "Unicode-3.0",
+  "url": "https://github.com/unicode-org/icu4x",
+  "source": "crate"
+ },
+ {
+  "name": "zerovec",
+  "version": "0.11.8",
+  "license": "Unicode-3.0",
+  "url": "https://github.com/unicode-org/icu4x",
+  "source": "crate"
+ },
+ {
+  "name": "zerovec-derive",
+  "version": "0.11.6",
+  "license": "Unicode-3.0",
+  "url": "https://github.com/unicode-org/icu4x",
+  "source": "crate"
+ },
+ {
+  "name": "zlib-rs",
+  "version": "0.6.8",
+  "license": "Zlib",
+  "url": "https://github.com/trifectatechfoundation/zlib-rs",
+  "source": "crate"
+ },
+ {
+  "name": "zmij",
+  "version": "1.0.23",
+  "license": "MIT",
+  "url": "https://github.com/dtolnay/zmij",
+  "source": "crate"
+ },
+ {
+  "name": "zustand",
+  "version": "5.0.15",
+  "license": "MIT",
+  "url": "https://github.com/pmndrs/zustand",
+  "source": "npm"
+ },
+ {
+  "name": "zwitch",
+  "version": "2.0.4",
+  "license": "MIT",
+  "url": "wooorm/zwitch",
+  "source": "npm"
+ }
+]

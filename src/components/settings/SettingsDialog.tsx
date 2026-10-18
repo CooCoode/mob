@@ -1,4 +1,5 @@
 import { UpdateSettings } from "@/components/UpdateNotice";
+import { Licenses } from "@/components/settings/Licenses";
 import {
   CheckCircle2, CircleHelp, Info, Monitor, Moon, Palette, Plus, ScrollText, Sun, SunMoon, Trash2, TriangleAlert, XCircle,
 } from "lucide-react";
@@ -376,6 +377,7 @@ export function SettingsDialog() {
                 <p className="font-semibold">mob</p>
                 <p className="text-muted-foreground">Home client for the MOB office agent</p>
                 <UpdateSettings />
+                <Licenses />
               </div>
             </TabsContent>
           </div>

@@ -10,7 +10,8 @@
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
     "tauri": "tauri",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "licenses": "node scripts/licenses.mjs"
   },
   "dependencies": {
     "@tanstack/react-query": "^5.104.2",
