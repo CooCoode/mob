@@ -318,6 +318,32 @@ export function PreviewPanel({ machine, health, queue }: { machine: Machine; hea
       ro.disconnect();
     };
   }, [streaming]);
+  // Shift-Command-C: expand (connecting if needed) and take control in one step. The View/Control
+  // switch in the expanded toolbar is the only other way in; the panel itself only watches.
+  const takeControl = () => {
+    if (!connected) {
+      set({ fullscreen: true });
+      requestAnimationFrame(() => reconnect.current(true));
+    } else if (fullscreen) {
+      live.setControl(true);
+    } else {
+      if (streaming) controlAfterResize.current = true;
+      else vnc.setControl(true);
+      set({ fullscreen: true });
+    }
+  };
+  const takeControlRef = useRef(takeControl);
+  takeControlRef.current = takeControl;
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.metaKey && e.shiftKey && !e.altKey && !e.ctrlKey && e.code === "KeyC") {
+        e.preventDefault();
+        takeControlRef.current();
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
   // Connect requests from the command palette, which has no access to the view.
   const { liveConnect } = useApp();
   useEffect(() => {
@@ -390,17 +416,6 @@ export function PreviewPanel({ machine, health, queue }: { machine: Machine; hea
             </Tooltip>
           )}
           <div className="flex-1" />
-          <Tooltip content={canControl ? "Take control (expands the view)" : connected ? "Control is not available on this live view yet" : "Connect the live view to take control"}>
-            <Button variant="ghost" size="sm" className="h-7 gap-1 px-2" aria-label="Take control" disabled={!canControl}
-              onClick={() => {
-                // The stream reconnects at the expanded size, then takes control.
-                if (streaming) controlAfterResize.current = true;
-                else vnc.setControl(true);
-                set({ fullscreen: true });
-              }}>
-              <MousePointer2 className="size-3.5" /> Control
-            </Button>
-          </Tooltip>
           {streaming && <QualityMenu machine={machine} dark={false} />}
           {/* Ends like the expanded toolbar: quality, power, then expand/collapse in the corner. */}
           <Tooltip content={connected ? "Disconnect live view" : "Connect live view"}>
@@ -410,7 +425,7 @@ export function PreviewPanel({ machine, health, queue }: { machine: Machine; hea
               {state.status === "connecting" ? <Spinner /> : <Power />}
             </Button>
           </Tooltip>
-          <Tooltip content="Expand in the window (double-click)">
+          <Tooltip content="Expand in the window (double-click) · ⇧⌘C to take control">
             <Button variant="ghost" size="icon-sm" aria-label="Expand live view" disabled={!connected && !canSnapshot}
               onClick={() => set({ fullscreen: true })}>
               <Expand />

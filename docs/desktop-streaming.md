@@ -103,3 +103,8 @@ time) with kB/s and the full readout in a tooltip, quality, connect and **Collap
 icon, the mirror of the panel's `Expand`; Esc in View). The green button gives real macOS full screen. mobd cannot resize a running stream, so a window
 resize reconnects once the size has been stable for 0.6 s; a `resize` control message would avoid it.
 Cmd+W / Cmd+Q stay with the app menu even in Control, as in most Mac apps.
+
+The panel only watches (its header: Live · View only · kB/s … Quality · Power · Expand); controlling
+happens in the expanded view, which always opens in View and has the only View/Control switch.
+Shift-Command-C expands (connecting if needed) and takes control in one step. Both toolbars end with
+Quality · Power · Expand/Collapse.
