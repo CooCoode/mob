@@ -122,7 +122,7 @@ Empty session: centered greeting + example prompt cards ("Open a website", "Chec
 
 | Tab | Contents |
 | --- | --- |
-| Machines | List + form (name, pairing, live view quality), **Test connection** runs `/health` and shows the checks list |
+| Machines | Info callout when credentials use the encrypted-file fallback; list + form (name, pairing, live view quality); **Test connection** runs `/health` and shows the checks list |
 | Appearance | Theme (system / light / dark), system notifications for agent questions |
 | Log | Raw SSE/debug viewer (filter, pause, clear, copy). Monospace |
 | About | App version, mobd `apiVersion`, links |

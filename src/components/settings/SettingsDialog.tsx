@@ -242,7 +242,7 @@ function MachineForm({ machine }: { machine: Machine }) {
 
   return (
     <form
-      className="grid min-w-0 flex-1 grid-cols-1 content-start gap-3"
+      className="grid min-h-0 min-w-0 flex-1 grid-cols-1 content-start gap-3 overflow-y-auto"
       onSubmit={(e) => {
         e.preventDefault();
         if (!form.name.trim()) return;
@@ -305,14 +305,20 @@ function CredentialStorageNote() {
   }, []);
   if (!info || info.backend !== "file") return null;
   return (
-    <p className="mt-3 flex items-start gap-1.5 text-[11px] text-muted-foreground">
-      <Info className="mt-px size-3.5 shrink-0" />
-      <span>
-        Pairing credentials are stored in an encrypted local file
-        {info.path ? <> (<span className="break-all font-mono">{info.path}</span>)</> : null}
-        {" "}because the system keyring / Secret Service is unavailable. Same-user readable; see docs/credential-storage.md.
-      </span>
-    </p>
+    <div
+      role="status"
+      className="mb-3 flex shrink-0 items-start gap-2 rounded-lg border bg-muted/70 p-3 text-xs"
+    >
+      <Info className="mt-0.5 size-3.5 shrink-0 text-muted-foreground" />
+      <div className="min-w-0 space-y-0.5">
+        <p className="font-medium text-foreground">Using encrypted local file for pairing credentials</p>
+        <p className="text-muted-foreground">
+          {info.path ? <span className="break-all font-mono">{info.path}</span> : null}
+          {info.path ? " · " : null}
+          System keyring / Secret Service unavailable. Same-user readable — see docs/credential-storage.md.
+        </p>
+      </div>
+    </div>
   );
 }
 
@@ -321,8 +327,9 @@ function MachinesTab() {
   const editing = machines.find((m) => m.id === editMachineId);
   return (
     <div className="flex h-full flex-col">
-      <div className="flex min-h-0 flex-1 gap-4">
-        <div className="flex w-44 shrink-0 flex-col gap-1">
+      <CredentialStorageNote />
+      <div className="flex min-h-0 flex-1 gap-4 overflow-hidden">
+        <div className="flex w-44 shrink-0 flex-col gap-1 overflow-y-auto">
           {machines.map((m) => (
             <button key={m.id} type="button" onClick={() => set({ editMachineId: m.id })}
               className={cn("rounded-md px-2.5 py-1.5 text-left hover:bg-muted", m.id === editMachineId && "bg-muted")}>
@@ -337,13 +344,12 @@ function MachinesTab() {
           </Button>
         </div>
         {editing ? <MachineForm machine={editing} /> : (
-          <div className="grid min-w-0 flex-1 grid-cols-1 content-start gap-3">
+          <div className="grid min-h-0 min-w-0 flex-1 grid-cols-1 content-start gap-3 overflow-y-auto">
             <h3 className="text-[13px] font-semibold">Add machine</h3>
             <PairForm onPaired={(id) => { set({ editMachineId: id }); selectMachine(id); }} />
           </div>
         )}
       </div>
-      <CredentialStorageNote />
     </div>
   );
 }
@@ -432,7 +438,7 @@ export function SettingsDialog() {
             </TabsList>
           </div>
           <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-y-auto p-5 pt-11">
-            <TabsContent value="machines"><MachinesTab /></TabsContent>
+            <TabsContent value="machines" className="h-full"><MachinesTab /></TabsContent>
             <TabsContent value="appearance"><div className="grid gap-6"><AppearanceTab /><NotificationsSetting /></div></TabsContent>
             <TabsContent value="log" className="h-full"><LogTab /></TabsContent>
             <TabsContent value="about">
