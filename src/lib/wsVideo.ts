@@ -8,7 +8,11 @@
 //	bytes 10-  access unit
 //
 // Text messages use the data-channel JSON schema both ways; every video message is acknowledged
-// with {"t":"ack","pts":N}, which is how mobd measures the link. Decoding uses WebCodecs.
+// with {"t":"ack","pts":N}, which is how mobd measures the link. Decoding uses WebCodecs into a
+// canvas; where the webview has none (WebKitGTK on Linux) the frames are remuxed to fragmented MP4
+// and played by a <video> through Media Source Extensions.
+
+import { fragment, initSegment, parameterSets, TIMESCALE } from "./fmp4.ts";
 
 export interface VideoMessage {
   /** Capture time, microseconds. */
@@ -59,6 +63,15 @@ export function webCodecsAvailable(): boolean {
   return typeof VideoDecoder !== "undefined" && typeof EncodedVideoChunk !== "undefined";
 }
 
+/** How this webview can show the WebSocket's H.264, or null if it cannot. */
+export type WsDecoder = "webcodecs" | "mse";
+
+export function wsDecoder(): WsDecoder | null {
+  if (webCodecsAvailable()) return "webcodecs";
+  if (typeof MediaSource !== "undefined" && MediaSource.isTypeSupported('video/mp4; codecs="avc1.42e01f"')) return "mse";
+  return null;
+}
+
 interface PlayerEvents {
   /** A control message (stats, ended, error, cursor). */
   control: (data: string) => void;
@@ -69,13 +82,17 @@ interface PlayerEvents {
 }
 
 const KEY_REQUEST_EVERY = 1000;
+/** With MSE, ask for a keyframe after this long without one, so played frames can be dropped. */
+const KEY_EVERY_S = 30;
 const MAX_DECODE_QUEUE = 8;
 
-/** One WebSocket session drawn into a canvas. */
+/** One WebSocket session, drawn into the canvas (WebCodecs) or played by the video (MSE). */
 export class WsPlayer {
   private ws: WebSocket;
   private canvas: HTMLCanvasElement;
   private on: PlayerEvents;
+  private mse: MsePlayer | null = null;
+  private videoEl: HTMLVideoElement;
   private decoder: VideoDecoder | null = null;
   private codec = "";
   private needKey = true;
@@ -86,9 +103,11 @@ export class WsPlayer {
   bytes = 0;
   frames = 0;
 
-  constructor(url: string, canvas: HTMLCanvasElement, on: PlayerEvents) {
-    this.canvas = canvas;
+  constructor(url: string, surfaces: { canvas: HTMLCanvasElement; video: HTMLVideoElement }, on: PlayerEvents, decoder: WsDecoder) {
+    this.canvas = surfaces.canvas;
+    this.videoEl = surfaces.video;
     this.on = on;
+    if (decoder === "mse") this.startMse();
     this.ws = new WebSocket(url);
     this.ws.binaryType = "arraybuffer";
     this.ws.onopen = () => (this.opened = true);
@@ -100,6 +119,7 @@ export class WsPlayer {
       if (this.closed) return;
       this.closed = true;
       this.stopDecoder();
+      this.mse?.close();
       this.on.close(e.code, e.reason, this.opened);
     };
   }
@@ -111,6 +131,7 @@ export class WsPlayer {
   close(): void {
     this.closed = true;
     this.stopDecoder();
+    this.mse?.close();
     this.ws.close(1000);
   }
 
@@ -121,6 +142,17 @@ export class WsPlayer {
     this.bytes += buf.byteLength;
     if (this.needKey && !m.key) {
       this.askKey();
+      return;
+    }
+    if (this.mse) {
+      if (!m.key && this.mse.backlog > MAX_DECODE_QUEUE) {
+        this.needKey = true;
+        this.askKey();
+        return;
+      }
+      if (this.mse.push(m)) this.needKey = false;
+      else this.askKey();
+      if (this.mse.keyDue) this.askKey();
       return;
     }
     // A decoder falling behind would show an ever older picture: skip to the next keyframe.
@@ -169,6 +201,13 @@ export class WsPlayer {
     this.decoder.configure({ codec, optimizeForLatency: true });
   }
 
+  private startMse() {
+    this.mse = new MsePlayer(this.videoEl, (w, h) => {
+      this.frames++;
+      this.on.frame(w, h);
+    }, () => this.restart());
+  }
+
   private stopDecoder() {
     const d = this.decoder;
     this.decoder = null;
@@ -177,6 +216,10 @@ export class WsPlayer {
 
   /** After a decode error: a fresh decoder from the next keyframe. */
   private restart() {
+    if (this.mse && !this.closed) {
+      this.mse.close();
+      this.startMse();
+    }
     this.stopDecoder();
     this.codec = "";
     this.needKey = true;
@@ -188,5 +231,153 @@ export class WsPlayer {
     if (now - this.lastKeyRequest < KEY_REQUEST_EVERY) return;
     this.lastKeyRequest = now;
     this.send({ t: "keyframe" });
+  }
+}
+
+/**
+ * Plays access units through Media Source Extensions: one fragment per frame on a contiguous
+ * timeline (an idle desktop sends nothing, and gaps would stall playback), kept at the live edge.
+ */
+export class MsePlayer {
+  private video: HTMLVideoElement;
+  private onFrame: (width: number, height: number) => void;
+  private onError: () => void;
+  private source = new MediaSource();
+  private url: string;
+  private buffer: SourceBuffer | null = null;
+  private queue: (Uint8Array<ArrayBuffer> | [number, number])[] = [];
+  private params = "";
+  private codec = "";
+  private size = { width: 0, height: 0 };
+  private sequence = 0;
+  private time = 0;
+  private lastPts = -1;
+  /** Timeline positions (seconds) of appended keyframes: the only safe places to trim. */
+  private keys: number[] = [];
+  private shown = false;
+  private closed = false;
+  private onLoaded = () => {
+    this.shown = true;
+    this.onFrame(this.size.width, this.size.height);
+  };
+
+  constructor(video: HTMLVideoElement, onFrame: (width: number, height: number) => void, onError: () => void) {
+    this.video = video;
+    this.onFrame = onFrame;
+    this.onError = onError;
+    this.url = URL.createObjectURL(this.source);
+    video.srcObject = null;
+    video.src = this.url;
+    video.addEventListener("loadeddata", this.onLoaded);
+  }
+
+  /** A keyframe would let old frames go: without one the buffer only grows (mobd sends them on request). */
+  get keyDue(): boolean {
+    const last = this.keys[this.keys.length - 1];
+    return last !== undefined && this.time / TIMESCALE - last > KEY_EVERY_S;
+  }
+
+  /** Fragments waiting to be appended. */
+  get backlog(): number {
+    return this.queue.length;
+  }
+
+  /** Queues a frame; false while waiting for a keyframe with parameter sets. */
+  push(m: VideoMessage): boolean {
+    if (this.closed) return false;
+    if (m.key) {
+      const ps = parameterSets(m.data);
+      if (!ps) return false;
+      const key = [...ps.sps, 0, ...ps.pps].join(",");
+      if (key !== this.params) {
+        // A new size (resize, quality ladder) or the first keyframe: a new init segment.
+        let init;
+        try {
+          init = initSegment(ps.sps, ps.pps);
+        } catch {
+          return false;
+        }
+        this.params = key;
+        this.size = { width: init.info.width, height: init.info.height };
+        if (!this.ready(init.codec)) return false;
+        this.queue.push(init.data);
+      }
+    } else if (!this.params) return false;
+    const duration = this.lastPts < 0 ? TIMESCALE / 30 : Math.min(Math.max(m.pts - this.lastPts, 1000), TIMESCALE / 10);
+    this.lastPts = m.pts;
+    if (m.key) this.keys.push(this.time / TIMESCALE);
+    this.queue.push(fragment(++this.sequence, this.time, duration, m.key, m.data));
+    this.time += duration;
+    this.pump();
+    if (this.shown) this.onFrame(this.size.width, this.size.height);
+    return true;
+  }
+
+  /** The SourceBuffer for this codec; null until the MediaSource has opened. */
+  private ready(codec: string): boolean {
+    const type = `video/mp4; codecs="${codec}"`;
+    if (this.buffer) {
+      if (codec !== this.codec) {
+        if (!this.buffer.changeType) return false;
+        this.buffer.changeType(type);
+        this.codec = codec;
+      }
+      return true;
+    }
+    if (this.source.readyState !== "open") {
+      this.params = ""; // retried with the next keyframe
+      return false;
+    }
+    try {
+      this.buffer = this.source.addSourceBuffer(type);
+    } catch {
+      this.params = "";
+      return false;
+    }
+    this.codec = codec;
+    this.buffer.mode = "segments";
+    this.buffer.addEventListener("updateend", () => this.pump());
+    this.buffer.addEventListener("error", () => this.onError());
+    return true;
+  }
+
+  private pump() {
+    const b = this.buffer;
+    if (!b || b.updating || this.closed) return;
+    const next = this.queue.shift();
+    try {
+      if (next instanceof Uint8Array) b.appendBuffer(next);
+      else if (next) b.remove(next[0], next[1]);
+      else this.followLive(b);
+    } catch {
+      this.onError();
+    }
+  }
+
+  /** Plays the newest frame: jumps forward when behind and drops what has been shown. */
+  private followLive(b: SourceBuffer) {
+    const r = b.buffered;
+    if (!r.length) return;
+    const start = r.start(0);
+    const end = r.end(r.length - 1);
+    const v = this.video;
+    if (end - v.currentTime > 0.3 || v.currentTime < start) v.currentTime = Math.max(start, end - 0.05);
+    if (v.paused) void v.play().catch(() => {});
+    // remove() also drops the frames that depend on removed ones, so trim only up to a keyframe.
+    const key = this.keys.filter((k) => k <= v.currentTime - 1).pop();
+    if (key !== undefined && key - start > 10) {
+      this.keys = this.keys.filter((k) => k >= key);
+      this.queue.push([start, key]);
+    }
+  }
+
+  close() {
+    if (this.closed) return;
+    this.closed = true;
+    this.queue = [];
+    this.video.removeEventListener("loadeddata", this.onLoaded);
+    this.video.removeAttribute("src");
+    this.video.load();
+    URL.revokeObjectURL(this.url);
   }
 }

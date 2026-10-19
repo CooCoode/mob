@@ -3,11 +3,12 @@ import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import App from "./App";
 import { isTauri } from "./components/TitleBar";
+import { isMac } from "./lib/platform";
 import "./index.css";
 import { loadMachineSecrets } from "./store/app";
 
-// The Tauri window is transparent with sidebar vibrancy behind the chrome.
-if (isTauri) document.documentElement.classList.add("vibrancy");
+// The macOS Tauri window is transparent with sidebar vibrancy behind the chrome; elsewhere it is opaque.
+if (isTauri && isMac) document.documentElement.classList.add("vibrancy");
 
 const queryClient = new QueryClient({ defaultOptions: { queries: { refetchOnWindowFocus: false, staleTime: 5_000 } } });
 

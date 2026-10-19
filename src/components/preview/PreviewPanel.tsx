@@ -7,6 +7,7 @@ import { Spinner, StatusIcon } from "@/components/StatusIcon";
 import { isTauri } from "@/components/TitleBar";
 import { Button } from "@/components/ui/button";
 import { Kbd } from "@/components/ui/kbd";
+import { isMac, shortcut } from "@/lib/platform";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuLabel, DropdownMenuRadioGroup, DropdownMenuRadioItem, DropdownMenuTrigger } from "@/components/ui/menu";
 import { Tooltip } from "@/components/ui/tooltip";
 import { useAuthedImage } from "@/hooks/useAuthedImage";
@@ -333,7 +334,9 @@ export function PreviewPanel({ machine, health, queue }: { machine: Machine; hea
   takeControlRef.current = takeControl;
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.metaKey && e.shiftKey && !e.altKey && !e.ctrlKey && e.code === "KeyC") {
+      // ⇧⌘C on macOS, Ctrl+Shift+C elsewhere.
+      const mod = isMac ? e.metaKey && !e.ctrlKey : e.ctrlKey && !e.metaKey;
+      if (mod && e.shiftKey && !e.altKey && e.code === "KeyC") {
         e.preventDefault();
         takeControlRef.current();
       }
@@ -416,7 +419,7 @@ export function PreviewPanel({ machine, health, queue }: { machine: Machine; hea
               {state.status === "connecting" ? <Spinner /> : <Power />}
             </Button>
           </Tooltip>
-          <Tooltip content="Expand in the window (double-click) · ⇧⌘C to take control">
+          <Tooltip content={`Expand in the window (double-click) · ${shortcut("C", true)} to take control`}>
             <Button variant="ghost" size="icon-sm" aria-label="Expand live view" disabled={!connected && !canSnapshot}
               onClick={() => set({ fullscreen: true })}>
               <Expand />
@@ -438,10 +441,10 @@ export function PreviewPanel({ machine, health, queue }: { machine: Machine; hea
           )}
         >
           <video ref={video} muted playsInline autoPlay tabIndex={-1} aria-label="Office desktop, live"
-            className={cn("absolute inset-0 size-full object-contain outline-none", (!connected || streamState.transport !== "WebRTC") && "invisible", control && "touch-none")} />
+            className={cn("absolute inset-0 size-full object-contain outline-none", (!connected || streamState.element !== "video") && "invisible", control && "touch-none")} />
           {/* The WebSocket fallback draws decoded frames here instead of the video. */}
           <canvas ref={canvas} tabIndex={-1} aria-label="Office desktop, live"
-            className={cn("absolute inset-0 size-full object-contain outline-none", (!connected || streamState.transport !== "WebSocket") && "invisible", control && "touch-none")} />
+            className={cn("absolute inset-0 size-full object-contain outline-none", (!connected || streamState.element !== "canvas") && "invisible", control && "touch-none")} />
           {!connected && canSnapshot && <Snapshot base={chatState.baseUrl} width={stage.current?.clientWidth ?? 0} onRatio={setRatio} />}
           {!connected && !canSnapshot && (
             <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 p-4 text-center">

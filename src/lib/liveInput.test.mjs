@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { buttonName, HeldInput, normalizePoint, wheelPixels } from "./liveInput.ts";
+import { buttonName, HeldInput, normalizePoint, remoteCode, wheelPixels } from "./liveInput.ts";
 
 test("points are normalized to the picture inside letterbox bars", () => {
   const box = { left: 100, top: 50, width: 1000, height: 1000 }; // 16:9 picture: bars above and below
@@ -41,4 +41,21 @@ test("releaseAll lets go of keys, then modifiers, then buttons at the last posit
   ]);
   assert.deepEqual(h.releaseAll(), []);
   assert.deepEqual(h.buttonUp("left", 0, 0), []);
+});
+
+test("Ctrl acts as Command from Windows and Linux; keys pass through from a Mac", () => {
+  for (const code of ["ControlLeft", "MetaLeft", "KeyC", "ShiftLeft"]) assert.equal(remoteCode(code, true), code);
+  assert.equal(remoteCode("ControlLeft", false), "MetaLeft");
+  assert.equal(remoteCode("ControlRight", false), "MetaRight");
+  assert.equal(remoteCode("MetaLeft", false), "ControlLeft");
+  assert.equal(remoteCode("KeyC", false), "KeyC");
+  // Ctrl+C from Windows: Command down, C down, then Command up releases C (macOS sends no C up).
+  const h = new HeldInput();
+  h.keyDown(remoteCode("ControlLeft", false));
+  h.keyDown(remoteCode("KeyC", false));
+  assert.deepEqual(h.keyUp(remoteCode("ControlLeft", false)), [
+    { t: "key", code: "KeyC", down: false },
+    { t: "key", code: "MetaLeft", down: false },
+  ]);
+  assert.deepEqual(h.keyUp("KeyC"), []);
 });

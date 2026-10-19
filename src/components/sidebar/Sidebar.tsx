@@ -13,6 +13,7 @@ import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger,
 } from "@/components/ui/menu";
 import { Kbd } from "@/components/ui/kbd";
+import { MOD } from "@/lib/platform";
 import { chat, useChat } from "@/hooks/useChat";
 import { useHealth, useQueue } from "@/hooks/useMachine";
 import { cn, shortAgo } from "@/lib/utils";
@@ -240,7 +241,7 @@ export function Sidebar() {
         >
           <SquarePen className="size-4" />
           New chat
-          <span className="ml-auto flex gap-0.5"><Kbd>⌘</Kbd><Kbd>N</Kbd></span>
+          <span className="ml-auto flex gap-0.5"><Kbd>{MOD}</Kbd><Kbd>N</Kbd></span>
         </Button>
       </div>
       <nav className="min-h-0 flex-1 overflow-y-auto px-2 pb-2" aria-label="Sessions">

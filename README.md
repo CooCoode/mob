@@ -2,11 +2,11 @@
 
 <img src="public/logo.svg" alt="mob Screen Buddy" width="112" />
 
-This repository contains only the macOS desktop app. The office daemon is developed
+This repository contains only the desktop app: macOS (Apple Silicon), Windows 10/11 and Linux (x64). The office daemon is developed
 and released independently in [xrdavies/mobd](https://github.com/xrdavies/mobd).
 iOS, Android and the product website live in separate repositories.
 
-Home Mac **mob** client: dispatch tasks to the office agent, follow what it does step by step, and watch the office desktop — task API from office **`mobd`** (v3) + its live desktop stream.
+Desktop **mob** client: dispatch tasks to the office agent, follow what it does step by step, and watch the office desktop — task API from office **`mobd`** (v3) + its live desktop stream.
 
 Design: [docs/ui.md](docs/ui.md) · Live view: [docs/desktop-streaming.md](docs/desktop-streaming.md) · Stack decision: [ADR 0009](docs/adr/0009-app-frontend-react.md) · API: [docs/mobd-v3.md](https://github.com/xrdavies/mobd/blob/main/docs/mobd-v3.md)
 
@@ -38,9 +38,9 @@ src/
   components/   sidebar, timeline, composer, preview, settings, ui primitives
 ```
 
-## Prerequisites (macOS)
+## Prerequisites
 
-1. [Xcode Command Line Tools](https://developer.apple.com/xcode/) / full Xcode
+1. Platform tools: on macOS [Xcode Command Line Tools](https://developer.apple.com/xcode/); on Windows the MSVC build tools and WebView2 (preinstalled on Windows 11); on Linux the [Tauri system libraries](https://v2.tauri.app/start/prerequisites/#linux) plus `libdbus-1-dev`, and for the live view `gstreamer1.0-plugins-good gstreamer1.0-plugins-bad gstreamer1.0-libav`
 2. [Rust](https://rustup.rs/) stable (`rustup default stable`)
 3. Node.js 24+ (npm) — tests run TypeScript directly through Node's type stripping
 4. Office side reachable on LAN/VPN: `mobd` (API v3) with the `stream` feature, which streams the live desktop itself ([desktop streaming](https://github.com/xrdavies/mobd/blob/main/docs/desktop-streaming.md)); Screen Sharing is not needed
@@ -79,10 +79,10 @@ Checks: `npm test` (conversation lifecycle, timeline, pairing, SSE, live stream 
 - **Composer:** ↵ send, ⇧↵ newline. Attach images (button, paste or drag-and-drop), pick model and reasoning effort (remembered per machine and agent; offered per runner, e.g. `MOBD_CODEX_MODELS` on the office Mac). The send button becomes **Stop** while the agent works.
 - **Live view (right):** the office desktop streamed by mobd (⏻), or, when not connected, a snapshot refreshed every 4 s. Clicks by the agent flash at their position. Double-click or ⤢ expands it to fill the window (the green button gives macOS full screen); the expanded toolbar has View/Control, quality (Auto/High/Low), signal bars with kB/s, and Collapse. Resizing the window refits the stream without reconnecting. Below: the desktop queue and the current turn's steps.
 - **Title bar:** machine status chip opens the readiness checks (agents, actuation, Accessibility, Screen Recording, display).
-- **Shortcuts:** ⌘K command palette · ⌘N new chat · ⌘B sidebar · ⌘⇧B live view · ⌘⇧C expand and take control · ⌘, settings · ⌘1–9 switch conversation.
-- **View / Control:** the panel only watches. To drive the office Mac yourself, expand the view and switch **View | Control**, or press ⌘⇧C; your mouse, keyboard and scroll then go to the Mac, and `Esc` goes to the Mac too — switch back to **View** to use `Esc` for collapsing. Collapsing always returns to View. ⌘W and ⌘Q stay with the app.
+- **Shortcuts** (Ctrl instead of ⌘ on Windows and Linux): ⌘K command palette · ⌘N new chat · ⌘B sidebar · ⌘⇧B live view · ⌘⇧C expand and take control · ⌘, settings · ⌘1–9 switch conversation.
+- **View / Control:** the panel only watches. To drive the office Mac yourself, expand the view and switch **View | Control**, or press ⌘⇧C; your mouse, keyboard and scroll then go to the Mac, and `Esc` goes to the Mac too — switch back to **View** to use `Esc` for collapsing. Collapsing always returns to View. ⌘W and ⌘Q stay with the app. From Windows and Linux, Ctrl acts as ⌘ on the Mac (Ctrl+C copies there) and the Windows/Super key sends Control.
 - **Transport:** WebRTC on the LAN or a tailnet. Where UDP cannot pass (Tailscale Funnel, an HTTPS gateway), the app falls back to mobd's WebSocket after 5 s and remembers that per machine (1 s next time); the readout shows which one is in use.
-- **Auth:** every machine is paired (`mobd link`); the device credential is kept in the Keychain.
+- **Auth:** every machine is paired (`mobd link`); the device credential is kept in the Keychain (macOS), Credential Manager (Windows) or the Secret Service keyring (Linux).
 
 Features follow mobd's `/health`: queue, uploads, model/effort, steering, session management, snapshots and the live view appear only when mobd reports API v3 and lists the feature.
 
@@ -109,7 +109,7 @@ If the live view cannot start, it shows mobd's reason (screen locked or asleep, 
 
 ```text
 src/            React frontend, API client and tests
-src-tauri/      Rust shell, macOS bundle configuration and icons
+src-tauri/      Rust shell, bundle configuration (tauri.conf.json + per-OS tauri.<os>.conf.json) and icons
 public/         Browser assets
 .github/        Desktop signing, Tauri updater and R2 publication
 docs/           UI design, live desktop, branding, releases, ADRs, postponed plans

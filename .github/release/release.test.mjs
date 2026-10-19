@@ -3,15 +3,16 @@ import assert from 'node:assert/strict';
 import { mkdtempSync, mkdirSync, readFileSync, writeFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { baseURL, checkPromotion, prepareDistribution, publish, sha256, updaterConfig } from './release.mjs';
+import { baseURL, checkPromotion, PLATFORMS, prepareDistribution, publish, sha256, updaterConfig } from './release.mjs';
 
 function fixture(t) {
   const root = mkdtempSync(join(tmpdir(), 'mob-release-test-'));
   t.after(() => rmSync(root, { recursive: true, force: true }));
   const assets = join(root, 'assets'), output = join(root, 'output');
   mkdirSync(assets);
-  for (const name of ['mob_1.2.3_darwin_arm64.dmg', 'mob_1.2.3_darwin_arm64.app.tar.gz', 'mob_1.2.3_darwin_arm64.app.tar.gz.sig']) {
-    writeFileSync(join(assets, name), `fixture ${name}`);
+  for (const p of PLATFORMS) {
+    const stem = p.stem('1.2.3');
+    for (const name of [...p.files.map(f => stem + f), stem + p.payload, `${stem}${p.payload}.sig`]) writeFileSync(join(assets, name), `fixture ${name}`);
   }
   const manifests = prepareDistribution(assets, output, { version: '1.2.3', base: 'https://download.example.com', date: '2026-10-14T00:00:00Z', notes: 'New release' });
   return { output, manifests };
@@ -37,6 +38,13 @@ test('manifests agree with payloads, contain signature contents', t => {
   assert.equal(platform.signature, 'fixture mob_1.2.3_darwin_arm64.app.tar.gz.sig');
   assert.match(manifests.mob.download.url, /\.dmg$/);
   assert.deepEqual(Object.keys(manifests), ['mob']);
+  assert.deepEqual(Object.keys(manifests.mob.platforms), ['darwin-aarch64', 'windows-x86_64', 'linux-x86_64']);
+  assert.match(manifests.mob.platforms['windows-x86_64'].url, /mob_1.2.3_windows_x64-setup.exe$/);
+  assert.equal(manifests.mob.platforms['linux-x86_64'].signature, 'fixture mob_1.2.3_linux_x64.AppImage.sig');
+  assert.deepEqual(manifests.mob.downloads['linux-x64'].map(d => d.url.split('/').pop()), ['mob_1.2.3_linux_x64.AppImage', 'mob_1.2.3_linux_x64.deb']);
+  const sums = readFileSync(join(output, 'mob/v1.2.3/SHA256SUMS'), 'utf8');
+  assert.equal(sums.trim().split('\n').length, 8);
+  assert.match(sums, /mob_1.2.3_windows_x64-setup.exe.sig/);
 });
 
 function remote(events, overrides = {}) {

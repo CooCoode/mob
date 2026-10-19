@@ -2,8 +2,9 @@ import { useSyncExternalStore } from "react";
 import { supports } from "../api/client.ts";
 import type { Health } from "../api/types.ts";
 import { authFetch } from "./auth.ts";
-import { buttonName, HeldInput, normalizePoint, wheelPixels, type InputMessage } from "./liveInput.ts";
-import { streamWsUrl, webCodecsAvailable, WsPlayer } from "./wsVideo.ts";
+import { buttonName, HeldInput, normalizePoint, remoteCode, wheelPixels, type InputMessage } from "./liveInput.ts";
+import { isMac } from "./platform.ts";
+import { streamWsUrl, WsPlayer, wsDecoder } from "./wsVideo.ts";
 
 // The live desktop over WebRTC (mobd docs/desktop-streaming.md): one non-trickle POST /stream with
 // the offer, a receive-only H.264 track, the `control` data channel for stats and `ended`, and the
@@ -183,8 +184,10 @@ export interface StreamState {
   /** Encoded size of the picture. */
   width: number;
   height: number;
-  /** What carries the picture once connected: a <video> for WebRTC, a <canvas> for the WebSocket. */
+  /** What carries the picture once connected. */
   transport: Transport | null;
+  /** Where it is shown: a <video> for WebRTC and the WebSocket through MSE, a <canvas> for WebCodecs. */
+  element: "video" | "canvas" | null;
   /** Mouse and keyboard on the picture reach the office Mac only while true. */
   control: boolean;
   /** mobd's encoder target. */
@@ -222,7 +225,7 @@ export const WEBRTC_GRACE = 5_000;
  * WebRTC, so a race from the start would keep such a machine on the WebSocket even on a network where
  * WebRTC works again. Then the WebSocket races beside WebRTC instead of replacing it. */
 export const REMEMBERED_GRACE = 1_000;
-const IDLE: StreamState = { status: "idle", detail: "", width: 0, height: 0, transport: null, control: false, kbps: 0, loss: 0, readout: null };
+const IDLE: StreamState = { status: "idle", detail: "", width: 0, height: 0, transport: null, element: null, control: false, kbps: 0, loss: 0, readout: null };
 
 /** Resolves when ICE gathering completes, or after `ms`: host candidates take a few milliseconds. */
 function gathered(pc: RTCPeerConnection, ms: number): Promise<void> {
@@ -287,7 +290,13 @@ class StreamController {
     this.update({ ...IDLE, status: "connecting", detail: "Connecting…" });
     const { video, canvas } = surfaces;
     this.surfaces = surfaces;
-    const pc = new RTCPeerConnection();
+    // WebKitGTK may have neither WebRTC nor WebCodecs: then the WebSocket alone, played through MSE.
+    const decoder = wsDecoder();
+    const pc = typeof RTCPeerConnection !== "undefined" ? new RTCPeerConnection() : null;
+    if (!pc && !decoder) {
+      this.update({ ...IDLE, status: "error", detail: "This system cannot play the live desktop (no WebRTC or H.264 playback in the webview)" });
+      return;
+    }
     this.pc = pc;
     let transport: Transport | null = null;
     /** The WebSocket while it is trying, before either transport has won. */
@@ -320,8 +329,13 @@ class StreamController {
         p?.close();
       } else {
         this.dropWebRTC();
-        this.surface = canvas;
-        this.detachInput = this.attachInput(canvas, () => [canvas.width, canvas.height]);
+        if (decoder === "mse") {
+          this.surface = video;
+          this.detachInput = this.attachInput(video, () => [video.videoWidth, video.videoHeight]);
+        } else {
+          this.surface = canvas;
+          this.detachInput = this.attachInput(canvas, () => [canvas.width, canvas.height]);
+        }
         if (this.ws) this.watchWsStats(this.ws, attempt, () => lastRtt);
       }
     };
@@ -330,8 +344,8 @@ class StreamController {
       if (this.state.status === "connecting") {
         clearTimeout(timer);
         console.info(`live: first picture over ${transport} after ${ms()} ms`);
-        this.update({ status: "connected", detail: "", transport });
-        if (transport === "WebRTC") this.watchStats(pc, attempt);
+        this.update({ status: "connected", detail: "", transport, element: this.surface === canvas ? "canvas" : "video" });
+        if (transport === "WebRTC" && pc) this.watchStats(pc, attempt);
         if (target.control) this.setControl(true);
       }
       if (width !== this.state.width || height !== this.state.height) this.update({ width, height });
@@ -346,7 +360,7 @@ class StreamController {
       else if (m?.t === "error") console.warn(`live: ${m.about}: ${m.message}`);
     };
 
-    pc.addEventListener("connectionstatechange", () => {
+    pc?.addEventListener("connectionstatechange", () => {
       if (attempt !== this.attempt || this.pc !== pc) return;
       switch (pc.connectionState) {
         case "connected":
@@ -365,7 +379,7 @@ class StreamController {
           }
       }
     });
-    pc.addEventListener("track", (e) => {
+    pc?.addEventListener("track", (e) => {
       if (attempt !== this.attempt) return;
       video.srcObject = e.streams[0] ?? new MediaStream([e.track]);
       void video.play().catch(() => {});
@@ -377,18 +391,31 @@ class StreamController {
     video.onloadeddata = onVideo;
     video.onresize = onVideo;
     try {
-      pc.addTransceiver("video", { direction: "recvonly" });
-      this.controlChannel = pc.createDataChannel("control");
-      this.input = pc.createDataChannel("input");
-      this.pointer = pc.createDataChannel("pointer", { ordered: false, maxRetransmits: 0 });
-      this.surface = video;
-      this.detachInput = this.attachInput(video, () => [video.videoWidth, video.videoHeight]);
-      this.controlChannel.onmessage = (e) => control(e.data);
-      await pc.setLocalDescription(await pc.createOffer());
-      await gathered(pc, 2000);
-      if (attempt !== this.attempt) return;
+      let offer = "";
+      if (pc) {
+        try {
+          pc.addTransceiver("video", { direction: "recvonly" });
+          this.controlChannel = pc.createDataChannel("control");
+          this.input = pc.createDataChannel("input");
+          this.pointer = pc.createDataChannel("pointer", { ordered: false, maxRetransmits: 0 });
+          this.surface = video;
+          this.detachInput = this.attachInput(video, () => [video.videoWidth, video.videoHeight]);
+          this.controlChannel.onmessage = (e) => control(e.data);
+          await pc.setLocalDescription(await pc.createOffer());
+          await gathered(pc, 2000);
+          offer = pc.localDescription?.sdp ?? "";
+        } catch (err) {
+          // WebKitGTK can expose RTCPeerConnection without GStreamer's WebRTC plugins.
+          if (!decoder) throw err;
+          console.warn(`live: WebRTC is unavailable here (${err instanceof Error ? err.message : err}), using the WebSocket`);
+          this.dropWebRTC();
+          this.controlChannel = null;
+        }
+        if (attempt !== this.attempt) return;
+      }
+      // Without an offer mobd waits for the WebSocket only.
       const answer = await openSession(target.base, {
-        offer: pc.localDescription?.sdp ?? "",
+        offer,
         maxWidth: target.maxWidth,
         maxHeight: target.maxHeight,
         quality: target.quality ?? "auto",
@@ -399,7 +426,7 @@ class StreamController {
       }
       this.session = { base: target.base, id: answer.session };
       console.info(`live: answered in ${ms()} ms, ${answer.width}×${answer.height}`);
-      if (answer.wsTicket && webCodecsAvailable()) {
+      if (answer.wsTicket && decoder) {
         const url = streamWsUrl(target.base, answer.session, answer.wsTicket);
         // After WebRTC's head start: race keeps WebRTC trying beside the WebSocket (this machine needed
         // the WebSocket last time); otherwise WebRTC is closed and mobd keeps the session for the WebSocket.
@@ -407,7 +434,7 @@ class StreamController {
           if (attempt !== this.attempt || transport || player) return;
           console.info(race ? `live: WebSocket alongside WebRTC after ${ms()} ms (needed here last time)` : `live: no WebRTC after ${ms()} ms, using the WebSocket`);
           if (!race) this.dropWebRTC();
-          const ws: WsPlayer = new WsPlayer(url, canvas, {
+          const ws: WsPlayer = new WsPlayer(url, { canvas, video }, {
             control: (data) => transport === "WebSocket" && control(data),
             frame: (width, height) => {
               if (!transport) choose("WebSocket");
@@ -425,11 +452,12 @@ class StreamController {
                 this.update({ ...IDLE, detail: reason || "Disconnected" });
               } else fail("The live view connection was lost");
             },
-          });
+          }, decoder);
           player = ws;
           this.ws = ws;
         };
-        const race = !!target.preferWebSocket;
+        // MSE plays into the <video> WebRTC would use, so it never races beside WebRTC.
+        const race = !!target.preferWebSocket && decoder === "webcodecs";
         graceTimer = setTimeout(() => startWs?.(race), race ? REMEMBERED_GRACE : WEBRTC_GRACE);
       }
       if (!answer.answer) {
@@ -437,7 +465,7 @@ class StreamController {
         else throw new Error("mobd answered without WebRTC; update mobd on the office Mac");
         return;
       }
-      await pc.setRemoteDescription({ type: "answer", sdp: answer.answer });
+      await pc?.setRemoteDescription({ type: "answer", sdp: answer.answer });
     } catch (err) {
       fail(err instanceof Error ? err.message : String(err));
     }
@@ -529,13 +557,13 @@ class StreamController {
           if ([...e.key].length === 1) this.send("input", [{ t: "text", text: e.key }]);
           return;
         }
-        this.send("input", this.held.keyDown(e.code));
+        this.send("input", this.held.keyDown(remoteCode(e.code, isMac)));
       }),
       on("keyup", (e) => {
         if (!this.state.control) return;
         e.preventDefault();
         e.stopPropagation();
-        this.send("input", this.held.keyUp(e.code));
+        this.send("input", this.held.keyUp(remoteCode(e.code, isMac)));
       }),
       // Composed text (accents, input methods) arrives whole; the keys that built it were not sent.
       on("compositionend", (e) => this.state.control && e.data && this.send("input", [{ t: "text", text: e.data }])),

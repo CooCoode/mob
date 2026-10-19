@@ -2,12 +2,24 @@
 
 源码仓库可以保持私有。mobd 在独立的 [mobd 仓库](https://github.com/xrdavies/mobd)，
 其签名、安装器和发布配置见该仓库的 [发布文档](https://github.com/xrdavies/mobd/blob/main/docs/releases.md)。
-本仓库的 GitHub Actions 构建、签名并公证 mob 桌面应用，GitHub
+本仓库的 GitHub Actions 构建 mob 桌面应用（macOS 版签名并公证），GitHub
 Release 保存构建产物；发布正式 Release 后，独立工作流将产物上传到 Cloudflare
 R2，用户通过自定义域名下载。官网在同级目录 `../mob-site`，独立构建和部署。
 
-当前只发布 **macOS 13+ / Apple Silicon**，不提供 Intel Mac、Windows、Linux
-或 iPhone 安装包。更新源只有 R2。
+发布三个平台，同一个版本号、同一个 Tauri 更新密钥：
+
+| 平台 | 构建任务 | 下载文件 | 应用内更新 |
+| --- | --- | --- | --- |
+| macOS 13+ · Apple Silicon | `app`（macos-15） | `mob_X.Y.Z_darwin_arm64.dmg` | `.app.tar.gz` |
+| Windows 10/11 · x64 | `windows`（windows-2022） | `mob_X.Y.Z_windows_x64-setup.exe`（NSIS，安装到当前用户） | 同一个 `-setup.exe` |
+| Linux x64（Ubuntu 22.04+） | `linux`（ubuntu-22.04） | `mob_X.Y.Z_linux_x64.AppImage`、`.deb` | 仅 AppImage；deb 用户手动下载新版 |
+
+Windows 安装程序**暂未做 Authenticode 签名**，首次运行时 SmartScreen 会提示“未知发布者”；
+更新包仍由 Tauri 更新密钥签名校验。以后加签名只需在 `windows` 任务里增加签名步骤。
+不提供 Intel Mac、arm64 Windows/Linux 或 iPhone 安装包。更新源只有 R2。
+
+每次推送到 `main`，`build.yml` 还会构建未签名的 Windows 与 Linux 测试包（Actions 构建产物，保留 14 天），
+用于在发布前试装；它不需要任何密钥，也不发布。
 
 ## 1. 准备 Cloudflare R2
 

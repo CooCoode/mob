@@ -49,7 +49,10 @@ export function ChecksList({ checks }: { checks?: Record<string, Check> }) {
   );
 }
 
-const defaultDeviceName = () => `mob on ${/Mac/i.test(navigator.userAgent) ? "Mac" : "desktop"}`;
+const defaultDeviceName = () => {
+  const ua = navigator.userAgent;
+  return `mob on ${/Mac/i.test(ua) ? "Mac" : /Windows/i.test(ua) ? "Windows" : /Linux/i.test(ua) ? "Linux" : "desktop"}`;
+};
 
 function InsecureWarning() {
   return (

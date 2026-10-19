@@ -16,10 +16,29 @@ pub fn run() {
                 app.handle()
                     .plugin(tauri_plugin_updater::Builder::new().build())?;
             }
+            #[cfg(target_os = "linux")]
+            enable_webrtc(app)?;
             Ok(())
         })
         .run(tauri::generate_context!())
         .expect("error while running mob");
+}
+
+// WebKitGTK ships with WebRTC switched off; the live view uses it when GStreamer's webrtcbin is
+// installed, and otherwise falls back to the WebSocket stream played through Media Source.
+#[cfg(target_os = "linux")]
+fn enable_webrtc(app: &tauri::App) -> tauri::Result<()> {
+    use tauri::Manager;
+    use webkit2gtk::{SettingsExt, WebViewExt};
+    for window in app.webview_windows().into_values() {
+        window.with_webview(|webview| {
+            if let Some(settings) = webview.inner().settings() {
+                settings.set_enable_webrtc(true);
+                settings.set_enable_mediasource(true);
+            }
+        })?;
+    }
+    Ok(())
 }
 
 #[tauri::command]

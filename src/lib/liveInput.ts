@@ -43,6 +43,21 @@ export function wheelPixels(e: { deltaX: number; deltaY: number; deltaMode: numb
   return { dx: e.deltaX * unit, dy: e.deltaY * unit };
 }
 
+/**
+ * The key to send to the office Mac for a key pressed here. On Windows and Linux, Ctrl acts as ⌘ so
+ * Ctrl+C/V/Z/S do what the user expects on the Mac, and the Windows/Super key sends Control.
+ */
+export function remoteCode(code: string, clientIsMac: boolean): string {
+  if (clientIsMac) return code;
+  switch (code) {
+    case "ControlLeft": return "MetaLeft";
+    case "ControlRight": return "MetaRight";
+    case "MetaLeft": return "ControlLeft";
+    case "MetaRight": return "ControlRight";
+    default: return code;
+  }
+}
+
 const MODIFIERS = new Set(["ShiftLeft", "ShiftRight", "ControlLeft", "ControlRight", "AltLeft", "AltRight", "MetaLeft", "MetaRight", "CapsLock", "Fn"]);
 
 /**

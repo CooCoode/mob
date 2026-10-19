@@ -1,0 +1,55 @@
+name: Build mob (Windows, Linux)
+# Unsigned test builds of every change on main; releases are built by release.yml.
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-2022
+            bundles: nsis
+            artifact: mob-windows-x64
+          - os: ubuntu-22.04
+            bundles: appimage,deb
+            artifact: mob-linux-x64
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: package-lock.json
+      - name: Install system libraries
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev libdbus-1-dev patchelf \
+            gstreamer1.0-plugins-good gstreamer1.0-plugins-bad gstreamer1.0-libav
+      - name: Test
+        run: npm ci && npm test && npm run typecheck
+      - name: Build
+        env:
+          APPIMAGE_EXTRACT_AND_RUN: '1'
+        run: npm run tauri build -- --ci --bundles ${{ matrix.bundles }} -- --locked
+      - uses: actions/upload-artifact@v7
+        with:
+          name: ${{ matrix.artifact }}
+          path: |
+            src-tauri/target/release/bundle/nsis/*.exe
+            src-tauri/target/release/bundle/appimage/*.AppImage
+            src-tauri/target/release/bundle/deb/*.deb
+          if-no-files-found: error
+          retention-days: 14

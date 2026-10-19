@@ -6,6 +6,7 @@ import { Kbd } from "@/components/ui/kbd";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Tooltip } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
+import { isMac, MOD, shortcut } from "@/lib/platform";
 import { useApp, type Machine } from "@/store/app";
 
 export const isTauri = typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;
@@ -70,9 +71,9 @@ export function TitleBar(props: {
   return (
     <header
       data-tauri-drag-region
-      className={cn("flex h-11 shrink-0 select-none items-center gap-1 border-b bg-sidebar pr-2", isTauri ? "pl-[78px]" : "pl-2")}
+      className={cn("flex h-11 shrink-0 select-none items-center gap-1 border-b bg-sidebar pr-2", isTauri && isMac ? "pl-[78px]" : "pl-2")}
     >
-      <Tooltip content="Toggle sidebar (⌘B)">
+      <Tooltip content={`Toggle sidebar (${shortcut("B")})`}>
         <Button variant="ghost" size="icon-sm" aria-label="Toggle sidebar" onClick={() => set({ sidebarOpen: !sidebarOpen })}><PanelLeft /></Button>
       </Tooltip>
       <img src="/logo.svg" alt="" draggable={false} data-tauri-drag-region className="ml-1 size-8 shrink-0" />
@@ -84,7 +85,7 @@ export function TitleBar(props: {
           className="flex h-7 w-64 items-center gap-2 rounded-md border bg-background/70 px-2.5 text-xs text-muted-foreground hover:bg-background"
         >
           <Search className="size-3.5" /> Search or run a command
-          <span className="ml-auto flex gap-0.5"><Kbd>⌘</Kbd><Kbd>K</Kbd></span>
+          <span className="ml-auto flex gap-0.5"><Kbd>{MOD}</Kbd><Kbd>K</Kbd></span>
         </button>
         {props.machine && (
           <HealthChip machine={props.machine} health={props.health} error={props.healthError} queue={props.queue} refetch={props.refetchHealth} />
@@ -96,14 +97,14 @@ export function TitleBar(props: {
         </Button>
       </Tooltip>
       {props.machine && (
-        <Tooltip content={`${previewOpen ? "Hide" : "Show"} the office desktop (⌘⇧B)`}>
+        <Tooltip content={`${previewOpen ? "Hide" : "Show"} the office desktop (${shortcut("B", true)})`}>
           <Button variant="ghost" size="sm" aria-pressed={previewOpen} onClick={() => togglePreview()}
             className={cn("h-7 gap-1.5 px-2.5", previewOpen && "bg-muted text-foreground")}>
             <Monitor className="size-3.5" /> Desktop
           </Button>
         </Tooltip>
       )}
-      <Tooltip content="Settings (⌘,)">
+      <Tooltip content={`Settings (${shortcut(",")})`}>
         <Button variant="ghost" size="icon-sm" aria-label="Settings" onClick={() => openSettings()}><Settings /></Button>
       </Tooltip>
     </header>

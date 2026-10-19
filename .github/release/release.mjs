@@ -32,33 +32,48 @@ export function updaterConfig(releaseVersion, base, publicKey) {
 export const sha256 = (data) => createHash('sha256').update(data).digest('hex');
 const json = (data) => JSON.stringify(data, null, 2) + '\n';
 
+// Per platform: the updater payload (Tauri's key), and the files people download from the site.
+// macOS stays first and is also the legacy single `download`.
+export const PLATFORMS = [
+  { key: 'darwin-aarch64', download: 'macos-arm64', stem: v => `mob_${v}_darwin_arm64`, payload: '.app.tar.gz', files: ['.dmg'] },
+  { key: 'windows-x86_64', download: 'windows-x64', stem: v => `mob_${v}_windows_x64`, payload: '-setup.exe', files: ['-setup.exe'] },
+  { key: 'linux-x86_64', download: 'linux-x64', stem: v => `mob_${v}_linux_x64`, payload: '.AppImage', files: ['.AppImage', '.deb'] },
+];
+
 export function prepareDistribution(assets, output, options) {
   const v = version(options.version);
   const base = baseURL(options.base);
   if (!Number.isFinite(Date.parse(options.date))) throw Error('Missing release publication date');
   const prefix = `mob/v${v}`;
-  const stem = `mob_${v}_darwin_arm64`;
-  const names = [`${stem}.dmg`, `${stem}.app.tar.gz`, `${stem}.app.tar.gz.sig`];
   const put = (key, data) => {
     mkdirSync(dirname(join(output, key)), { recursive: true });
     writeFileSync(join(output, key), data);
   };
   const hashes = {};
-  for (const name of names) {
-    const data = readFileSync(join(assets, name));
-    if (!data.length) throw Error(`Empty artifact: ${name}`);
-    hashes[name] = sha256(data);
-    put(`${prefix}/${name}`, data);
+  const names = [];
+  const platforms = {};
+  const downloads = {};
+  for (const p of PLATFORMS) {
+    const stem = p.stem(v);
+    const payload = `${stem}${p.payload}`;
+    const own = [...new Set([...p.files.map(f => `${stem}${f}`), payload, `${payload}.sig`])];
+    for (const name of own) {
+      const data = readFileSync(join(assets, name));
+      if (!data.length) throw Error(`Empty artifact: ${name}`);
+      hashes[name] = sha256(data);
+      put(`${prefix}/${name}`, data);
+      names.push(name);
+    }
+    const signature = readFileSync(join(assets, `${payload}.sig`), 'utf8').trim();
+    if (!signature) throw Error(`Missing updater signature: ${payload}`);
+    platforms[p.key] = { url: `${base}/${prefix}/${payload}`, sha256: hashes[payload], signature };
+    downloads[p.download] = p.files.map(f => ({ url: `${base}/${prefix}/${stem}${f}`, sha256: hashes[`${stem}${f}`] }));
   }
-  const payload = `${stem}.app.tar.gz`;
-  const platform = { url: `${base}/${prefix}/${payload}`, sha256: hashes[payload] };
-  platform.signature = readFileSync(join(assets, `${payload}.sig`), 'utf8').trim();
-  if (!platform.signature) throw Error('Missing updater signature');
-  const download = `${stem}.dmg`;
   const manifest = {
     version: v, notes: options.notes || `mob ${v}`, pub_date: options.date,
-    platforms: { 'darwin-aarch64': platform },
-    download: { url: `${base}/${prefix}/${download}`, sha256: hashes[download] },
+    platforms,
+    download: downloads['macos-arm64'][0],
+    downloads,
     checksums_url: `${base}/${prefix}/SHA256SUMS`,
   };
   put(`${prefix}/release.json`, json(manifest));

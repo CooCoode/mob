@@ -1,4 +1,4 @@
-name: Release mob macOS arm64
+name: Release mob (macOS, Windows, Linux)
 on:
   push:
     tags: ['v*']
@@ -102,8 +102,93 @@ jobs:
         env:
           SIGNING_KEYCHAIN: ${{ steps.signing.outputs.keychain }}
         run: security delete-keychain "$SIGNING_KEYCHAIN"
+  windows:
+    needs: prepare
+    runs-on: windows-2022
+    environment: release
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ needs.prepare.outputs.commit }}
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: package-lock.json
+      - name: Install frontend dependencies and test
+        run: npm ci && npm test
+      # Unsigned (no Authenticode yet): SmartScreen warns on first run. The updater payload is
+      # still signed with the Tauri key.
+      - name: Build installer
+        env:
+          RELEASE_VERSION: ${{ needs.prepare.outputs.version }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+          TAURI_UPDATER_PUBLIC_KEY: ${{ vars.TAURI_UPDATER_PUBLIC_KEY || secrets.TAURI_UPDATER_PUBLIC_KEY }}
+          DOWNLOAD_BASE_URL: ${{ vars.DOWNLOAD_BASE_URL || secrets.DOWNLOAD_BASE_URL }}
+        run: |
+          set -euo pipefail
+          test -n "$TAURI_SIGNING_PRIVATE_KEY"
+          node .github/release/release.mjs config "$RUNNER_TEMP/tauri-release.json"
+          npm run tauri build -- --ci --bundles nsis --config "$RUNNER_TEMP/tauri-release.json" -- --locked
+          bundle=src-tauri/target/release/bundle/nsis
+          mkdir -p release-assets
+          cp "$bundle"/*-setup.exe "release-assets/mob_${RELEASE_VERSION}_windows_x64-setup.exe"
+          cp "$bundle"/*-setup.exe.sig "release-assets/mob_${RELEASE_VERSION}_windows_x64-setup.exe.sig"
+      - uses: actions/upload-artifact@v7
+        with:
+          name: app-release-windows
+          path: release-assets/*
+          if-no-files-found: error
+  linux:
+    needs: prepare
+    # The oldest supported Ubuntu, so the AppImage runs on 22.04 and later.
+    runs-on: ubuntu-22.04
+    environment: release
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ needs.prepare.outputs.commit }}
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: package-lock.json
+      - name: Install system libraries
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev libdbus-1-dev patchelf \
+            gstreamer1.0-plugins-good gstreamer1.0-plugins-bad gstreamer1.0-libav
+      - name: Install frontend dependencies and test
+        run: npm ci && npm test
+      - name: Build AppImage and deb
+        env:
+          APPIMAGE_EXTRACT_AND_RUN: '1'
+          RELEASE_VERSION: ${{ needs.prepare.outputs.version }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+          TAURI_UPDATER_PUBLIC_KEY: ${{ vars.TAURI_UPDATER_PUBLIC_KEY || secrets.TAURI_UPDATER_PUBLIC_KEY }}
+          DOWNLOAD_BASE_URL: ${{ vars.DOWNLOAD_BASE_URL || secrets.DOWNLOAD_BASE_URL }}
+        run: |
+          set -euo pipefail
+          test -n "$TAURI_SIGNING_PRIVATE_KEY"
+          node .github/release/release.mjs config "$RUNNER_TEMP/tauri-release.json"
+          npm run tauri build -- --ci --bundles appimage,deb --config "$RUNNER_TEMP/tauri-release.json" -- --locked
+          bundle=src-tauri/target/release/bundle
+          mkdir -p release-assets
+          cp "$bundle"/appimage/*.AppImage "release-assets/mob_${RELEASE_VERSION}_linux_x64.AppImage"
+          cp "$bundle"/appimage/*.AppImage.sig "release-assets/mob_${RELEASE_VERSION}_linux_x64.AppImage.sig"
+          cp "$bundle"/deb/*.deb "release-assets/mob_${RELEASE_VERSION}_linux_x64.deb"
+      - uses: actions/upload-artifact@v7
+        with:
+          name: app-release-linux
+          path: release-assets/*
+          if-no-files-found: error
   release:
-    needs: [prepare, app]
+    needs: [prepare, app, windows, linux]
     runs-on: ubuntu-24.04
     environment: release
     permissions:
@@ -111,7 +196,8 @@ jobs:
     steps:
       - uses: actions/download-artifact@v8
         with:
-          name: app-release
+          pattern: app-release*
+          merge-multiple: true
           path: release-assets
       - name: Create draft release
         env:

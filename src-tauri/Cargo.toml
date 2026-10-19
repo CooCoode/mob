@@ -1,7 +1,7 @@
 [package]
 name = "mob"
 version = "0.2.0"
-description = "MOB home Mac client — task dispatch, agent timeline and live desktop"
+description = "MOB desktop client — task dispatch, agent timeline and live desktop"
 authors = ["Frozen <1884084+xrdavies@users.noreply.github.com>"]
 edition = "2021"
 
@@ -26,8 +26,10 @@ keyring = { version = "3", features = ["apple-native"] }
 [target.'cfg(target_os = "windows")'.dependencies]
 keyring = { version = "3", features = ["windows-native"] }
 
+# The kernel keyring alone forgets everything at logout; the Secret Service (GNOME Keyring, KWallet) keeps it.
 [target.'cfg(target_os = "linux")'.dependencies]
-keyring = { version = "3", features = ["linux-native"] }
+keyring = { version = "3", features = ["linux-native-sync-persistent", "crypto-rust"] }
+webkit2gtk = { version = "2", features = ["v2_38"] }
 
 [profile.release]
 codegen-units = 1
