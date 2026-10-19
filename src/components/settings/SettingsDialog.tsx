@@ -14,6 +14,7 @@ import { Input, Label } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { UnauthorizedError } from "@/lib/auth";
 import { deviceNameError, pair, parsePairLink } from "@/lib/pairing";
+import { getSecretStorageInfo, type SecretStorageInfo } from "@/lib/secrets";
 import { cn } from "@/lib/utils";
 import { baseUrl, useApp, type Machine, type Theme } from "@/store/app";
 import { useLog } from "@/store/log";
@@ -258,31 +259,52 @@ function MachineForm({ machine }: { machine: Machine }) {
   );
 }
 
+function CredentialStorageNote() {
+  const [info, setInfo] = useState<SecretStorageInfo | null>(null);
+  useEffect(() => {
+    void getSecretStorageInfo().then(setInfo);
+  }, []);
+  if (!info || info.backend !== "file") return null;
+  return (
+    <p className="mt-3 flex items-start gap-1.5 text-[11px] text-muted-foreground">
+      <Info className="mt-px size-3.5 shrink-0" />
+      <span>
+        Pairing credentials are stored in an encrypted local file
+        {info.path ? <> (<span className="break-all font-mono">{info.path}</span>)</> : null}
+        {" "}because the system keyring / Secret Service is unavailable. Same-user readable; see docs/credential-storage.md.
+      </span>
+    </p>
+  );
+}
+
 function MachinesTab() {
   const { machines, editMachineId, selectMachine, set } = useApp();
   const editing = machines.find((m) => m.id === editMachineId);
   return (
-    <div className="flex h-full gap-4">
-      <div className="flex w-44 shrink-0 flex-col gap-1">
-        {machines.map((m) => (
-          <button key={m.id} type="button" onClick={() => set({ editMachineId: m.id })}
-            className={cn("rounded-md px-2.5 py-1.5 text-left hover:bg-muted", m.id === editMachineId && "bg-muted")}>
-            <p className="truncate text-[13px] font-medium">{m.name}</p>
-            <p className={cn("truncate text-[11px]", m.needsPairing ? "text-warning" : "text-muted-foreground")}>
-              {m.needsPairing ? "Needs pairing" : m.mobdUrl}
-            </p>
-          </button>
-        ))}
-        <Button variant="ghost" size="sm" className="justify-start" onClick={() => set({ editMachineId: "" })}>
-          <Plus className="size-3.5" /> Add machine
-        </Button>
-      </div>
-      {editing ? <MachineForm machine={editing} /> : (
-        <div className="grid min-w-0 flex-1 grid-cols-1 content-start gap-3">
-          <h3 className="text-[13px] font-semibold">Add machine</h3>
-          <PairForm onPaired={(id) => { set({ editMachineId: id }); selectMachine(id); }} />
+    <div className="flex h-full flex-col">
+      <div className="flex min-h-0 flex-1 gap-4">
+        <div className="flex w-44 shrink-0 flex-col gap-1">
+          {machines.map((m) => (
+            <button key={m.id} type="button" onClick={() => set({ editMachineId: m.id })}
+              className={cn("rounded-md px-2.5 py-1.5 text-left hover:bg-muted", m.id === editMachineId && "bg-muted")}>
+              <p className="truncate text-[13px] font-medium">{m.name}</p>
+              <p className={cn("truncate text-[11px]", m.needsPairing ? "text-warning" : "text-muted-foreground")}>
+                {m.needsPairing ? "Needs pairing" : m.mobdUrl}
+              </p>
+            </button>
+          ))}
+          <Button variant="ghost" size="sm" className="justify-start" onClick={() => set({ editMachineId: "" })}>
+            <Plus className="size-3.5" /> Add machine
+          </Button>
         </div>
-      )}
+        {editing ? <MachineForm machine={editing} /> : (
+          <div className="grid min-w-0 flex-1 grid-cols-1 content-start gap-3">
+            <h3 className="text-[13px] font-semibold">Add machine</h3>
+            <PairForm onPaired={(id) => { set({ editMachineId: id }); selectMachine(id); }} />
+          </div>
+        )}
+      </div>
+      <CredentialStorageNote />
     </div>
   );
 }

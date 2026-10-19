@@ -82,7 +82,7 @@ Checks: `npm test` (conversation lifecycle, timeline, pairing, SSE, live stream 
 - **Shortcuts** (Ctrl instead of ⌘ on Windows and Linux): ⌘K command palette · ⌘N new chat · ⌘B sidebar · ⌘⇧B live view · ⌘⇧C expand and take control · ⌘, settings · ⌘1–9 switch conversation.
 - **View / Control:** the panel only watches. To drive the office Mac yourself, expand the view and switch **View | Control**, or press ⌘⇧C; your mouse, keyboard and scroll then go to the Mac, and `Esc` goes to the Mac too — switch back to **View** to use `Esc` for collapsing. Collapsing always returns to View. ⌘W and ⌘Q stay with the app. From Windows and Linux, Ctrl acts as ⌘ on the Mac (Ctrl+C copies there) and the Windows/Super key sends Control.
 - **Transport:** WebRTC on the LAN or a tailnet. Where UDP cannot pass (Tailscale Funnel, an HTTPS gateway), the app falls back to mobd's WebSocket after 5 s and remembers that per machine (1 s next time); the readout shows which one is in use.
-- **Auth:** every machine is paired (`mobd link`); the device credential is kept in the Keychain (macOS), Credential Manager (Windows) or the Secret Service keyring (Linux).
+- **Auth:** every machine is paired (`mobd link`); the device credential is kept in the Keychain (macOS), Credential Manager (Windows) or the Secret Service keyring (Linux). If the system store is unavailable (e.g. headless Linux without Secret Service), mob falls back to an encrypted file under the app config directory — see [docs/credential-storage.md](docs/credential-storage.md).
 
 Features follow mobd's `/health`: queue, uploads, model/effort, steering, session management, snapshots and the live view appear only when mobd reports API v3 and lists the feature.
 
@@ -112,7 +112,7 @@ src/            React frontend, API client and tests
 src-tauri/      Rust shell, bundle configuration (tauri.conf.json + per-OS tauri.<os>.conf.json) and icons
 public/         Browser assets
 .github/        Desktop signing, Tauri updater and R2 publication
-docs/           UI design, live desktop, branding, releases, ADRs, postponed plans
+docs/           UI design, credential storage, live desktop, branding, releases, ADRs, postponed plans
 ```
 
 Run commands from this repository root: `make install`, `make dev`, `make desktop`,

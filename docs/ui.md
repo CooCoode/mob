@@ -19,7 +19,7 @@
 
 - Three-column shell: sessions · timeline · preview. Connection settings live only in Settings.
 - Human input is opt-in per use: the panel is always **view only**; only the expanded view has a **View | Control** switch, which starts on View and resets to View when the view collapses. Switching sends input over the open session's data channels (or the WebSocket); it does not reconnect.
-- Auth is pairing only: paste the link from `mobd link`; the credential stays in the Keychain. No accounts or sign-in.
+- Auth is pairing only: paste the link from `mobd link`; the credential stays in the system keyring (Keychain / Credential Manager / Secret Service), with an automatic encrypted-file fallback when that store is unavailable ([credential-storage.md](credential-storage.md)). No accounts or sign-in.
 - Machines are first-class; each has its own `mobd` URL (added by pairing) and its own live view quality.
 
 ---
