@@ -49,5 +49,5 @@ When the stream is off: `GET /screen` at the panel width × devicePixelRatio (ro
 - Real trackpad and keyboard in the Tauri app, including Command shortcuts the app menu may take first (checked so far with synthetic DOM events in a bare WKWebView).
 - A throttled-link check of Auto quality.
 - The click marker over live video (geometry is unit-tested, checked against snapshots only).
-- Windows and Linux on real machines: WebView2 input and shortcuts; on Linux which distributions' WebKitGTK has WebRTC, and MSE latency through GStreamer; neither has been run on a real Windows or Linux desktop yet.
+- Windows and Linux on real machines: WebView2 input and shortcuts; on Linux which distributions' WebKitGTK has WebRTC, and MSE latency through GStreamer. The MSE player has been checked in macOS WebKit and Chromium (30 of 30 frames, an idle gap without stalling, kept at the live edge) and the fragments with ffprobe and GStreamer; neither app has run on a real Windows or Linux desktop yet.
 - Relay paths beyond Tailscale Funnel: mobd's planned TURN relay (`mob-relay`) would need TURN credentials from `POST /stream`.
