@@ -48,5 +48,5 @@ A pure file backend is the most portable across distros, but it is weaker than t
 
 ## Related
 
-- Pairing UX and hard rules: [ui.md](ui.md)
+- Pairing UX and hard rules: [ui.md](ui.md) (includes the Linux WebKitGTK paste crash workaround — unrelated to this store)
 - Product overview auth bullet: [README.md](../README.md)

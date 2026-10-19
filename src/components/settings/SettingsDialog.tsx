@@ -3,7 +3,8 @@ import { Licenses } from "@/components/settings/Licenses";
 import {
   CheckCircle2, CircleHelp, Info, Monitor, Moon, Palette, Plus, ScrollText, Sun, SunMoon, Trash2, TriangleAlert, XCircle,
 } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState, type ClipboardEvent, type KeyboardEvent } from "react";
+import { invoke, isTauri } from "@tauri-apps/api/core";
 import { fetchHealth } from "@/api/client";
 import { QUALITIES } from "@/lib/stream";
 import type { Check, Health } from "@/api/types";
@@ -89,6 +90,39 @@ function PairForm({ machine, onPaired }: { machine?: Machine; onPaired: (id: str
 
   useEffect(() => setConfirmed(false), [target?.origin]);
 
+  /** Prefer OS clipboard via Tauri — WebKitGTK 2.54 can SIGSEGV on native Ctrl+V (bug 324466). */
+  const pasteLink = useCallback(async () => {
+    setError("");
+    try {
+      let text = "";
+      if (isTauri()) {
+        text = await invoke<string>("clipboard_read_text");
+      } else if (navigator.clipboard?.readText) {
+        text = await navigator.clipboard.readText();
+      } else {
+        throw new Error("Clipboard is not available in this environment.");
+      }
+      setLink(text.trim());
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+    }
+  }, []);
+
+  const onLinkKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "v") {
+      e.preventDefault();
+      void pasteLink();
+    }
+  };
+
+  const onLinkPaste = (e: ClipboardEvent<HTMLInputElement>) => {
+    // Never let WebKit complete a native paste: Clipboard::formats can SIGSEGV on empty /
+    // one-shot clipboards (WebKitGTK 2.54, bugs.webkit.org/show_bug.cgi?id=324466).
+    // Reading via Tauri/arboard (pasteLink) avoids that path.
+    e.preventDefault();
+    void pasteLink();
+  };
+
   const submit = async () => {
     if (!target || !ready) return;
     setBusy(true);
@@ -114,8 +148,13 @@ function PairForm({ machine, onPaired }: { machine?: Machine; onPaired: (id: str
       )}
       <Label>
         Pairing link
-        <Input value={link} autoComplete="off" spellCheck={false} placeholder="https://office.example.com/pair#v=1&serverId=…&invite=…"
-          onChange={(e) => { setLink(e.target.value); setError(""); }} />
+        <div className="flex gap-2">
+          <Input value={link} autoComplete="off" spellCheck={false} placeholder="https://office.example.com/pair#v=1&serverId=…&invite=…"
+            onChange={(e) => { setLink(e.target.value); setError(""); }}
+            onKeyDown={onLinkKeyDown}
+            onPaste={onLinkPaste} />
+          <Button type="button" variant="secondary" className="shrink-0" onClick={() => void pasteLink()}>Paste</Button>
+        </div>
       </Label>
       {!target && (
         <p className="-mt-1.5 text-[11px] text-muted-foreground">

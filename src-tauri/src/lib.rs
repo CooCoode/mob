@@ -8,7 +8,8 @@ pub fn run() {
             secret_get,
             secret_set,
             secret_delete,
-            secret_storage_info
+            secret_storage_info,
+            clipboard_read_text
         ])
         .plugin(tauri_plugin_process::init())
         .setup(|app| {
@@ -65,4 +66,24 @@ async fn secret_delete(account: String) -> Result<(), String> {
 #[tauri::command]
 async fn secret_storage_info() -> secrets::StorageInfo {
     secrets::storage_info()
+}
+
+/// Reads clipboard text via the OS clipboard APIs (not WebKit).
+/// WebKitGTK 2.54.0–2.54.1 can SIGSEGV in Clipboard::formats when paste runs against an empty
+/// or one-shot clipboard (https://bugs.webkit.org/show_bug.cgi?id=324466). Pairing paste uses this
+/// command instead of the webview's native paste path.
+#[tauri::command]
+fn clipboard_read_text() -> Result<String, String> {
+    arboard::Clipboard::new()
+        .and_then(|mut c| c.get_text())
+        .map_err(|e| format!("Could not read the clipboard: {e}"))
+}
+
+#[cfg(test)]
+mod clipboard_tests {
+    #[test]
+    fn clipboard_read_does_not_panic() {
+        // May Err if no display/clipboard; must not panic.
+        let _ = super::clipboard_read_text();
+    }
 }
