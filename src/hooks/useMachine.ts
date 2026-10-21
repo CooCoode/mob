@@ -1,9 +1,10 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect } from "react";
-import { fetchHealth, fetchQueue, supports } from "@/api/client";
-import type { Queue, Session } from "@/api/types";
+import { fetchDesktops, fetchHealth, fetchQueue, sessionDesktops, supports } from "@/api/client";
+import type { Desktops, Queue, Session, Task } from "@/api/types";
 import { chat } from "@/hooks/useChat";
 import { streamAuth } from "@/lib/auth";
+import { applyDesktop, applyLevel, parseDesktop, parseDisk, parseMemory } from "@/lib/desktops";
 import { EventStream } from "@/lib/sse";
 import { baseUrl, type Machine } from "@/store/app";
 import { log } from "@/store/log";
@@ -24,12 +25,23 @@ export function useQueue(base: string, enabled: boolean) {
   return useQuery({ queryKey: ["queue", base], queryFn: () => fetchQueue(base), enabled: !!base && enabled });
 }
 
+/** Conversation desktops and the office computer's memory and disk (mobd with sessionDesktops). */
+export function useDesktops(base: string, enabled: boolean, refetchInterval?: number) {
+  return useQuery({
+    queryKey: ["desktops", base],
+    queryFn: () => fetchDesktops(base),
+    enabled: !!base && enabled,
+    refetchInterval,
+  });
+}
+
 /** Subscribes to mobd's global stream: sidebar, queue and status stay live without polling. */
 export function useMachineEvents(machine: Machine | null | undefined) {
   const qc = useQueryClient();
   const base = baseUrl(machine);
   const { data: health } = useHealth(machine);
   const live = supports(health, "events") && !machine?.needsPairing;
+  const desktops = sessionDesktops(health);
   useEffect(() => {
     if (!base || !live) return;
     // Resume via ?after=: mobd's CORS does not allow a Last-Event-ID header.
@@ -48,13 +60,33 @@ export function useMachineEvents(machine: Machine | null | undefined) {
       qc.setQueryData(["queue", base], q);
       chat.applyQueue(q);
     });
+    on<Task>("task", (t) => chat.applyTask(t));
+    if (desktops) {
+      const update = (fn: (d: Desktops | undefined) => Desktops) => qc.setQueryData<Desktops>(["desktops", base], fn);
+      on<unknown>("desktop", (raw) => {
+        const info = parseDesktop(raw);
+        if (info) update((d) => applyDesktop(d, info));
+      });
+      on<unknown>("memory", (raw) => {
+        const info = parseMemory(raw);
+        if (info) update((d) => applyLevel(d, "memory", info));
+      });
+      on<unknown>("disk", (raw) => {
+        const info = parseDisk(raw);
+        if (info) update((d) => applyLevel(d, "disk", info));
+      });
+    }
+    const refetch = () => {
+      void qc.invalidateQueries({ queryKey: ["queue", base] });
+      if (desktops) void qc.invalidateQueries({ queryKey: ["desktops", base] });
+    };
     on<unknown>("reset", () => {
       log("global events reset; refreshing", "info");
       void chat.refresh();
-      void qc.invalidateQueries({ queryKey: ["queue", base] });
+      refetch();
     });
-    // Snapshots may predate the subscription; refetch once it is open.
-    es.onopen = () => void qc.invalidateQueries({ queryKey: ["queue", base] });
+    // Snapshots may predate the subscription; refetch once it is open (also after a reconnect).
+    es.onopen = refetch;
     return () => es.close();
-  }, [base, live, qc]);
+  }, [base, live, desktops, qc]);
 }

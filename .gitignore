@@ -57,3 +57,7 @@ src-tauri/target/
 release-assets/
 dist-ssr/
 *.local
+
+# Local mobd build and stray Tauri output
+/bin/
+/apps/

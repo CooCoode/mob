@@ -1,7 +1,8 @@
 import { useSyncExternalStore } from "react";
 import { supports } from "../api/client.ts";
 import type { Health } from "../api/types.ts";
-import { authFetch } from "./auth.ts";
+import { ApiError, authFetch, responseProblem } from "./auth.ts";
+import { NO_DESKTOP } from "./desktops.ts";
 import { buttonName, HeldInput, normalizePoint, remoteCode, wheelPixels, type InputMessage } from "./liveInput.ts";
 import { isMac } from "./platform.ts";
 import { streamWsUrl, WsPlayer, wsDecoder } from "./wsVideo.ts";
@@ -27,6 +28,8 @@ export interface StreamRequest {
   maxWidth: number;
   maxHeight: number;
   quality: Quality;
+  /** The conversation whose desktop to show (required with sessionDesktops). */
+  sessionId?: string;
 }
 
 export interface StreamAnswer {
@@ -37,16 +40,21 @@ export interface StreamAnswer {
   height: number;
 }
 
-/** POST /stream; errors carry mobd's message (a locked screen, missing Screen Recording). */
+/** POST /stream; errors carry mobd's message (a locked screen, missing Screen Recording) and code. */
 export async function openSession(base: string, req: StreamRequest): Promise<StreamAnswer> {
   const res = await authFetch(base, `${base}/stream`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(req),
   });
-  if (res.status === 404 || res.status === 405) throw new Error(UPDATE_MOBD);
-  const data = (await res.json().catch(() => ({}))) as Partial<StreamAnswer> & { error?: string };
-  if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+  if (!res.ok) {
+    const problem = await responseProblem(res);
+    // A conversation desktop's 404 names the conversation; a bare 404 is a mobd without /stream.
+    if (!problem.code && (res.status === 404 || res.status === 405)) throw new Error(UPDATE_MOBD);
+    if (problem.code === "no_desktop") throw new ApiError(NO_DESKTOP, res.status, problem.code);
+    throw problem;
+  }
+  const data = (await res.json().catch(() => ({}))) as Partial<StreamAnswer>;
   if (typeof data.session !== "string" || !data.session) throw new Error("Invalid live desktop answer from mobd.");
   return data as StreamAnswer;
 }
@@ -209,6 +217,8 @@ export interface StreamTarget {
   preferWebSocket?: boolean;
   /** Take control as soon as the picture arrives (reconnecting at a new size keeps control). */
   control?: boolean;
+  /** The open conversation, with conversation desktops. */
+  sessionId?: string;
 }
 
 /** Where the picture goes; both stay mounted, the panel shows the one in use. */
@@ -419,6 +429,7 @@ class StreamController {
         maxWidth: target.maxWidth,
         maxHeight: target.maxHeight,
         quality: target.quality ?? "auto",
+        sessionId: target.sessionId,
       });
       if (attempt !== this.attempt) {
         closeSession(target.base, answer.session);

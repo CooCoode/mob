@@ -1,10 +1,14 @@
-import { authFetch } from "../lib/auth.ts";
-import type { Health, Queue, RunnerInfo, Session, Upload } from "./types.ts";
+import { ApiError, authFetch } from "../lib/auth.ts";
+import { parseDesktops } from "../lib/desktops.ts";
+import type { Desktops, Health, Queue, RunnerInfo, Session, Upload } from "./types.ts";
 
 async function getJSON<T>(base: string, path: string, init?: RequestInit): Promise<T> {
   const res = await authFetch(base, `${base}${path}`, init);
   const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error((data as { error?: string }).error || `HTTP ${res.status}`);
+  if (!res.ok) {
+    const { error, code } = data as { error?: string; code?: string };
+    throw new ApiError(error || `HTTP ${res.status}`, res.status, code || undefined);
+  }
   return data as T;
 }
 
@@ -26,8 +30,23 @@ export async function uploadImage(base: string, file: File): Promise<Upload> {
 export const artifactUrl = (base: string, id: string) => `${base}/artifacts/${encodeURIComponent(id)}`;
 
 // No cache-busting parameter: polling sends If-None-Match and an unchanged screen costs a 304.
-export const screenUrl = (base: string, maxWidth: number, quality = 65) =>
-  `${base}/screen?maxWidth=${maxWidth}&quality=${quality}`;
+// With conversation desktops, sessionId picks the conversation's desktop.
+export const screenUrl = (base: string, maxWidth: number, quality = 65, sessionId?: string) =>
+  `${base}/screen?maxWidth=${maxWidth}&quality=${quality}${sessionId ? `&sessionId=${encodeURIComponent(sessionId)}` : ""}`;
+
+export async function fetchDesktops(base: string): Promise<Desktops> {
+  return parseDesktops(await getJSON<unknown>(base, "/desktops"));
+}
+
+/** Stops the conversation's running turn, then closes its desktop. */
+export async function closeDesktop(base: string, sessionId: string): Promise<void> {
+  await getJSON(base, `/desktops/${encodeURIComponent(sessionId)}`, { method: "DELETE" });
+}
+
+/** Makes the conversation's browser profiles the seed for new conversations. */
+export async function seedDesktop(base: string, sessionId: string): Promise<void> {
+  await getJSON(base, `/desktops/${encodeURIComponent(sessionId)}/seed`, { method: "POST" });
+}
 
 /** The runner that will handle the next turn: the session's, else the default. */
 export function runnerFor(health: Health | undefined, name?: string): RunnerInfo | undefined {
@@ -39,3 +58,6 @@ export function runnerFor(health: Health | undefined, name?: string): RunnerInfo
 export function supports(health: Health | undefined, feature: string): boolean {
   return !!health && health.apiVersion >= 3 && !!health.features?.includes(feature);
 }
+
+/** mobd gives every conversation its own desktop (Linux): live view and snapshots name the conversation. */
+export const sessionDesktops = (health: Health | undefined) => supports(health, "sessionDesktops");

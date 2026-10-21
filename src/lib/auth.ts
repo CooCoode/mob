@@ -42,10 +42,28 @@ export async function authFetch(base: string, url: string, init?: RequestInit): 
   return res;
 }
 
+/** A failed mobd request: `error` to show, `code` to branch on (e.g. `no_desktop`). */
+export class ApiError extends Error {
+  status: number;
+  code?: string;
+  constructor(message: string, status: number, code?: string) {
+    super(message);
+    this.name = "ApiError";
+    this.status = status;
+    this.code = code;
+  }
+}
+
+/** mobd's error body (`{"error": "...", "code": "..."}`) as an ApiError; the HTTP status without one. */
+export async function responseProblem(res: Response): Promise<ApiError> {
+  const data = (await res.json().catch(() => ({}))) as { error?: unknown; code?: unknown };
+  const message = typeof data.error === "string" && data.error ? data.error : `HTTP ${res.status}`;
+  return new ApiError(message, res.status, typeof data.code === "string" && data.code ? data.code : undefined);
+}
+
 /** mobd's explanation for a failed response (`{"error": "..."}`), else the HTTP status. */
 export async function responseError(res: Response): Promise<string> {
-  const data = (await res.json().catch(() => ({}))) as { error?: unknown };
-  return typeof data.error === "string" && data.error ? data.error : `HTTP ${res.status}`;
+  return (await responseProblem(res)).message;
 }
 
 /** EventStream options for a mobd base URL: current credential on every reconnect, stop on 401. */

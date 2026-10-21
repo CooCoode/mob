@@ -2,6 +2,8 @@
 
 export type TaskStatus = "queued" | "running" | "succeeded" | "failed" | "cancelled";
 
+export type QueueReason = "slots" | "desktops" | "memory" | "disk" | "desktopStarting";
+
 export interface Usage {
   inputTokens: number;
   cachedInputTokens: number;
@@ -28,6 +30,8 @@ export interface Task {
   finishedAt?: string;
   error?: string | null;
   queuePosition?: number;
+  /** Why a queued task still waits (mobd with conversation desktops). */
+  queueReason?: QueueReason;
   /** True while the turn waits for the user to answer a question. */
   waiting?: boolean;
 }
@@ -171,4 +175,50 @@ export interface TurnOptions {
   model?: string;
   effort?: string;
   attachments?: string[];
+}
+
+export type DesktopState = "starting" | "running" | "asleep" | "waking" | "closing" | "closed" | "failed";
+
+/** A conversation's own desktop (mobd on Linux, `sessionDesktops`). */
+export interface DesktopInfo {
+  sessionId: string;
+  title?: string;
+  display?: string;
+  width: number;
+  height: number;
+  scale: number;
+  state: DesktopState;
+  /** Why it closed or failed (archived, deleted, user, crashed…), or `oomKill` when the kernel ended one of its apps. */
+  reason?: string;
+  memoryBytes: number;
+  diskBytes: number;
+  startedAt?: string;
+  lastUsedAt?: string;
+  activeTaskId?: string;
+  viewers: number;
+}
+
+export type Level = "ok" | "low" | "critical";
+
+export interface MemoryInfo {
+  level: Level;
+  availableBytes: number;
+  totalBytes: number;
+  pressure: number;
+  warnPercent?: number;
+  floorPercent?: number;
+}
+
+export interface DiskInfo {
+  level: Level;
+  freeBytes: number;
+  totalBytes: number;
+  path?: string;
+}
+
+/** GET /desktops: largest memory first; empty with one shared desktop. */
+export interface Desktops {
+  desktops: DesktopInfo[];
+  memory?: MemoryInfo;
+  disk?: DiskInfo;
 }

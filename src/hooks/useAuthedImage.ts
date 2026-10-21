@@ -1,11 +1,15 @@
 import { useEffect, useRef, useState } from "react";
-import { authFetch, responseError } from "@/lib/auth";
+import { authFetch, responseProblem } from "@/lib/auth";
 
 export interface AuthedImage {
   src?: string;
   error: string;
   /** When mobd last confirmed the image: a new download or 304 Not Modified. */
   at?: number;
+  /** mobd's error code for the last failure (e.g. `no_desktop`). */
+  code?: string;
+  /** `X-Mob-Desktop-State`: "asleep" when the image is a sleeping desktop's last frame. */
+  desktopState?: string;
 }
 
 /**
@@ -26,10 +30,11 @@ export function useAuthedImage(base: string, url: string | null, refresh?: numbe
     authFetch(base, url, { signal: abort.signal, headers })
       .then(async (res) => {
         if (res.status === 304) {
-          if (!abort.signal.aborted) setState((s) => ({ ...s, error: "", at: Date.now() }));
+          if (!abort.signal.aborted) setState((s) => ({ ...s, error: "", code: undefined, at: Date.now() }));
           return;
         }
-        if (!res.ok) throw new Error(await responseError(res));
+        if (!res.ok) throw await responseProblem(res);
+        const desktopState = res.headers.get("X-Mob-Desktop-State") ?? undefined;
         const tag = res.headers.get("ETag");
         const src = URL.createObjectURL(await res.blob());
         if (abort.signal.aborted) {
@@ -39,10 +44,12 @@ export function useAuthedImage(base: string, url: string | null, refresh?: numbe
         etag.current = tag ? { url, tag } : null;
         if (current.current) URL.revokeObjectURL(current.current);
         current.current = src;
-        setState({ src, error: "", at: Date.now() });
+        setState({ src, error: "", at: Date.now(), desktopState });
       })
       .catch((err) => {
-        if (!abort.signal.aborted) setState((s) => ({ ...s, error: err instanceof Error ? err.message : String(err) }));
+        if (abort.signal.aborted) return;
+        const code = (err as { code?: string }).code;
+        setState((s) => ({ ...s, error: err instanceof Error ? err.message : String(err), code }));
       });
     return () => abort.abort();
   }, [base, url, refresh]);

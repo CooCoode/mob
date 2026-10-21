@@ -293,15 +293,26 @@ export class Chat {
     else this.changed();
   }
 
-  /** Keeps the visible turn's queue position current. */
+  /** Keeps the visible turn's queue position (and why it waits) current. */
   applyQueue(queue: Queue): void {
     const t = this.currentTask;
     if (!t || t.status !== "queued") return;
-    const position = queue.queued.find((q) => q.id === t.id)?.queuePosition;
-    if (position !== t.queuePosition) {
-      t.queuePosition = position;
-      this.changed();
-    }
+    const queued = queue.queued.find((q) => q.id === t.id);
+    this.applyQueued(t, queued?.queuePosition, queued?.queueReason);
+  }
+
+  /** Applies a task snapshot from the global event stream to the visible queued turn. */
+  applyTask(task: Task): void {
+    const t = this.currentTask;
+    if (!t || t.id !== task.id || t.status !== "queued" || task.status !== "queued") return;
+    this.applyQueued(t, task.queuePosition, task.queueReason);
+  }
+
+  private applyQueued(t: Task, position: Task["queuePosition"], reason: Task["queueReason"]): void {
+    if (position === t.queuePosition && reason === t.queueReason) return;
+    t.queuePosition = position;
+    t.queueReason = reason;
+    this.changed();
   }
 
   async patchSession(id: string, patch: { title?: string; pinned?: boolean; archived?: boolean }): Promise<void> {
@@ -423,6 +434,7 @@ export class Chat {
             if (data.status === "running") {
               task.startedAt ??= data.timestamp;
               task.queuePosition = undefined;
+              task.queueReason = undefined;
             }
             if (terminal(data.status)) task.finishedAt ??= data.timestamp;
             this.session.status = data.status;
