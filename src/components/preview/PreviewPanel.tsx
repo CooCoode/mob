@@ -1,6 +1,6 @@
 import { ChevronDown, Eye, Expand, Gauge, MousePointer2, Power, RefreshCw, Shrink } from "lucide-react";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
-import { screenUrl, supports } from "@/api/client";
+import { screenUrl, sessionDesktops, supports } from "@/api/client";
 import type { Health, Queue } from "@/api/types";
 import { activityIcon } from "@/components/timeline/activity";
 import { Spinner, StatusIcon } from "@/components/StatusIcon";
@@ -12,6 +12,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuLabel, DropdownMenuRadio
 import { Tooltip } from "@/components/ui/tooltip";
 import { useAuthedImage } from "@/hooks/useAuthedImage";
 import { chat, useChat } from "@/hooks/useChat";
+import { NO_DESKTOP } from "@/lib/desktops";
 import { latestClick, screenGeometry } from "@/lib/timeline";
 import { QUALITIES, readoutText, signalBars, stream, useStream, type Quality } from "@/lib/stream";
 import { cn } from "@/lib/utils";
@@ -50,15 +51,16 @@ function ClickMarker({ stage, ratio }: { stage: HTMLElement | null; ratio: numbe
   );
 }
 
-function Snapshot({ base, width, onRatio }: { base: string; width: number; onRatio: (r: number) => void }) {
+function Snapshot({ base, sessionId, width, onRatio }: { base: string; sessionId?: string; width: number; onRatio: (r: number) => void }) {
   const [tick, setTick] = useState(0);
   // As wide as the panel shows it; an unchanged screen costs a 304, not a download.
-  const image = useAuthedImage(base, width ? screenUrl(base, devicePixels(width, window.devicePixelRatio)) : null, tick);
+  const image = useAuthedImage(base, width ? screenUrl(base, devicePixels(width, window.devicePixelRatio), 65, sessionId) : null, tick);
   const [undecodable, setUndecodable] = useState<string | undefined>(undefined);
   // mobd's reason (locked, asleep, no Screen Recording) until a later check succeeds, 304 included.
   const error = image.error || (undecodable === image.src ? "the snapshot could not be shown" : "");
   const state = error ? "error" : image.src ? "ok" : "loading";
   const at = image.at ? new Date(image.at).toLocaleTimeString() : "";
+  const asleep = image.desktopState === "asleep";
   useEffect(() => {
     // Every few seconds while the panel is open; paused while the window is hidden.
     const t = setInterval(() => document.visibilityState === "visible" && setTick((n) => n + 1), 4000);
@@ -78,17 +80,24 @@ function Snapshot({ base, width, onRatio }: { base: string; width: number; onRat
       />
       {state === "error" && (
         <p className="absolute inset-0 flex items-center justify-center p-4 text-center text-xs text-muted-foreground">
-          Snapshot unavailable: {error.replace(/^screen unavailable: /, "")}
+          {image.code === "no_desktop" ? NO_DESKTOP : `Snapshot unavailable: ${error.replace(/^screen unavailable: /, "")}`}
         </p>
       )}
       {state === "ok" && (
-        <button
-          type="button"
-          onClick={() => setTick((n) => n + 1)}
-          className="absolute bottom-1.5 left-1.5 flex items-center gap-1 rounded bg-black/55 px-1.5 py-0.5 text-[10px] text-white/90 hover:bg-black/70"
-        >
-          <RefreshCw className="size-2.5" /> Snapshot · {at}
-        </button>
+        <>
+          {asleep && (
+            <span className="absolute left-2 top-2 rounded bg-black/65 px-2 py-0.5 text-[10px] font-medium text-white/90 backdrop-blur">
+              Asleep
+            </span>
+          )}
+          <button
+            type="button"
+            onClick={() => setTick((n) => n + 1)}
+            className="absolute bottom-1.5 left-1.5 flex items-center gap-1 rounded bg-black/55 px-1.5 py-0.5 text-[10px] text-white/90 hover:bg-black/70"
+          >
+            <RefreshCw className="size-2.5" /> Snapshot · {at}
+          </button>
+        </>
       )}
     </>
   );
@@ -231,12 +240,25 @@ export function PreviewPanel({ machine, health, queue }: { machine: Machine; hea
   const [, relayout] = useState(0);
   const connected = state.status === "connected";
   const running = chatState.currentTask?.status === "running";
-  const canSnapshot = supports(health, "screen") && !connected;
+  const perSession = sessionDesktops(health);
+  const sessionId = perSession ? chatState.sessionId ?? undefined : undefined;
+  const hasDesktop = !perSession || !!sessionId;
+  const canSnapshot = supports(health, "screen") && !connected && hasDesktop;
   const canControl = connected;
   const live = stream;
   const latest = running ? chatState.activities.filter((a) => a.taskId === chatState.currentTask?.id && a.kind !== "notice").at(-1) : undefined;
 
+  // Disconnect when the machine changes; reconnect when the open conversation changes while connected.
   useEffect(() => () => stream.disconnect(), [machine.id]);
+  const prevSessionId = useRef(sessionId);
+  useEffect(() => {
+    if (prevSessionId.current === sessionId) return;
+    prevSessionId.current = sessionId;
+    if (perSession && (state.status === "connected" || state.status === "connecting")) {
+      if (sessionId) reconnect.current(state.control);
+      else stream.disconnect();
+    }
+  }, [sessionId, perSession, state.status, state.control]);
   // Only the full-size view can control; the thumbnail always just watches.
   useEffect(() => {
     if (!fullscreen) stream.setControl(false);
@@ -261,6 +283,7 @@ export function PreviewPanel({ machine, health, queue }: { machine: Machine; hea
       base: baseUrl(machine), health,
       maxWidth: opened.current.width, maxHeight: opened.current.height,
       quality: machine.liveQuality ?? "auto", preferWebSocket: machine.liveWebSocket, control,
+      sessionId,
     });
   };
   // The stream is sized to the view. mobd with streamResize refits the running session; older builds
@@ -445,13 +468,17 @@ export function PreviewPanel({ machine, health, queue }: { machine: Machine; hea
           {/* The WebSocket fallback draws decoded frames here instead of the video. */}
           <canvas ref={canvas} tabIndex={-1} aria-label="Office desktop, live"
             className={cn("absolute inset-0 size-full object-contain outline-none", (!connected || streamState.element !== "canvas") && "invisible", control && "touch-none")} />
-          {!connected && canSnapshot && <Snapshot base={chatState.baseUrl} width={stage.current?.clientWidth ?? 0} onRatio={setRatio} />}
+          {!connected && canSnapshot && <Snapshot base={chatState.baseUrl} sessionId={sessionId} width={stage.current?.clientWidth ?? 0} onRatio={setRatio} />}
           {!connected && !canSnapshot && (
             <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 p-4 text-center">
-              <p className="text-xs text-white/60">{state.status === "error" ? state.detail : "Office desktop is not connected"}</p>
-              <Button size="sm" variant="secondary" className="border-white/15 bg-white/10 text-white hover:bg-white/15" onClick={() => connect()}>
-                <Power className="size-3.5" /> Connect
-              </Button>
+              <p className="text-xs text-white/60">
+                {state.status === "error" ? (state.detail === NO_DESKTOP ? NO_DESKTOP : state.detail) : hasDesktop ? "Office desktop is not connected" : NO_DESKTOP}
+              </p>
+              {hasDesktop && (
+                <Button size="sm" variant="secondary" className="border-white/15 bg-white/10 text-white hover:bg-white/15" onClick={() => connect()}>
+                  <Power className="size-3.5" /> Connect
+                </Button>
+              )}
             </div>
           )}
           <ClickMarker stage={stage.current} ratio={ratio} />

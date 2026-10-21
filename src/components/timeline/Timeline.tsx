@@ -6,6 +6,7 @@ import { AuthImage } from "@/components/AuthImage";
 import { Spinner, StatusIcon } from "@/components/StatusIcon";
 import { Button } from "@/components/ui/button";
 import { useChat } from "@/hooks/useChat";
+import { queueReasonText } from "@/lib/desktops";
 import { buildTimeline, type TimelineItem } from "@/lib/timeline";
 import { cn, compactNumber, duration } from "@/lib/utils";
 import { useComposer } from "@/store/composer";
@@ -119,18 +120,21 @@ function Item({ item, base, last }: { item: TimelineItem; base: string; last: bo
       );
     case "group":
       return <div className="pl-9"><ActivityGroup activities={item.activities} base={base} /></div>;
-    case "queued":
+    case "queued": {
+      const reason = queueReasonText(item.task.queueReason);
       return (
         <div className="ml-9 flex items-center gap-2.5 rounded-lg border border-dashed px-3 py-2 text-[13px] text-muted-foreground">
           <StatusIcon status="queued" position={item.task.queuePosition} />
           <span className="flex-1">
-            Waiting for the desktop{item.task.queuePosition ? ` · #${item.task.queuePosition} in queue` : ""}
+            {reason || `Waiting for the desktop${item.task.queuePosition ? ` · #${item.task.queuePosition} in queue` : ""}`}
+            {reason && item.task.queuePosition ? ` · #${item.task.queuePosition} in queue` : ""}
           </span>
           <Button variant="link" size="sm" className="h-auto px-0" disabled={chat.cancelling} onClick={() => void chat.cancel()}>
             Cancel
           </Button>
         </div>
       );
+    }
     case "working":
       if (item.waiting && !chat.cancelling) {
         return (

@@ -1,9 +1,10 @@
 import { useQuery } from "@tanstack/react-query";
 import {
-  Archive, ArchiveRestore, ChevronRight, Monitor, MoreHorizontal, Pencil, Pin, PinOff, Plus, Settings, SquarePen, Star, Trash2,
+  Archive, ArchiveRestore, ChevronRight, Circle, CircleDot, Monitor, MonitorX, MoreHorizontal, Pencil, Pin, PinOff, Plus, Settings, Share2, SquarePen, Star, Trash2,
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
-import { fetchArchived, supports } from "@/api/client";
+import { toast } from "sonner";
+import { closeDesktop, fetchArchived, seedDesktop, sessionDesktops, supports } from "@/api/client";
 import type { Session } from "@/api/types";
 import { StatusIcon, WaitingIcon } from "@/components/StatusIcon";
 import { Button } from "@/components/ui/button";
@@ -15,16 +16,19 @@ import {
 import { Kbd } from "@/components/ui/kbd";
 import { MOD } from "@/lib/platform";
 import { chat, useChat } from "@/hooks/useChat";
-import { useHealth, useQueue } from "@/hooks/useMachine";
+import { useDesktops, useHealth, useQueue } from "@/hooks/useMachine";
+import { desktopMark, desktopOf, seedErrorText } from "@/lib/desktops";
 import { cn, shortAgo } from "@/lib/utils";
 import { baseUrl, useApp, type Machine } from "@/store/app";
 import { useComposer } from "@/store/composer";
 
-type Action = "rename" | "pin" | "archive" | "unarchive" | "delete";
+type Action = "rename" | "pin" | "archive" | "unarchive" | "delete" | "closeDesktop" | "seed";
 
-function SessionActions({ session, admin, onAction, Item, Separator }: {
+function SessionActions({ session, admin, desktops, hasDesktop, onAction, Item, Separator }: {
   session: Session;
   admin: boolean;
+  desktops: boolean;
+  hasDesktop: boolean;
   onAction: (a: Action) => void;
   Item: typeof DropdownMenuItem | typeof ContextMenuItem;
   Separator: typeof DropdownMenuSeparator | typeof ContextMenuSeparator;
@@ -37,19 +41,28 @@ function SessionActions({ session, admin, onAction, Item, Separator }: {
       {!session.archived && (
         <Item onSelect={() => onAction("pin")}>{session.pinned ? <><PinOff /> Unpin</> : <><Pin /> Pin</>}</Item>
       )}
+      {desktops && hasDesktop && (
+        <Item onSelect={() => onAction("closeDesktop")}><MonitorX /> Close desktop…</Item>
+      )}
+      {desktops && hasDesktop && (
+        <Item onSelect={() => onAction("seed")}><Share2 /> Use this browser profile for new conversations</Item>
+      )}
+      {(desktops && hasDesktop) && <Separator />}
       {session.archived
         ? <Item onSelect={() => onAction("unarchive")}><ArchiveRestore /> Unarchive</Item>
-        : <Item onSelect={() => onAction("archive")}><Archive /> Archive</Item>}
+        : <Item onSelect={() => onAction("archive")}><Archive /> Archive…</Item>}
       <Separator />
       <Item danger disabled={busy} onSelect={() => onAction("delete")}><Trash2 /> Delete…</Item>
     </>
   );
 }
 
-function SessionRow({ session, active, admin, onOpen, onAction, position }: {
+function SessionRow({ session, active, admin, desktops, hasDesktop, position, onOpen, onAction }: {
   session: Session;
   active: boolean;
   admin: boolean;
+  desktops: boolean;
+  hasDesktop: boolean | "asleep";
   position?: number;
   onOpen: () => void;
   onAction: (a: Action) => void;
@@ -83,6 +96,7 @@ function SessionRow({ session, active, admin, onOpen, onAction, position }: {
     );
   }
   const status = session.activeTaskId ? session.status : session.status === "failed" ? "failed" : null;
+  const DesktopIcon = hasDesktop === "asleep" ? Circle : hasDesktop ? CircleDot : null;
   return (
     <ContextMenu>
       <ContextMenuTrigger asChild>
@@ -99,6 +113,7 @@ function SessionRow({ session, active, admin, onOpen, onAction, position }: {
             active ? "bg-foreground/[0.07] font-medium text-foreground" : "text-foreground/80 hover:bg-foreground/[0.04]",
           )}
         >
+          {desktops && DesktopIcon && <DesktopIcon className={cn("size-2.5 shrink-0", hasDesktop === "asleep" ? "text-muted-foreground" : "fill-success text-success")} />}
           {session.pinned && <Star className="size-3 shrink-0 fill-warning text-warning" />}
           <span className="min-w-0 flex-1 truncate">{session.title}</span>
           <span className="flex w-7 shrink-0 justify-end group-hover:hidden group-focus-within:hidden">
@@ -116,19 +131,25 @@ function SessionRow({ session, active, admin, onOpen, onAction, position }: {
               </button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="start" onClick={(e) => e.stopPropagation()}>
-              <SessionActions session={session} admin={admin} onAction={act} Item={DropdownMenuItem} Separator={DropdownMenuSeparator} />
+              <SessionActions session={session} admin={admin} desktops={desktops} hasDesktop={!!hasDesktop} onAction={act} Item={DropdownMenuItem} Separator={DropdownMenuSeparator} />
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
       </ContextMenuTrigger>
       <ContextMenuContent>
-        <SessionActions session={session} admin={admin} onAction={act} Item={ContextMenuItem} Separator={ContextMenuSeparator} />
+        <SessionActions session={session} admin={admin} desktops={desktops} hasDesktop={!!hasDesktop} onAction={act} Item={ContextMenuItem} Separator={ContextMenuSeparator} />
       </ContextMenuContent>
     </ContextMenu>
   );
 }
 
-function ArchivedGroup({ base, admin, onAction }: { base: string; admin: boolean; onAction: (s: Session, a: Action) => void }) {
+function ArchivedGroup({ base, admin, desktops, desktopsData, onAction }: {
+  base: string;
+  admin: boolean;
+  desktops: boolean;
+  desktopsData: ReturnType<typeof useDesktops>["data"];
+  onAction: (s: Session, a: Action) => void;
+}) {
   const [open, setOpen] = useState(false);
   const chatState = useChat();
   const { data } = useQuery({
@@ -142,10 +163,14 @@ function ArchivedGroup({ base, admin, onAction }: { base: string; admin: boolean
       <button type="button" onClick={() => setOpen(!open)} className="flex h-7 w-full items-center gap-1.5 rounded-md px-2.5 text-xs text-muted-foreground hover:text-foreground">
         <ChevronRight className={cn("size-3 transition-transform", open && "rotate-90")} /> Archived
       </button>
-      {open && (data?.length ? data.map((s) => (
-        <SessionRow key={s.id} session={s} active={chatState.sessionId === s.id} admin={admin}
-          onOpen={() => void chat.open(s.id)} onAction={(a) => onAction(s, a)} />
-      )) : <p className="px-7 py-1 text-xs text-muted-foreground/70">Nothing archived</p>)}
+      {open && (data?.length ? data.map((s) => {
+        const mark = desktopMark(desktopOf(desktopsData, s.id));
+        return (
+          <SessionRow key={s.id} session={s} active={chatState.sessionId === s.id} admin={admin} desktops={desktops}
+            hasDesktop={mark === "running" ? true : mark === "asleep" ? "asleep" : false}
+            onOpen={() => void chat.open(s.id)} onAction={(a) => onAction(s, a)} />
+        );
+      }) : <p className="px-7 py-1 text-xs text-muted-foreground/70">Nothing archived</p>)}
     </div>
   );
 }
@@ -156,18 +181,45 @@ function MachineGroup({ machine, active }: { machine: Machine; active: boolean }
   const base = baseUrl(machine);
   const { data: health, isError } = useHealth(machine);
   const admin = supports(health, "sessionAdmin");
+  const desktops = sessionDesktops(health);
+  const desktopsData = useDesktops(base, active && desktops);
   const { data: queue } = useQueue(base, active && supports(health, "queue"));
   const positionOf = (sessionId: string) => queue?.queued.find((t) => t.sessionId === sessionId)?.queuePosition;
-  const [confirm, setConfirm] = useState<Session | null>(null);
+  const [confirm, setConfirm] = useState<{ session: Session; action: "archive" | "delete" | "closeDesktop" } | null>(null);
   const isCollapsed = !!collapsed[machine.id] && active;
   const checksBad = health && Object.values(health.checks ?? {}).some((c) => !c.ok && !c.unknown);
   const dot = machine.needsPairing ? "bg-warning" : isError ? "bg-muted-foreground/40" : !health ? "bg-muted-foreground/30" : checksBad ? "bg-warning" : "bg-success";
 
-  const onAction = (s: Session, a: Action) => {
+  const onAction = async (s: Session, a: Action) => {
     if (a === "pin") void chat.patchSession(s.id, { pinned: !s.pinned });
-    else if (a === "archive") void chat.patchSession(s.id, { archived: true });
+    else if (a === "archive") setConfirm({ session: s, action: "archive" });
     else if (a === "unarchive") void chat.patchSession(s.id, { archived: false });
-    else if (a === "delete") setConfirm(s);
+    else if (a === "delete") setConfirm({ session: s, action: "delete" });
+    else if (a === "closeDesktop") setConfirm({ session: s, action: "closeDesktop" });
+    else if (a === "seed") {
+      try {
+        await seedDesktop(base, s.id);
+        toast.success("New conversations start with this conversation's browser logins.");
+      } catch (err) {
+        toast.error(seedErrorText(err));
+      }
+    }
+  };
+
+  const doConfirm = async () => {
+    if (!confirm) return;
+    const { session: s, action } = confirm;
+    setConfirm(null);
+    if (action === "archive") void chat.patchSession(s.id, { archived: true });
+    else if (action === "delete") void chat.deleteSession(s.id);
+    else if (action === "closeDesktop") {
+      try {
+        await closeDesktop(base, s.id);
+        toast.success("Desktop closed");
+      } catch (err) {
+        toast.error(err instanceof Error ? err.message : String(err));
+      }
+    }
   };
 
   return (
@@ -196,26 +248,47 @@ function MachineGroup({ machine, active }: { machine: Machine; active: boolean }
               {[70, 55, 80].map((w) => <div key={w} className="h-3.5 animate-pulse rounded bg-muted" style={{ width: `${w}%` }} />)}
             </div>
           )}
-          {chatState.sessions.map((s) => (
-            <SessionRow key={s.id} session={s} active={chatState.sessionId === s.id} admin={admin} position={positionOf(s.id)}
-              onOpen={() => void chat.open(s.id)} onAction={(a) => onAction(s, a)} />
-          ))}
+          {chatState.sessions.map((s) => {
+            const mark = desktopMark(desktopOf(desktopsData.data, s.id));
+            return (
+              <SessionRow key={s.id} session={s} active={chatState.sessionId === s.id} admin={admin} desktops={desktops}
+                hasDesktop={mark === "running" ? true : mark === "asleep" ? "asleep" : false}
+                position={positionOf(s.id)}
+                onOpen={() => void chat.open(s.id)} onAction={(a) => onAction(s, a)} />
+            );
+          })}
           {chatState.ready && !chatState.sessions.length && (
             <p className="px-2.5 py-1 text-xs text-muted-foreground/70">No conversations yet</p>
           )}
-          <ArchivedGroup base={base} admin={admin} onAction={onAction} />
+          <ArchivedGroup base={base} admin={admin} desktops={desktops} desktopsData={desktopsData.data} onAction={onAction} />
         </div>
       )}
       {!active && <p className="px-7 text-[11px] text-muted-foreground/60">Select to show sessions</p>}
       <Dialog open={!!confirm} onOpenChange={(o) => !o && setConfirm(null)}>
         <DialogContent className="w-[400px] p-5" showClose={false}>
-          <DialogTitle>Delete conversation?</DialogTitle>
+          <DialogTitle>
+            {confirm?.action === "delete" && "Delete conversation?"}
+            {confirm?.action === "archive" && "Archive conversation?"}
+            {confirm?.action === "closeDesktop" && "Close desktop?"}
+          </DialogTitle>
           <DialogDescription className="mt-1.5">
-            “{confirm?.title}” and its screenshots are removed from the office Mac. This cannot be undone.
+            {confirm?.action === "delete" && (
+              <>"{confirm.session.title}" and its screenshots are removed from the office Mac. {desktops && "Its desktop closes; open windows are lost. "}This cannot be undone.</>
+            )}
+            {confirm?.action === "archive" && (
+              <>"{confirm.session.title}" moves to Archived. {desktops && "Its desktop closes; open windows are lost. "}Files and screenshots stay on the office Mac.</>
+            )}
+            {confirm?.action === "closeDesktop" && (
+              <>The running turn will be stopped and open windows closed. Files and browser logins are kept.</>
+            )}
           </DialogDescription>
           <div className="mt-5 flex justify-end gap-2">
             <Button variant="secondary" onClick={() => setConfirm(null)}>Cancel</Button>
-            <Button variant="danger" onClick={() => { if (confirm) void chat.deleteSession(confirm.id); setConfirm(null); }}>Delete</Button>
+            <Button variant={confirm?.action === "delete" ? "danger" : "default"} onClick={doConfirm}>
+              {confirm?.action === "delete" && "Delete"}
+              {confirm?.action === "archive" && "Archive"}
+              {confirm?.action === "closeDesktop" && "Close desktop"}
+            </Button>
           </div>
         </DialogContent>
       </Dialog>
