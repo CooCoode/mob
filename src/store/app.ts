@@ -85,14 +85,6 @@ interface Actions {
 
 export type AppState = Persisted & Ephemeral & Actions;
 
-export function envDefault(...keys: (keyof ImportMetaEnv)[]): string {
-  for (const key of keys) {
-    const v = import.meta.env[key];
-    if (typeof v === "string" && v.trim()) return v.trim();
-  }
-  return "";
-}
-
 function read<T>(key: string): T | null {
   try {
     const raw = localStorage.getItem(key);
@@ -104,16 +96,9 @@ function read<T>(key: string): T | null {
 
 // Seeds state from the v1 client's keys the first time v2+ runs. Those machines still need pairing.
 function initial(): Persisted {
+  // No machine is made up: a fresh install starts empty and adds one from a mobd link.
   let machines = read<(Machine & { vncPassword?: string; vncUsername?: string })[]>("mob.machines");
-  if (!Array.isArray(machines) || !machines.length) {
-    let url = "";
-    try {
-      url = localStorage.getItem("mob.mobdUrl")?.trim() || envDefault("MOBD_URL", "VITE_MOBD_URL");
-    } catch {
-      /* storage unavailable */
-    }
-    machines = url ? [{ id: uid(), name: "Office Mac", mobdUrl: url }] : [];
-  }
+  if (!Array.isArray(machines)) machines = [];
   // VNC is gone: the v1 Desktop sign-in fields are dropped, not moved to the keychain.
   const extracted = { machines: machines.map(({ vncPassword: _p, vncUsername: _u, ...m }) => ({ ...m, needsPairing: true })), legacySecrets: {} };
   let active: string | null = null;

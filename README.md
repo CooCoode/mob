@@ -47,16 +47,7 @@ src/
 
 ## Configure
 
-```bash
-cp .env.example .env
-# edit MOBD_URL
-```
-
-`MOBD_URL` only prefills a first machine when none is stored; it still needs pairing. Machines are added by pasting the pairing link from `mobd link`. Manage machines (name, pairing, live view quality) in **Settings → Machines**, where **Test connection** shows the office readiness checks.
-
-| Variable | Meaning |
-| --- | --- |
-| `MOBD_URL` | Office `mobd` base URL, e.g. `http://192.168.50.86:8080` |
+Nothing to configure at build time. Machines are added by pasting the pairing link from `mobd link`. Manage machines (name, pairing, live view quality) in **Settings → Machines**, where **Test connection** shows the office readiness checks.
 
 ## Install & run
 
@@ -89,7 +80,7 @@ Features follow mobd's `/health`: queue, uploads, model/effort, steering, sessio
 
 ### CORS note
 
-The UI uses browser `fetch` / `EventSource` against `MOBD_URL`. `mobd` allows `http://localhost:1420`, `http://127.0.0.1:1420`, `tauri://localhost`, and `http://tauri.localhost` by default. For another home-client origin, set `corsOrigins` in the office machine's `~/.mobd/config.json` to an array of allowed origins (replaces the defaults). Use the origin shown in the error, without a trailing slash; `localhost:1420` here refers to the client UI, even when the office API is on another machine.
+The UI uses browser `fetch` / `EventSource` against the machine's mobd address. `mobd` allows `http://localhost:1420`, `http://127.0.0.1:1420`, `tauri://localhost`, and `http://tauri.localhost` by default. For another home-client origin, set `corsOrigins` in the office machine's `~/.mobd/config.json` to an array of allowed origins (replaces the defaults). Use the origin shown in the error, without a trailing slash; `localhost:1420` here refers to the client UI, even when the office API is on another machine.
 
 After updating the office daemon, restart the installed `mobd`. Developers can use
 `make restart` from their separate `mobd` checkout:
