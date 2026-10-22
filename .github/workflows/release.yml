@@ -1,4 +1,4 @@
-name: Release mob (macOS, Windows, Linux)
+name: Release mob
 on:
   push:
     tags: ['v*']
@@ -102,8 +102,11 @@ jobs:
         env:
           SIGNING_KEYCHAIN: ${{ steps.signing.outputs.keychain }}
         run: security delete-keychain "$SIGNING_KEYCHAIN"
+  # Windows and Linux only when the repository variables RELEASE_WINDOWS / RELEASE_LINUX are true
+  # (publish-r2.yml reads them too); macOS is always released.
   windows:
     needs: prepare
+    if: vars.RELEASE_WINDOWS == 'true'
     runs-on: windows-2022
     environment: release
     defaults:
@@ -145,6 +148,7 @@ jobs:
           if-no-files-found: error
   linux:
     needs: prepare
+    if: vars.RELEASE_LINUX == 'true'
     # The oldest supported Ubuntu, so the AppImage runs on 22.04 and later.
     runs-on: ubuntu-22.04
     environment: release
@@ -189,6 +193,8 @@ jobs:
           if-no-files-found: error
   release:
     needs: [prepare, app, windows, linux]
+    # Skipped windows/linux jobs must not skip the release.
+    if: ${{ !cancelled() && !failure() }}
     runs-on: ubuntu-24.04
     environment: release
     permissions:

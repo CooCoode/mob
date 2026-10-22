@@ -33,7 +33,8 @@ export const sha256 = (data) => createHash('sha256').update(data).digest('hex');
 const json = (data) => JSON.stringify(data, null, 2) + '\n';
 
 // Per platform: the updater payload (Tauri's key), and the files people download from the site.
-// macOS stays first and is also the legacy single `download`.
+// macOS stays first, is always released and is also the legacy single `download`; the others
+// only when options.platforms names them (every file of a named platform is then required).
 export const PLATFORMS = [
   { key: 'darwin-aarch64', download: 'macos-arm64', stem: v => `mob_${v}_darwin_arm64`, payload: '.app.tar.gz', files: ['.dmg'] },
   { key: 'windows-x86_64', download: 'windows-x64', stem: v => `mob_${v}_windows_x64`, payload: '-setup.exe', files: ['-setup.exe'] },
@@ -53,7 +54,9 @@ export function prepareDistribution(assets, output, options) {
   const names = [];
   const platforms = {};
   const downloads = {};
-  for (const p of PLATFORMS) {
+  const wanted = new Set(['darwin-aarch64', ...(options.platforms ?? [])]);
+  for (const key of wanted) if (!PLATFORMS.some(p => p.key === key)) throw Error(`Unknown platform: ${key}`);
+  for (const p of PLATFORMS.filter(p => wanted.has(p.key))) {
     const stem = p.stem(v);
     const payload = `${stem}${p.payload}`;
     const own = [...new Set([...p.files.map(f => `${stem}${f}`), payload, `${payload}.sig`])];
@@ -180,7 +183,8 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
     if (builtConfig.version !== v || builtConfig.plugins?.updater?.endpoints?.[0] !== `${base}/mob/latest.json`) {
       throw Error('Published download origin/version must match the updater configuration embedded at build time');
     }
-    const manifests = prepareDistribution(path, output, { version: v, base, notes: metadata.body, date: metadata.publishedAt });
+    const platforms = [['windows-x86_64', 'RELEASE_WINDOWS'], ['linux-x86_64', 'RELEASE_LINUX']].filter(([, env]) => process.env[env] === 'true').map(([key]) => key);
+    const manifests = prepareDistribution(path, output, { version: v, base, notes: metadata.body, date: metadata.publishedAt, platforms });
     // Keep remote reads outside the immutable artifact tree.
     const remote = r2Remote(process.env.RUNNER_TEMP, base);
     await publish(output, manifests, remote);

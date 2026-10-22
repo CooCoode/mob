@@ -4,9 +4,11 @@
 其签名、安装器和发布配置见该仓库的 [发布文档](https://github.com/xrdavies/mobd/blob/main/docs/releases.md)。
 本仓库的 GitHub Actions 构建 mob 桌面应用（macOS 版签名并公证），GitHub
 Release 保存构建产物；发布正式 Release 后，独立工作流将产物上传到 Cloudflare
-R2，用户通过自定义域名下载。官网在同级目录 `../mob-site`，独立构建和部署。
+R2，用户通过自定义域名下载。官网在同级目录 `../mob-site`，由 GitHub Pages 构建和部署。
 
-发布三个平台，同一个版本号、同一个 Tauri 更新密钥：
+macOS 总是发布；Windows 和 Linux 只在仓库变量 `RELEASE_WINDOWS` / `RELEASE_LINUX` 为 `true`
+时构建和发布（构建与 R2 发布都读取这两个变量，开启的平台缺任何文件都会失败）。0.1.0 只发布
+macOS。所有平台共用同一个版本号、同一个 Tauri 更新密钥：
 
 | 平台 | 构建任务 | 下载文件 | 应用内更新 |
 | --- | --- | --- | --- |
@@ -199,8 +201,8 @@ mob/
   releases.json
 ```
 
-两个仓库分别打 `vX.Y.Z` 标签，各自构建自己的产品并维护清单和历史。官网读取
-`latest.json` 展示当前下载，读取 `releases.json` 展示历史记录，不依赖私有 GitHub API。
+两个仓库分别打 `vX.Y.Z` 标签，各自构建自己的产品并维护清单和历史。官网构建时读取
+`releases.json`（当前下载和历史记录），不依赖私有 GitHub API；`latest.json` 供应用内更新使用。
 
 ## 4. Tauri updater
 
@@ -257,18 +259,17 @@ App 启动时检查更新，Settings → About 可以手动重试。用户确认
 `../mob-site` 是独立的静态网站项目，包含首页、下载、快速开始、更新日志和 404 页。
 无域名时可本地预览；生产构建要求 `SITE_URL` 和 `DOWNLOAD_BASE_URL`。
 
-官网仓库的 `production` GitHub environment 配置：
+官网由 GitHub Pages 部署（`../mob-site/.github/workflows/pages.yml`）：推送 `main`、每小时
+一次，以及收到发布工作流的 `release-published` 事件时重新构建。仓库 Variables：
 
-| 类型 | 名称 | 用途 |
-| --- | --- | --- |
-| Variable | `SITE_URL` | 官网 HTTPS 根地址 |
-| Variable | `DOWNLOAD_BASE_URL` | 与 mob 发布流程相同的 R2 下载根地址 |
-| Variable | `CLOUDFLARE_ACCOUNT_ID` | Cloudflare 账户 ID |
-| Secret | `CLOUDFLARE_API_TOKEN` | 限定目标账户的 Workers Scripts Edit 部署权限 |
+| 名称 | 用途 |
+| --- | --- |
+| `SITE_URL` | 官网 HTTPS 根地址 |
+| `DOWNLOAD_BASE_URL` | 与 mob 发布流程相同的 R2 下载根地址 |
+| `IOS_APP_URL` | 可选：App Store 或 TestFlight 链接 |
 
-官网使用 Cloudflare Workers Static Assets；首次部署后在 Workers → mob-site →
-Settings → Domains & Routes 添加官网自定义域名。没有版本时显示尚未发布；网络失败时
-显示获取失败，不生成假下载链接。官网自己的构建/部署文档位于 `../mob-site/README.md`。
+构建时读取各产品的 `releases.json`。没有版本时显示尚未发布；网络失败时显示获取失败，
+不生成假下载链接。官网自己的构建/部署文档位于 `../mob-site/README.md`。
 
 ## 首次发布验收清单
 

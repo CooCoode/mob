@@ -5,17 +5,26 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { baseURL, checkPromotion, PLATFORMS, prepareDistribution, publish, sha256, updaterConfig } from './release.mjs';
 
-function fixture(t) {
+const options = { version: '1.2.3', base: 'https://download.example.com', date: '2026-10-14T00:00:00Z', notes: 'New release' };
+const ALL = PLATFORMS.map(p => p.key);
+
+function assetsDir(t, keys, skip = '') {
   const root = mkdtempSync(join(tmpdir(), 'mob-release-test-'));
   t.after(() => rmSync(root, { recursive: true, force: true }));
-  const assets = join(root, 'assets'), output = join(root, 'output');
+  const assets = join(root, 'assets');
   mkdirSync(assets);
-  for (const p of PLATFORMS) {
+  for (const p of PLATFORMS.filter(p => keys.includes(p.key))) {
     const stem = p.stem('1.2.3');
-    for (const name of [...p.files.map(f => stem + f), stem + p.payload, `${stem}${p.payload}.sig`]) writeFileSync(join(assets, name), `fixture ${name}`);
+    for (const name of [...p.files.map(f => stem + f), stem + p.payload, `${stem}${p.payload}.sig`]) {
+      if (name !== skip) writeFileSync(join(assets, name), `fixture ${name}`);
+    }
   }
-  const manifests = prepareDistribution(assets, output, { version: '1.2.3', base: 'https://download.example.com', date: '2026-10-14T00:00:00Z', notes: 'New release' });
-  return { output, manifests };
+  return { assets, output: join(root, 'output') };
+}
+
+function fixture(t) {
+  const { assets, output } = assetsDir(t, ALL);
+  return { output, manifests: prepareDistribution(assets, output, { ...options, platforms: ALL }) };
 }
 
 test('release config uses the public R2 updater and rejects unsafe origins', () => {
@@ -45,6 +54,23 @@ test('manifests agree with payloads, contain signature contents', t => {
   const sums = readFileSync(join(output, 'mob/v1.2.3/SHA256SUMS'), 'utf8');
   assert.equal(sums.trim().split('\n').length, 8);
   assert.match(sums, /mob_1.2.3_windows_x64-setup.exe.sig/);
+});
+
+test('a macOS-only release lists only macOS for the updater and the site', t => {
+  const { assets, output } = assetsDir(t, ['darwin-aarch64']);
+  const { mob } = prepareDistribution(assets, output, options);
+  assert.deepEqual(Object.keys(mob.platforms), ['darwin-aarch64']);
+  assert.deepEqual(Object.keys(mob.downloads), ['macos-arm64']);
+  assert.match(mob.download.url, /mob_1.2.3_darwin_arm64.dmg$/);
+  assert.equal(readFileSync(join(output, 'mob/v1.2.3/SHA256SUMS'), 'utf8').trim().split('\n').length, 3);
+});
+
+test('a requested platform needs all its files; unknown platforms are rejected', t => {
+  const missing = assetsDir(t, ALL, 'mob_1.2.3_linux_x64.deb');
+  assert.throws(() => prepareDistribution(missing.assets, missing.output, { ...options, platforms: ALL }), /ENOENT/);
+  const mac = assetsDir(t, ['darwin-aarch64']);
+  assert.throws(() => prepareDistribution(mac.assets, mac.output, { ...options, platforms: ['windows-x86_64'] }), /ENOENT/);
+  assert.throws(() => prepareDistribution(mac.assets, mac.output, { ...options, platforms: ['linux-aarch64'] }), /Unknown platform/);
 });
 
 function remote(events, overrides = {}) {
