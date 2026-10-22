@@ -84,14 +84,14 @@ jobs:
           node .github/release/release.mjs config "$RUNNER_TEMP/tauri-release.json"
           npm run tauri build -- --ci --target aarch64-apple-darwin --bundles app,dmg --config "$RUNNER_TEMP/tauri-release.json" -- --locked
           bundle=src-tauri/target/aarch64-apple-darwin/release/bundle
-          codesign --verify --deep --strict --verbose=2 "$bundle/macos/mob.app"
-          xcrun stapler validate "$bundle/macos/mob.app"
-          spctl --assess --type execute --verbose=2 "$bundle/macos/mob.app"
+          codesign --verify --deep --strict --verbose=2 "$bundle/macos/Mob.app"
+          xcrun stapler validate "$bundle/macos/Mob.app"
+          spctl --assess --type execute --verbose=2 "$bundle/macos/Mob.app"
           mkdir -p release-assets
           cp "$RUNNER_TEMP/tauri-release.json" release-assets/mob_release.json
           cp "$bundle"/dmg/*.dmg "release-assets/mob_${RELEASE_VERSION}_darwin_arm64.dmg"
-          cp "$bundle/macos/mob.app.tar.gz" "release-assets/mob_${RELEASE_VERSION}_darwin_arm64.app.tar.gz"
-          cp "$bundle/macos/mob.app.tar.gz.sig" "release-assets/mob_${RELEASE_VERSION}_darwin_arm64.app.tar.gz.sig"
+          cp "$bundle/macos/Mob.app.tar.gz" "release-assets/mob_${RELEASE_VERSION}_darwin_arm64.app.tar.gz"
+          cp "$bundle/macos/Mob.app.tar.gz.sig" "release-assets/mob_${RELEASE_VERSION}_darwin_arm64.app.tar.gz.sig"
       - uses: actions/upload-artifact@v7
         with:
           name: app-release
