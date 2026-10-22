@@ -7,7 +7,7 @@ Release 保存构建产物；发布正式 Release 后，独立工作流将产物
 R2，用户通过自定义域名下载。官网在同级目录 `../mob-site`，由 GitHub Pages 构建和部署。
 
 macOS 总是发布；Windows 和 Linux 只在仓库变量 `RELEASE_WINDOWS` / `RELEASE_LINUX` 为 `true`
-时构建和发布（构建与 R2 发布都读取这两个变量，开启的平台缺任何文件都会失败）。0.1.0 只发布
+时构建和发布（构建与 R2 发布都读取这两个变量，开启的平台缺任何文件都会失败）。目前只发布
 macOS。所有平台共用同一个版本号、同一个 Tauri 更新密钥：
 
 | 平台 | 构建任务 | 下载文件 | 应用内更新 |
@@ -26,27 +26,13 @@ Windows 安装程序**暂未做 Authenticode 签名**，首次运行时 SmartScr
 ## 1. 准备 Cloudflare R2
 
 1. 创建专用发布桶，例如 `mob-releases`。桶内只存放允许公开下载的文件。
-2. 在桶的 **Settings → Custom Domains** 绑定下载域名，例如
-   `download.mob.example.com`。所有示例域名都需要替换成自己的实际域名。
+2. 在桶的 **Settings → Custom Domains** 绑定下载域名 `mob-releases.0xd.app`（与 mobd 共用），
+   确认状态为 Active。
 3. 创建限定到该桶的 **Object Read & Write** R2 API 凭据，保存 Access Key ID
    和 Secret Access Key。上传使用 S3 API；最终用户不需要任何令牌。
 4. 不使用 `r2.dev` 作为正式下载地址，不在下载域名启用登录验证或浏览器挑战。
-5. 官网跨域读取 JSON，需要在桶设置 CORS（把域名替换成正式官网）：
-
-```json
-[
-  {
-    "AllowedOrigins": ["https://mob.example.com"],
-    "AllowedMethods": ["GET", "HEAD"],
-    "AllowedHeaders": ["*"],
-    "ExposeHeaders": ["ETag"],
-    "MaxAgeSeconds": 3600
-  }
-]
-```
-
-本地连接真实 R2 调试时可临时加入 `http://localhost:4321`；普通本地预览不需要。
-Tauri 原生更新请求及 curl 不依赖浏览器 CORS，官网获取发布清单需要它。
+5. 不需要配置 CORS：官网在构建时读取发布清单，浏览器不直接请求 R2 的 JSON；
+   Tauri 原生更新请求和 curl 也不依赖 CORS。
 
 ### 缓存规则
 
@@ -56,7 +42,7 @@ Tauri 原生更新请求及 curl 不依赖浏览器 CORS，官网获取发布清
 - `/mob/v*/*`、`/mobd/v*/*` 可缓存，尊重对象的缓存头。
 - `/mob/latest.json`、`/mobd/latest.json`、两端的 `releases.json` 和
   `/mobd/install.sh` **绕过缓存**。不要用全站长 TTL 覆盖它们。
-- 首次验证前不要缓存缺失文件的 404；调整 CORS/缓存规则后清理旧缓存。
+- 首次验证前不要缓存缺失文件的 404；调整缓存规则后清理旧缓存。
 
 官方参考：[R2 公共访问](https://developers.cloudflare.com/r2/buckets/public-buckets/)、
 [R2 缓存](https://developers.cloudflare.com/cache/interaction-cloudflare-products/r2/)、
@@ -89,9 +75,10 @@ Tauri 原生更新请求及 curl 不依赖浏览器 CORS，官网获取发布清
 | 名称 | 内容 |
 | --- | --- |
 | `TAURI_UPDATER_PUBLIC_KEY` | Tauri 更新公钥文件的完整内容 |
-| `DOWNLOAD_BASE_URL` | 公开 HTTPS 下载域名根地址，如 `https://download.mob.example.com`；不能含路径、认证信息或查询参数 |
+| `DOWNLOAD_BASE_URL` | `https://mob-releases.0xd.app`；不能含路径、认证信息或查询参数 |
 | `R2_ACCOUNT_ID` | Cloudflare 的 32 位账户 ID |
 | `R2_BUCKET` | 发布桶名称，如 `mob-releases` |
+| `RELEASE_WINDOWS` / `RELEASE_LINUX` | 可选，**仓库级** Variable（Settings → Secrets and variables → Actions → Variables；任务级 `if` 读不到 environment 变量）。设为 `true` 时构建并发布该平台；目前都不设置，只发布 macOS |
 
 `TAURI_UPDATER_PUBLIC_KEY` 和 `DOWNLOAD_BASE_URL` 是公开配置，也支持存为同名
 Secret，与 mobd 的下载域名读取方式一致。构建和 R2 发布均优先读取 Variable，
@@ -122,7 +109,7 @@ Apple 凭据缺失或签名、公证失败时不会发布未签名替代品。
 git switch main
 git pull --ff-only
 # 如果有本地提交，先执行 git push origin main
-make release VERSION=v0.4.0
+make release VERSION=v0.1.0
 ```
 
 将示例版本替换成实际版本。脚本 `.github/release/tag.mjs` 会：
@@ -135,22 +122,25 @@ make release VERSION=v0.4.0
 6. 在该提交创建附注标签，用 `git push --atomic` 同时推送 `main` 和标签，触发 **Release mob**。
    推送被拒时两者都不会到达 GitHub，本地提交和标签保留，按提示重试。
 
-也可以直接运行 `node .github/release/tag.mjs v0.4.0`。除版本提交外，脚本不合并或推送其他提交；
+也可以直接运行 `node .github/release/tag.mjs v0.1.0`。除版本提交外，脚本不合并或推送其他提交；
 安装包版本仍由 CI 根据标签注入并校验。测试、打包和签名在
 Actions 中执行。本地可先运行 `make check`；只测试发布工具使用 `make release-test`。
 
 推送标签成功表示构建请求已提交，**不表示构建或公开发布已经完成**。
-到仓库的 Actions 页面查看 **Release mob macOS arm64**；也可以手动运行它，
+到仓库的 Actions 页面查看 **Release mob**；也可以手动运行它，
 填写已存在的稳定标签。
 `.github/workflows/release.yml` 将标签解析到的提交用于桌面端 macOS 构建：
 
-- mob：运行前端测试，构建 arm64 `.app` 和 `.dmg`，Apple 签名、公证并检查
+- mob：运行前端测试，构建 arm64 `Mob.app` 和 `.dmg`，Apple 签名、公证并检查
   stapled ticket；生成 Tauri 签名的 `.app.tar.gz` 及 `.sig`。
+- 开启 `RELEASE_WINDOWS` / `RELEASE_LINUX` 时另外构建 Windows 安装程序和 Linux AppImage/`.deb`；
+  未开启时这些任务显示为 skipped，不影响发布。
 - 收集桌面文件、生成 `SHA256SUMS`，创建或更新**草稿** GitHub Release。
   `mob_release.json` 记录构建时的公开更新配置，供发布阶段核对域名和版本。
 
-检查草稿中的文件，在单独的 Mac 上试装，并编辑面向最终用户的 release notes。
-不要直接把包含私有 PR 链接的自动生成说明当作公开产品文案。
+检查草稿中的文件，在单独的 Mac 上试装，确认能与当前发布的 mobd 配对、对话、打开实时桌面，
+并编辑面向最终用户的 release notes：用英文（官网是英文），只用纯文本、`**粗体**`、链接和换行，
+它们会显示在官网下载页和应用内更新提示。不要直接把包含私有 PR 链接的自动生成说明当作公开产品文案。
 之后在 GitHub 的 Releases 页面打开该草稿，点击 **Publish release**，
 保持 **Set as a pre-release** 未勾选。脚本不会自动发布草稿。
 
@@ -174,17 +164,21 @@ mobd 仓库独立维护 `mobd/`，两个产品的版本号和发布时间不需�
 私有 GitHub Release 是内部构建记录，用户只使用公开 R2 地址。
 
 等 R2 工作流成功后，打开 `${DOWNLOAD_BASE_URL}/mob/latest.json` 确认版本，
-并用其中的 `download.url` 下载 DMG。下一版发布后，用旧版执行一次完整的 A → B 更新验证。
+并用其中的 `download.url` 下载 DMG。用上一个已安装版本执行一次应用内更新（A → B）验证。
+0.2.0 起应用包名为 `Mob.app`（之前为 `mob.app`），bundle ID 和更新地址不变；从 0.0.x 更新后确认应用
+能正常启动、机器和配对保留。
 
 ### 失败与重试
 
-- 本地检查失败：根据提示处理工作区、分支或版本；此时尚未创建标签。
-- 标签推送失败：保留本地标签，避免丢失或改变发布提交。先用
-  `git ls-remote origin refs/tags/v0.4.0` 查看远端；若没有该标签，修复网络或权限后执行
-  `git -c push.followTags=false push origin refs/tags/v0.4.0:refs/tags/v0.4.0`。
-  若标签已存在，查看 Actions；不要重新创建或强制移动标签。
+- 本地检查失败：根据提示处理工作区、分支或版本；此时尚未写入版本、提交或创建标签。
+- 版本文件格式不符（例如 `package.json` 不是 2 空格缩进）：脚本在写入前停止，工作区保持干净；修正后重试。
+- 推送失败：`main` 和标签是原子推送，二者都不会到达远端；本地保留版本提交和标签。先用
+  `git ls-remote origin refs/tags/v0.1.0` 查看远端；若没有该标签，修复网络或权限后执行脚本提示的
+  `git -c push.followTags=false push --atomic origin main refs/tags/v0.1.0:refs/tags/v0.1.0`。
+  若远端 `main` 已有新提交导致被拒：`git tag -d v0.1.0 && git reset --hard origin/main`，
+  再重新运行 `make release`。若标签已在远端，查看 Actions；不要重新创建或强制移动已推送的标签。
 - 构建、签名或公证失败：修正 GitHub 环境配置后，在 Actions 重跑失败任务，
-  或手动运行 **Release mob macOS arm64**，使用原标签。
+  或手动运行 **Release mob**，使用原标签。
 - 需要修改代码：提交并推送修改，使用新的更高版本标签。
 - R2 发布失败：手动运行 **Publish mob downloads to R2**，填写已发布的原标签；
   保持产物和发布说明不变。已公开版本的内容变化需要新版本。
@@ -193,10 +187,10 @@ mobd 仓库独立维护 `mobd/`，两个产品的版本号和发布时间不需�
 
 ```text
 mob/
-  v0.4.0/
-    mob_0.4.0_darwin_arm64.dmg
-    mob_0.4.0_darwin_arm64.app.tar.gz
-    mob_0.4.0_darwin_arm64.app.tar.gz.sig
+  v0.1.0/
+    mob_0.1.0_darwin_arm64.dmg
+    mob_0.1.0_darwin_arm64.app.tar.gz
+    mob_0.1.0_darwin_arm64.app.tar.gz.sig
     SHA256SUMS
     release.json
   latest.json
@@ -212,12 +206,12 @@ mob/
 
 ```json
 {
-  "version": "0.4.0",
+  "version": "0.1.0",
   "bundle": { "createUpdaterArtifacts": true },
   "plugins": {
     "updater": {
       "pubkey": "Tauri 更新公钥的完整内容",
-      "endpoints": ["https://download.mob.example.com/mob/latest.json"]
+      "endpoints": ["https://mob-releases.0xd.app/mob/latest.json"]
     }
   }
 }
@@ -227,21 +221,21 @@ mob/
 
 ```json
 {
-  "version": "0.4.0",
+  "version": "0.1.0",
   "notes": "本次更新说明",
   "pub_date": "2026-10-14T00:00:00Z",
   "platforms": {
     "darwin-aarch64": {
-      "url": "https://download.mob.example.com/mob/v0.4.0/mob_0.4.0_darwin_arm64.app.tar.gz",
+      "url": "https://mob-releases.0xd.app/mob/v0.1.0/mob_0.1.0_darwin_arm64.app.tar.gz",
       "signature": "生成的 .sig 文件内容，不是 URL",
       "sha256": "更新包的 SHA-256"
     }
   },
   "download": {
-    "url": "https://download.mob.example.com/mob/v0.4.0/mob_0.4.0_darwin_arm64.dmg",
+    "url": "https://mob-releases.0xd.app/mob/v0.1.0/mob_0.1.0_darwin_arm64.dmg",
     "sha256": "DMG 的 SHA-256"
   },
-  "checksums_url": "https://download.mob.example.com/mob/v0.4.0/SHA256SUMS"
+  "checksums_url": "https://mob-releases.0xd.app/mob/v0.1.0/SHA256SUMS"
 }
 ```
 
@@ -258,8 +252,8 @@ App 启动时检查更新，Settings → About 可以手动重试。用户确认
 
 ## 5. 官网部署
 
-`../mob-site` 是独立的静态网站项目，包含首页、下载、快速开始、更新日志和 404 页。
-无域名时可本地预览；生产构建要求 `SITE_URL` 和 `DOWNLOAD_BASE_URL`。
+`../mob-site` 是独立的静态网站项目（Astro + Tailwind，英文），包含首页、下载、快速开始、隐私政策和
+404 页，部署在 https://mob.0xd.app 。无域名时可本地预览；生产构建要求 `SITE_URL`。
 
 官网由 GitHub Pages 部署（`../mob-site/.github/workflows/pages.yml`）：推送 `main`、每小时
 一次，以及收到发布工作流的 `release-published` 事件时重新构建。仓库 Variables：
@@ -276,11 +270,14 @@ App 启动时检查更新，Settings → About 可以手动重试。用户确认
 ## 首次发布验收清单
 
 - [ ] R2 下载域名已生效；可公开访问，不触发登录/浏览器挑战。
-- [ ] CORS 允许官网，缓存规则区分版本文件和动态入口。
+- [ ] 缓存规则区分版本文件和动态入口。
 - [ ] `release` 环境的 10 个必需 Secrets、4 项公开配置完整（公钥和下载域名可存为同名 Secret）；可选 `SITE_DISPATCH_TOKEN`。
+- [ ] `RELEASE_WINDOWS` / `RELEASE_LINUX` 符合本次计划（目前都不设置）。
+- [ ] `make release VERSION=vX.Y.Z` 成功：`main` 上有 `chore(release)` 提交，标签已推送。
 - [ ] 生成并备份 Tauri 密钥，Apple 签名/公证检查通过。
-- [ ] 在其他 Apple Silicon Mac 上试装草稿中的 DMG。
+- [ ] 在其他 Apple Silicon Mac 上试装草稿中的 DMG，并与当前 mobd 配对使用。
+- [ ] Release 正文已改为面向用户的英文说明。
 - [ ] 发布 GitHub 稳定 Release，确认 R2 工作流完成。
 - [ ] 无 GitHub 登录的设备可下载桌面 DMG 和更新包。
-- [ ] 网站展示真实版本、安装命令和历史链接；初次配置能完成连接。
+- [ ] 官网下载页显示新版本、DMG 链接和更新说明；初次配置能完成连接。
 - [ ] 下一个版本执行一次实际的 Tauri A → B 更新验证。
