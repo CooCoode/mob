@@ -188,7 +188,7 @@ export function Composer({ machineId, machineName, health }: { machineId: string
               void send();
             }
           }}
-          placeholder={canSteer ? "Add to what the agent is doing… (↵ sends to the running turn)" : busy ? "The agent is working… you can draft the next message" : `Ask mob to do something on ${machineName}…`}
+          placeholder={canSteer ? "Add to what the agent is doing… (↵ sends to the running turn)" : busy ? "The agent is working… you can draft the next message" : `Ask Mob to do something on ${machineName}…`}
           aria-label="Task prompt"
           className="block max-h-60 min-h-[44px] w-full resize-none bg-transparent px-3.5 pb-1 pt-3 text-[14px] leading-relaxed outline-none placeholder:text-muted-foreground/70"
         />

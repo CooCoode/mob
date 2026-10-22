@@ -32,7 +32,7 @@ export function parsePairLink(text: string): PairLink {
     if (params.getAll(key).length > 1) throw new Error("The pairing link is malformed. Run mobd link again.");
   }
   const v = params.get("v");
-  if (v && v !== "1") throw new Error("This pairing link needs a newer mob. Update the app.");
+  if (v && v !== "1") throw new Error("This pairing link needs a newer Mob. Update the app.");
   const invite = params.get("invite") ?? "";
   const serverId = params.get("serverId") ?? "";
   if (v !== "1" || !invite || !serverId) throw new Error("The pairing link is incomplete. Copy the whole link, including the part after #.");

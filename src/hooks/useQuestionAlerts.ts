@@ -8,14 +8,14 @@ export function useQuestionAlerts(chat: Chat): void {
   const pending = chat.pendingQuestions;
   const ids = pending.map((q) => q.id).join(",");
   useEffect(() => {
-    document.title = pending.length ? `(${pending.length}) mob — waiting for you` : "mob";
+    document.title = pending.length ? `(${pending.length}) Mob — waiting for you` : "Mob";
     for (const q of pending) {
       if (seen.current.has(q.id)) continue;
       seen.current.add(q.id);
       const title = q.kind === "approval" ? "Approval needed" : "The agent asks";
       toast(title, { description: q.text, duration: 8000 });
       if (document.hidden && typeof Notification !== "undefined" && Notification.permission === "granted") {
-        new Notification(`mob · ${title}`, { body: q.text });
+        new Notification(`Mob · ${title}`, { body: q.text });
       }
     }
   }, [ids]); // eslint-disable-line react-hooks/exhaustive-deps

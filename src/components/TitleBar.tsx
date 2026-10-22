@@ -77,7 +77,7 @@ export function TitleBar(props: {
         <Button variant="ghost" size="icon-sm" aria-label="Toggle sidebar" onClick={() => set({ sidebarOpen: !sidebarOpen })}><PanelLeft /></Button>
       </Tooltip>
       <img src="/logo.svg" alt="" draggable={false} data-tauri-drag-region className="ml-1 size-8 shrink-0" />
-      <span data-tauri-drag-region className="text-[13px] font-semibold tracking-tight">mob</span>
+      <span data-tauri-drag-region className="text-[13px] font-semibold tracking-tight">Mob</span>
       <div data-tauri-drag-region className="flex flex-1 items-center justify-center gap-2">
         <button
           type="button"

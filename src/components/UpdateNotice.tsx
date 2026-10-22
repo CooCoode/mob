@@ -19,7 +19,7 @@ export function UpdateNotice() {
     <>
       <div className="flex items-center justify-center gap-3 border-b bg-accent-soft px-4 py-2 text-xs" role="status" aria-live="polite">
         {state.phase === "available" && <>
-          <span>mob {state.update?.version} is available.{busy && " Finish the current turn before updating."}</span>
+          <span>Mob {state.update?.version} is available.{busy && " Finish the current turn before updating."}</span>
           <Button size="sm" disabled={busy} onClick={() => setConfirm(true)}>Update…</Button>
         </>}
         {state.phase === "installing" && <span>Installing update… {progress}</span>}
@@ -31,8 +31,8 @@ export function UpdateNotice() {
       </div>
       <Dialog open={confirm} onOpenChange={setConfirm}>
         <DialogContent className="max-w-md">
-          <DialogTitle>Install mob {state.update?.version}?</DialogTitle>
-          <DialogDescription>mob will restart after installation. Finish or copy any unsent text and attachments before continuing. Your saved conversations stay on the office Mac.</DialogDescription>
+          <DialogTitle>Install Mob {state.update?.version}?</DialogTitle>
+          <DialogDescription>Mob will restart after installation. Finish or copy any unsent text and attachments before continuing. Your saved conversations stay on the office Mac.</DialogDescription>
           <div className="flex justify-end gap-2">
             <Button variant="secondary" onClick={() => setConfirm(false)}>Later</Button>
             <Button disabled={busy || state.phase !== "available"} onClick={() => { setConfirm(false); void state.install(); }}>Install and restart</Button>

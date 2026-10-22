@@ -11,7 +11,7 @@ interface Package {
   source: "npm" | "crate";
 }
 
-/** mob's own licence, then every third-party package the app ships, grouped by licence (scripts/licenses.mjs). */
+/** Mob's own licence, then every third-party package the app ships, grouped by licence (scripts/licenses.mjs). */
 export function Licenses() {
   const [packages, setPackages] = useState<Package[] | null>(null);
   const [query, setQuery] = useState("");
@@ -32,12 +32,12 @@ export function Licenses() {
   return (
     <div className="mt-4 grid gap-2 border-t pt-4">
       <details>
-        <summary className="cursor-pointer text-[13px] font-medium">mob licence (MIT)</summary>
+        <summary className="cursor-pointer text-[13px] font-medium">Mob licence (MIT)</summary>
         <pre className="mt-2 max-h-48 overflow-auto whitespace-pre-wrap rounded-md bg-muted p-2 text-[11px] leading-snug">{mobLicense}</pre>
       </details>
       <p className="text-[13px] font-medium">Open source licences</p>
       <p className="text-xs text-muted-foreground">
-        mob is built with these packages ({packages?.length ?? "…"}), each under its own licence. The live desktop uses the WebRTC and
+        Mob is built with these packages ({packages?.length ?? "…"}), each under its own licence. The live desktop uses the WebRTC and
         media decoding built into macOS.
       </p>
       <Input placeholder="Search packages or licences" value={query} onChange={(e) => setQuery(e.target.value)} className="h-8" />

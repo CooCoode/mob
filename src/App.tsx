@@ -39,7 +39,7 @@ function NoMachine() {
   return (
     <div className="flex flex-1 items-center justify-center bg-background">
       <div className="w-[380px] rounded-2xl border bg-background p-6 text-center shadow-panel">
-        <img src="/logo.svg" alt="mob Screen Buddy" className="mx-auto size-20" />
+        <img src="/logo.svg" alt="Mob Screen Buddy" className="mx-auto size-20" />
         <h2 className="mt-3 text-base font-semibold">Connect your office Mac</h2>
         <p className="mt-1 text-[13px] text-muted-foreground">
           Run <code className="font-mono">mobd link</code> on the office Mac and paste the pairing link it prints. The live view goes through mobd too.
@@ -47,7 +47,7 @@ function NoMachine() {
         <Button className="mt-4" onClick={() => useApp.setState({ settingsOpen: true, settingsTab: "machines", editMachineId: "" })}>
           Add machine
         </Button>
-        <Button variant="link" className="mt-1 w-full" onClick={() => openSettings("about")}>What is mob?</Button>
+        <Button variant="link" className="mt-1 w-full" onClick={() => openSettings("about")}>What is Mob?</Button>
       </div>
     </div>
   );
@@ -58,7 +58,7 @@ function NeedsPairing({ machine }: { machine: Machine }) {
   return (
     <div className="flex flex-1 items-center justify-center bg-background">
       <div className="w-[380px] rounded-2xl border bg-background p-6 text-center shadow-panel">
-        <img src="/logo.svg" alt="mob Screen Buddy" className="mx-auto size-20" />
+        <img src="/logo.svg" alt="Mob Screen Buddy" className="mx-auto size-20" />
         <h2 className="mt-3 text-base font-semibold">{machine.name} needs pairing</h2>
         <p className="mt-1 text-[13px] text-muted-foreground">
           This device has no valid credential for the office Mac. Run <code className="font-mono">mobd link</code> there and paste

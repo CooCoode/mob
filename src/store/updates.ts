@@ -53,7 +53,7 @@ export const useUpdates = create<UpdateState>()((set, get) => ({
     try {
       await relaunch();
     } catch (error) {
-      set({ error: `Update installed. Quit and reopen mob to finish. ${String(error)}` });
+      set({ error: `Update installed. Quit and reopen Mob to finish. ${String(error)}` });
     }
   },
 }));

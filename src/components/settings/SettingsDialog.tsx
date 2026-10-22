@@ -53,7 +53,7 @@ export function ChecksList({ checks }: { checks?: Record<string, Check> }) {
 
 const defaultDeviceName = () => {
   const ua = navigator.userAgent;
-  return `mob on ${/Mac/i.test(ua) ? "Mac" : /Windows/i.test(ua) ? "Windows" : /Linux/i.test(ua) ? "Linux" : "desktop"}`;
+  return `Mob on ${/Mac/i.test(ua) ? "Mac" : /Windows/i.test(ua) ? "Windows" : /Linux/i.test(ua) ? "Linux" : "desktop"}`;
 };
 
 function InsecureWarning() {
@@ -159,7 +159,7 @@ function PairForm({ machine, onPaired }: { machine?: Machine; onPaired: (id: str
       {!target && (
         <p className="-mt-1.5 text-[11px] text-muted-foreground">
           Run <code className="font-mono">mobd link --url URL</code> on the office Mac and paste the link it prints. A private network,
-          VPN or Tailscale address and a self-hosted Tailscale Funnel HTTPS address both work the same way. MOB relay — coming soon.
+          VPN or Tailscale address and a self-hosted Tailscale Funnel HTTPS address both work the same way. Mob relay — coming soon.
         </p>
       )}
       {parsed.error && <p className="-mt-1.5 text-xs text-danger">{parsed.error}</p>}
@@ -382,7 +382,7 @@ function NotificationsSetting() {
   return (
     <div className="grid gap-2">
       <h3 className="text-[13px] font-semibold">Notifications</h3>
-      <p className="text-xs text-muted-foreground">Get a system notification when the agent asks you something while mob is in the background.</p>
+      <p className="text-xs text-muted-foreground">Get a system notification when the agent asks you something while Mob is in the background.</p>
       {perm === "granted" ? (
         <p className="text-xs text-success">Enabled</p>
       ) : (
@@ -443,9 +443,9 @@ export function SettingsDialog() {
             <TabsContent value="log" className="h-full"><LogTab /></TabsContent>
             <TabsContent value="about">
               <div className="grid gap-1 text-[13px]">
-                <img src="/logo.svg" alt="mob Screen Buddy" className="mb-2 size-20" />
-                <p className="font-semibold">mob</p>
-                <p className="text-muted-foreground">Home client for the MOB office agent</p>
+                <img src="/logo.svg" alt="Mob Screen Buddy" className="mb-2 size-20" />
+                <p className="font-semibold">Mob</p>
+                <p className="text-muted-foreground">Home client for the Mob office agent</p>
                 <UpdateSettings />
                 <Licenses />
               </div>
