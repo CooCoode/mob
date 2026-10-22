@@ -15,7 +15,7 @@ Logo: **Screen Buddy** — editable SVG sources, app icons and regeneration comm
 Distribution: signed DMGs and Tauri updates use the public R2 download domain,
 independently of the private source repository. See the [release setup](docs/releases.md).
 Once configured, run `make release VERSION=v0.4.0` from a clean `main` matching
-`origin/main` to create and push a tag. CI builds a draft Release; test its DMG,
+`origin/main`: it commits the version to `package.json`, Tauri and Cargo files, tags that commit and pushes both. CI builds a draft Release; test its DMG,
 then publish the stable Release on GitHub to distribute it through R2.
 
 ## Stack
