@@ -14,7 +14,7 @@ import { useAuthedImage } from "@/hooks/useAuthedImage";
 import { chat, useChat } from "@/hooks/useChat";
 import { NO_DESKTOP } from "@/lib/desktops";
 import { latestClick, screenGeometry } from "@/lib/timeline";
-import { QUALITIES, readoutText, signalBars, stream, useStream, type Quality } from "@/lib/stream";
+import { QUALITIES, rateText, readoutText, signalBars, stream, useStream, type Quality } from "@/lib/stream";
 import { cn } from "@/lib/utils";
 import { devicePixels } from "@/lib/view";
 import { baseUrl, useApp, type Machine } from "@/store/app";
@@ -199,21 +199,24 @@ function Steps() {
   );
 }
 
-function QueueList({ queue }: { queue?: Queue }) {
+/** Turns running or waiting on the office computer. With conversation desktops (Linux) they are not
+ *  on the desktop shown above, so the list is not called a desktop queue and marks the open chat. */
+function QueueList({ queue, perSession }: { queue?: Queue; perSession: boolean }) {
   const chatState = useChat();
   const rows = [...(queue?.running ?? []), ...(queue?.queued ?? [])];
   if (!rows.length) return null;
   const title = (sessionId: string) => chatState.sessions.find((s) => s.id === sessionId)?.title ?? "Conversation";
   return (
     <section>
-      <h3 className="mb-1 px-1 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Desktop queue</h3>
+      <h3 className="mb-1 px-1 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">{perSession ? "Running on this computer" : "Desktop queue"}</h3>
       <ul className="grid grid-cols-[minmax(0,1fr)] gap-px">
         {rows.map((t) => (
           <li key={t.id}>
             <button
               type="button"
               onClick={() => void chat.open(t.sessionId)}
-              className="flex h-7 w-full items-center gap-2 rounded px-1 text-left text-xs hover:bg-muted"
+              className={cn("flex h-7 w-full items-center gap-2 rounded px-1 text-left text-xs hover:bg-muted",
+                perSession && t.sessionId === chatState.sessionId && "bg-muted font-medium")}
             >
               <StatusIcon status={t.status} position={t.queuePosition} />
               <span className="min-w-0 flex-1 truncate">{title(t.sessionId)}</span>
@@ -396,7 +399,7 @@ export function PreviewPanel({ machine, health, queue }: { machine: Machine; hea
               <Tooltip content={readoutText(state.width, state.height, streamState.readout)}>
                 <span className="flex items-center gap-1.5 text-[11px] tabular-nums text-white/60">
                   <SignalBars bars={bars} />
-                  {streamState.readout ? `${streamState.readout.kBps} kB/s` : `${state.width}×${state.height}`}
+                  {streamState.readout ? rateText(streamState.readout) : `${state.width}×${state.height}`}
                 </span>
               </Tooltip>
             )}
@@ -428,7 +431,7 @@ export function PreviewPanel({ machine, health, queue }: { machine: Machine; hea
           {connected && state.width > 0 && (
             <Tooltip content={readoutText(state.width, state.height, streamState.readout)}>
               <span className="text-[11px] tabular-nums text-muted-foreground">
-                {streamState.readout ? `${streamState.readout.kBps} kB/s` : `${state.width}×${state.height}`}
+                {streamState.readout ? rateText(streamState.readout) : `${state.width}×${state.height}`}
               </span>
             </Tooltip>
           )}
@@ -499,7 +502,7 @@ export function PreviewPanel({ machine, health, queue }: { machine: Machine; hea
         )}
       </div>
       <div className="mt-3 grid min-h-0 flex-1 grid-cols-[minmax(0,1fr)] content-start gap-4 overflow-y-auto px-2 pb-3">
-        <QueueList queue={queue} />
+        <QueueList queue={queue} perSession={perSession} />
         <Steps />
       </div>
     </aside>
