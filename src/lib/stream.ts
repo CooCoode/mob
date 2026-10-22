@@ -168,15 +168,18 @@ export function readStats(report: Iterable<Stat>, prev: StatsSample | null, now:
   return { sample, readout };
 }
 
-/** "380 kB/s", or "Idle" when no new frame arrived: a still screen sends almost nothing. */
+/** A still screen sends no frames, or a few tiny ones that round to 0 kB/s. */
+const idle = (r: Readout) => r.fps === 0 || r.kBps === 0;
+
+/** "380 kB/s", or "Idle" while the screen does not change. */
 export function rateText(r: Readout): string {
-  return r.fps === 0 ? "Idle" : `${r.kBps} kB/s`;
+  return idle(r) ? "Idle" : `${r.kBps} kB/s`;
 }
 
 /** "1408×792 · 30 fps · 380 kB/s · WebRTC · LAN": what the viewer receives, once a second. */
 export function readoutText(width: number, height: number, r: Readout | null): string {
   const parts = [`${width}×${height}`];
-  if (r) parts.push(...(r.fps === 0 ? ["Idle"] : [`${r.fps} fps`, `${r.kBps} kB/s`]), r.transport);
+  if (r) parts.push(...(idle(r) ? ["Idle"] : [`${r.fps} fps`, `${r.kBps} kB/s`]), r.transport);
   if (r?.network) parts.push(r.network);
   return parts.join(" · ");
 }

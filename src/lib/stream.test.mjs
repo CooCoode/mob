@@ -86,6 +86,7 @@ test("readoutText summarises the picture", () => {
   assert.equal(readoutText(1280, 720, { transport: "WebSocket", kBps: 25, fps: 12 }), "1280×720 · 12 fps · 25 kB/s · WebSocket");
   assert.equal(readoutText(1408, 792, { transport: "WebRTC", kBps: 0, fps: 0, network: "LAN" }), "1408×792 · Idle · WebRTC · LAN");
   assert.equal(rateText({ transport: "WebRTC", kBps: 0, fps: 0 }), "Idle");
+  assert.equal(rateText({ transport: "WebRTC", kBps: 0, fps: 4 }), "Idle");
   assert.equal(rateText({ transport: "WebRTC", kBps: 380, fps: 30 }), "380 kB/s");
 });
 
