@@ -38,7 +38,7 @@ function UserMessage({ message, task, base }: { message: ChatMessage; task?: Tas
   );
 }
 
-const RUNNER_LABELS: Record<string, string> = { codex: "Codex", claude: "Claude Code" };
+const RUNNER_LABELS: Record<string, string> = { codex: "Codex", claude: "Claude Code", pi: "Pi" };
 
 function AssistantMessage({ message }: { message: ChatMessage }) {
   const runnerName = useChat().session?.runner;
@@ -148,12 +148,24 @@ function Item({ item, base, last }: { item: TimelineItem; base: string; last: bo
         <div className="flex items-center gap-2.5 pl-9 text-[13px] text-muted-foreground">
           <Spinner />
           <span className="shimmer">{chat.cancelling ? "Stopping…" : "Working"}</span>
+          {!chat.cancelling && <Elapsed from={item.task.startedAt} />}
           {item.latest && <span className="min-w-0 truncate">· {item.latest.title}</span>}
         </div>
       );
     case "footer":
       return <TurnFooter task={item.task} last={last} />;
   }
+}
+
+/** How long the running turn has run, updated every second. */
+function Elapsed({ from }: { from?: string }) {
+  const [, tick] = useState(0);
+  useEffect(() => {
+    const t = setInterval(() => tick((n) => n + 1), 1000);
+    return () => clearInterval(t);
+  }, []);
+  const time = duration(from, new Date().toISOString());
+  return time ? <span className="shrink-0 tabular-nums">· {time}</span> : null;
 }
 
 function EmptyState({ machineName }: { machineName: string }) {
