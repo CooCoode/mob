@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { setImmediate } from "node:timers/promises";
 // Node runs the erasable TypeScript module directly (type stripping).
-import { Chat } from "./chat.ts";
+import { Chat, mergeDetail } from "./chat.ts";
 import { configureAuth } from "./auth.ts";
 
 function deferred() {
@@ -274,4 +274,56 @@ test("requests carry the credential; a 401 stops and asks for pairing", async (t
   assert.equal(calls.length, before + 1, "no retry after 401");
   sources[0].options.onUnauthorized();
   assert.equal(sources[0].closed, true);
+});
+
+function turns(list, rev, full) {
+  return {
+    session: { id: "s", title: "s", status: "succeeded",
+      messages: list.map(([id, , text]) => ({ id: `${id}:a`, taskId: id, role: "assistant", content: text })) },
+    tasks: list.map(([id, status]) => ({ id, sessionId: "s", status, eventId: 1, runner: "codex" })),
+    activities: list.map(([id, , text]) => ({ id: `${id}:1`, taskId: id, kind: "tool", status: "completed", title: text })),
+    questions: [], rev, full,
+  };
+}
+
+test("a partial answer replaces only the turns it carries, in turn order", () => {
+  const base = turns([["t1", "succeeded", "one"], ["t2", "running", "two…"]], 5, true);
+  const d = mergeDetail(base, turns([["t2", "succeeded", "two"], ["t3", "running", "three"]], 9, false));
+  assert.equal(d.rev, 9);
+  assert.deepEqual(d.tasks.map((t) => [t.id, t.status]), [["t1", "succeeded"], ["t2", "succeeded"], ["t3", "running"]]);
+  assert.deepEqual(d.session.messages.map((m) => m.content), ["one", "two", "three"]);
+  assert.deepEqual(d.activities.map((a) => a.title), ["one", "two", "three"]);
+  const older = mergeDetail(d, turns([["t1", "succeeded", "one, edited"]], 10, false));
+  assert.deepEqual(older.session.messages.map((m) => m.content), ["one, edited", "two", "three"]);
+  // A full answer, or one from a mobd without revisions, replaces everything.
+  assert.deepEqual(mergeDetail(d, turns([["t2", "succeeded", "two"]], 3, true)).tasks.map((t) => t.id), ["t2"]);
+  assert.deepEqual(mergeDetail(d, turns([["t1", "succeeded", "one"]])).tasks.map((t) => t.id), ["t1"]);
+});
+
+test("reopening a conversation shows it at once and fetches only what changed", async (t) => {
+  const answers = { a: turns([["t1", "succeeded", "one"]], 4, true), b: { ...detail("b", "succeeded"), rev: 7, full: true } };
+  const gate = deferred();
+  let hold = false;
+  const { chat, calls } = harness(t, async (url) => {
+    if (url.endsWith("/sessions")) return { sessions: [{ id: "s" }, { id: "b" }] };
+    if (url.includes("/sessions/s?since=4")) {
+      if (hold) await gate.promise;
+      return turns([["t2", "succeeded", "two"]], 6, false);
+    }
+    return url.includes("/sessions/s") ? answers.a : answers.b;
+  });
+  await chat.setMachine("office", "http://office", "s");
+  await chat.open("b");
+  hold = true;
+  const opening = chat.open("s");
+  assert.equal(chat.loading, false, "the cached copy shows while mobd answers");
+  assert.deepEqual(chat.session.messages.map((m) => m.content), ["one"]);
+  gate.resolve();
+  await opening;
+  assert.match(calls.at(-1).url, /\/sessions\/s\?since=4$/);
+  assert.deepEqual(chat.session.messages.map((m) => m.content), ["one", "two"]);
+  await chat.open("b");
+  assert.match(calls.at(-1).url, /\/sessions\/b\?since=7$/);
+  await chat.setMachine("office", "http://office", "s");
+  assert.match(calls.at(-1).url, /\/sessions\/s$/, "another machine starts without a cache");
 });

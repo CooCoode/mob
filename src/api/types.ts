@@ -107,6 +107,10 @@ export interface SessionDetail {
   tasks: Task[];
   activities?: Activity[];
   questions?: Question[];
+  /** The conversation's revision; absent from mobd versions without incremental fetch. */
+  rev?: number;
+  /** False when this answers `since` with only the turns changed after it. */
+  full?: boolean;
 }
 
 export interface TaskEvent {

@@ -21,6 +21,35 @@ export function terminal(status: TaskStatus): boolean {
   return status === "succeeded" || status === "failed" || status === "cancelled";
 }
 
+/**
+ * `d` applied to `base`: a full answer replaces it; a partial one (`full: false`) replaces only
+ * the turns it carries, with their messages, steps and questions, and keeps the rest.
+ */
+export function mergeDetail(base: SessionDetail | null, d: SessionDetail): SessionDetail {
+  if (d.full !== false || !base || base.session.id !== d.session.id) return d;
+  const tasks = [...base.tasks];
+  for (const t of d.tasks) {
+    const i = tasks.findIndex((x) => x.id === t.id);
+    if (i >= 0) tasks[i] = t;
+    else tasks.push(t);
+  }
+  const changed = new Set(d.tasks.map((t) => t.id));
+  const known = new Set(tasks.map((t) => t.id));
+  // Kept in turn order, so a changed older turn stays in its place.
+  const pick = <T extends { taskId: string }>(old: T[] = [], fresh: T[] = []): T[] => {
+    const byTurn = new Map<string, T[]>();
+    for (const x of [...old.filter((x) => !changed.has(x.taskId)), ...fresh]) {
+      byTurn.set(x.taskId, [...(byTurn.get(x.taskId) ?? []), x]);
+    }
+    return [...tasks.flatMap((t) => byTurn.get(t.id) ?? []), ...old.filter((x) => !known.has(x.taskId))];
+  };
+  return {
+    session: { ...d.session, messages: pick(base.session.messages, d.session.messages) },
+    tasks, activities: pick(base.activities, d.activities), questions: pick(base.questions, d.questions),
+    rev: d.rev ?? base.rev, full: true,
+  };
+}
+
 // Owns one visible conversation. Requests for a previous selection cannot replace it.
 export class Chat {
   machineId = "";
@@ -38,6 +67,10 @@ export class Chat {
 
   private url = "";
   private revision = 0;
+  /** mobd's revision of the visible conversation; undefined from mobd versions without it. */
+  private rev: number | undefined;
+  /** Recently opened conversations on this machine, oldest first: reopening one shows it at once. */
+  private cache = new Map<string, SessionDetail>();
   private source: ChatStream | null = null;
   private cursor = 0;
   private recovering: number | null = null;
@@ -73,6 +106,7 @@ export class Chat {
     this.sessions = [];
     this.ready = false;
     this.newChat();
+    this.cache.clear();
     const revision = this.revision;
     this.loading = true;
     this.changed();
@@ -100,14 +134,17 @@ export class Chat {
     this.sessions = [];
     this.ready = false;
     this.newChat();
+    this.cache.clear();
   }
 
   newChat(): void {
+    this.remember();
     this.revision++;
     this.stop();
     this.cursor = 0;
     this.sessionId = null;
     this.session = null;
+    this.rev = undefined;
     this.tasks = [];
     this.activities = [];
     this.questions = [];
@@ -118,20 +155,24 @@ export class Chat {
   }
 
   async open(id: string): Promise<void> {
+    this.remember();
     const revision = ++this.revision;
     this.stop();
     this.cursor = 0;
     this.sessionId = id;
     this.session = null;
+    this.rev = undefined;
     this.tasks = [];
     this.activities = [];
     this.questions = [];
+    const cached = this.cache.get(id);
+    if (cached) this.apply(cached);
     this.error = "";
-    this.loading = true;
+    this.loading = !cached;
     this.cancelling = false;
     this.changed();
     try {
-      const detail = await this.detail(id);
+      const detail = mergeDetail(this.snapshot(), await this.detail(id, this.rev));
       if (revision !== this.revision) return;
       this.apply(detail);
       this.loading = false;
@@ -291,6 +332,7 @@ export class Chat {
     this.sessions = this.sessions.filter((s) => s.id !== id);
     if (this.sessionId === id) this.newChat();
     else this.changed();
+    this.cache.delete(id);
   }
 
   /** Keeps the visible turn's queue position (and why it waits) current. */
@@ -356,8 +398,10 @@ export class Chat {
     }
   }
 
-  private async detail(id: string): Promise<SessionDetail> {
-    const data = await this.request<SessionDetail>(`${this.url}/sessions/${id}`);
+  /** With `since`, mobd may answer only the turns changed after that revision (see mergeDetail). */
+  private async detail(id: string, since?: number): Promise<SessionDetail> {
+    const query = since ? `?since=${since}` : "";
+    const data = await this.request<SessionDetail>(`${this.url}/sessions/${id}${query}`);
     if (data.session?.id !== id || !Array.isArray(data.tasks)) {
       throw new Error("Invalid session history from mobd.");
     }
@@ -369,6 +413,7 @@ export class Chat {
     this.tasks = detail.tasks;
     this.activities = detail.activities ?? [];
     this.questions = detail.questions ?? [];
+    this.rev = detail.rev;
     this.cursor = this.currentTask?.eventId ?? 0;
     if (!this.busy) this.cancelling = false;
   }
@@ -469,7 +514,7 @@ export class Chat {
     this.recovering = revision;
     const id = this.sessionId;
     try {
-      const detail = await this.detail(id);
+      const detail = mergeDetail(this.snapshot(), await this.detail(id, this.rev));
       if (revision !== this.revision) return;
       const latest = detail.tasks[detail.tasks.length - 1];
       const current = this.currentTask;
@@ -493,6 +538,20 @@ export class Chat {
     } finally {
       if (this.recovering === revision) this.recovering = null;
     }
+  }
+
+  /** The visible conversation as held now, or null before it has loaded. */
+  private snapshot(): SessionDetail | null {
+    if (!this.session || this.session.id !== this.sessionId) return null;
+    return { session: this.session, tasks: this.tasks, activities: this.activities, questions: this.questions, rev: this.rev };
+  }
+
+  private remember(): void {
+    const s = this.snapshot();
+    if (!s) return;
+    this.cache.delete(s.session.id);
+    this.cache.set(s.session.id, s);
+    if (this.cache.size > 8) this.cache.delete(this.cache.keys().next().value!);
   }
 
   private stop(): void {
