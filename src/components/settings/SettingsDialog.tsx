@@ -1,8 +1,8 @@
 import { UpdateSettings } from "@/components/UpdateNotice";
-import { AgentsTab } from "@/components/settings/AgentsTab";
+import { AgentsSection } from "@/components/settings/AgentsSection";
 import { Licenses } from "@/components/settings/Licenses";
 import {
-  CheckCircle2, CircleHelp, Info, Monitor, Moon, Palette, Plus, ScrollText, Sun, SunMoon, Trash2, TriangleAlert, XCircle, Bot,
+  CheckCircle2, CircleHelp, Info, Monitor, Moon, Palette, Plus, ScrollText, Sun, SunMoon, Trash2, TriangleAlert, XCircle,
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState, type ClipboardEvent, type KeyboardEvent } from "react";
 import { invoke, isTauri } from "@tauri-apps/api/core";
@@ -243,7 +243,7 @@ function MachineForm({ machine }: { machine: Machine }) {
 
   return (
     <form
-      className="grid min-h-0 min-w-0 flex-1 grid-cols-1 content-start gap-3 overflow-y-auto"
+      className="grid min-w-0 grid-cols-1 content-start gap-3"
       onSubmit={(e) => {
         e.preventDefault();
         if (!form.name.trim()) return;
@@ -251,7 +251,7 @@ function MachineForm({ machine }: { machine: Machine }) {
         setSaved("Saved");
       }}
     >
-      <h3 className="text-[13px] font-semibold">Edit machine</h3>
+      <h3 className="text-[13px] font-semibold">{machine.name} · Connection</h3>
       <Label>Display name<Input value={form.name} placeholder="Office Mac" onChange={(e) => setForm({ ...form, name: e.target.value })} required /></Label>
       <div className="grid grid-cols-1 gap-2 rounded-lg border bg-panel p-3">
         <div className="flex items-start gap-2 text-xs">
@@ -344,7 +344,13 @@ function MachinesTab() {
             <Plus className="size-3.5" /> Add machine
           </Button>
         </div>
-        {editing ? <MachineForm machine={editing} /> : (
+        {editing ? (
+          // One page per machine: its connection, then its agents.
+          <div className="grid min-h-0 min-w-0 flex-1 content-start gap-6 overflow-y-auto pr-1">
+            <MachineForm machine={editing} />
+            <AgentsSection key={editing.id} machine={editing} />
+          </div>
+        ) : (
           <div className="grid min-h-0 min-w-0 flex-1 grid-cols-1 content-start gap-3 overflow-y-auto">
             <h3 className="text-[13px] font-semibold">Add machine</h3>
             <PairForm onPaired={(id) => { set({ editMachineId: id }); selectMachine(id); }} />
@@ -423,7 +429,6 @@ export function SettingsDialog() {
   const { settingsOpen, settingsTab, set } = useApp();
   const tabs = [
     { value: "machines", label: "Machines", icon: Monitor },
-    { value: "agents", label: "Agents", icon: Bot },
     { value: "appearance", label: "Appearance", icon: Palette },
     { value: "log", label: "Log", icon: ScrollText },
     { value: "about", label: "About", icon: Info },
@@ -441,7 +446,6 @@ export function SettingsDialog() {
           </div>
           <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-y-auto p-5 pt-11">
             <TabsContent value="machines" className="h-full"><MachinesTab /></TabsContent>
-            <TabsContent value="agents" className="h-full"><AgentsTab /></TabsContent>
             <TabsContent value="appearance"><div className="grid gap-6"><AppearanceTab /><NotificationsSetting /></div></TabsContent>
             <TabsContent value="log" className="h-full"><LogTab /></TabsContent>
             <TabsContent value="about">

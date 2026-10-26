@@ -31,7 +31,7 @@ export interface PairResult {
 }
 
 export type Theme = "system" | "light" | "dark";
-export type SettingsTab = "machines" | "agents" | "appearance" | "log" | "about";
+export type SettingsTab = "machines" | "appearance" | "log" | "about";
 
 // A new chat's choices on this device, until the chat exists: keyed by machine ID (runner) and
 // "<machine>/<runner>" (model, effort). In memory only; conversations keep theirs in mobd.
@@ -58,6 +58,8 @@ interface Ephemeral {
   settingsOpen: boolean;
   settingsTab: SettingsTab;
   editMachineId: string | null;
+  /** An agent of the edited machine to bring into view ("" for its Agents section). */
+  settingsFocus: string | null;
   paletteOpen: boolean;
   fullscreen: boolean;
   /** Set to ask the desktop panel to connect the live view (from the command palette). */
@@ -82,7 +84,7 @@ interface Actions {
   rememberSession: (machineId: string, sessionId: string | null) => void;
   setTurnPrefs: (key: string, prefs: TurnPrefs) => void;
   clearTurnPrefs: (key: string) => void;
-  openSettings: (tab?: SettingsTab, editMachineId?: string | null) => void;
+  openSettings: (tab?: SettingsTab, editMachineId?: string | null, focus?: string | null) => void;
 }
 
 export type AppState = Persisted & Ephemeral & Actions;
@@ -130,6 +132,7 @@ export const useApp = create<AppState>()(
       settingsOpen: false,
       settingsTab: "machines",
       editMachineId: null,
+      settingsFocus: null,
       paletteOpen: false,
       fullscreen: false,
       liveConnect: 0,
@@ -183,8 +186,8 @@ export const useApp = create<AppState>()(
         const { [key]: _, ...rest } = get().turnPrefs;
         set({ turnPrefs: rest });
       },
-      openSettings: (tab = "machines", editMachineId = null) =>
-        set({ settingsOpen: true, settingsTab: tab, editMachineId: editMachineId ?? get().activeMachineId }),
+      openSettings: (tab = "machines", editMachineId = null, focus = null) =>
+        set({ settingsOpen: true, settingsTab: tab, editMachineId: editMachineId ?? get().activeMachineId, settingsFocus: focus }),
     }),
     {
       name: "mob.app",

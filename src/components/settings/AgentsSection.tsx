@@ -1,6 +1,6 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Check, Plus, X } from "lucide-react";
-import { useEffect, useState, type ComponentProps } from "react";
+import { useEffect, useRef, useState, type ComponentProps } from "react";
 import { fetchSettings, saveSettings } from "@/api/client";
 import { Spinner } from "@/components/StatusIcon";
 import { Button } from "@/components/ui/button";
@@ -8,7 +8,7 @@ import { Input, Label } from "@/components/ui/input";
 import { ApiError } from "@/lib/auth";
 import { addModel, newlyUnguarded, withAgent, type AgentEdit, type SettingsEdit } from "@/lib/turnSettings";
 import { cn } from "@/lib/utils";
-import { baseUrl, useActiveMachine } from "@/store/app";
+import { baseUrl, useApp, type Machine } from "@/store/app";
 
 function Select({ className, ...props }: ComponentProps<"select">) {
   return <select className={cn("h-8 w-full rounded-md border bg-background px-2 text-[13px] outline-none focus-visible:border-accent", className)} {...props} />;
@@ -16,10 +16,14 @@ function Select({ className, ...props }: ComponentProps<"select">) {
 
 const PERMISSIONS = { bypass: "Run without asking", approve: "Ask before commands and edits" } as const;
 
-/** Machine settings shared by every device: default agent, and per agent models, defaults, permissions. */
-export function AgentsTab() {
-  const machine = useActiveMachine();
+/**
+ * One machine's agents (its mobd's settings.json, shared by every device): default agent, and per
+ * agent models, defaults, permissions. Works for any paired machine, not only the active one.
+ */
+export function AgentsSection({ machine }: { machine: Machine }) {
   const base = baseUrl(machine);
+  const focus = useApp((s) => s.settingsFocus);
+  const root = useRef<HTMLElement>(null);
   const qc = useQueryClient();
   const enabled = !!base && !machine?.needsPairing;
   const { data: view, error, refetch } = useQuery({ queryKey: ["settings", base], queryFn: () => fetchSettings(base), enabled });
@@ -32,9 +36,26 @@ export function AgentsTab() {
     if (view && (!edit || edit.rev !== view.settings.rev)) setEdit(structuredClone(view.settings));
   }, [view]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  if (!machine) return <p className="text-xs text-muted-foreground">Add a machine first.</p>;
-  if (error) return <p className="text-xs text-danger">{(error as Error).message}</p>;
-  if (!view || !edit) return <Spinner />;
+  // Opened from a chat's model menu: bring this machine's agent into view.
+  useEffect(() => {
+    if (focus === null || !view) return;
+    const target = (focus && root.current?.querySelector(`[data-agent="${focus}"]`)) || root.current;
+    target?.scrollIntoView({ block: "start", behavior: "smooth" });
+    useApp.getState().set({ settingsFocus: null });
+  }, [focus, view]);
+
+  const heading = <h3 className="text-[13px] font-semibold">{machine.name} · Agents</h3>;
+  const note = (text: string, danger = false) => (
+    <section ref={root} className="grid gap-1.5">{heading}<p className={cn("text-xs", danger ? "text-danger" : "text-muted-foreground")}>{text}</p></section>
+  );
+  if (machine.needsPairing) return note(`Pair ${machine.name} again to change its agents.`);
+  if (error) {
+    // fetch rejects with a TypeError when the machine cannot be reached.
+    return error instanceof TypeError
+      ? note(`Connect to ${machine.name} to change its agents.`)
+      : note((error as Error).message, true);
+  }
+  if (!view || !edit) return <section ref={root} className="grid gap-1.5">{heading}<Spinner /></section>;
 
   const save = async (confirmed = false) => {
     const risky = newlyUnguarded(view.settings, edit);
@@ -62,9 +83,9 @@ export function AgentsTab() {
   const agentDefault = (value?: string) => (value ? `Agent's default (${value})` : "Agent's default");
 
   return (
-    <div className="grid min-h-0 flex-1 content-start gap-4 overflow-y-auto pr-1">
+    <section ref={root} className="grid content-start gap-4">
       <div>
-        <h3 className="text-[13px] font-semibold">Agents on {machine.name}</h3>
+        {heading}
         <p className="mt-1 text-xs text-muted-foreground">Shared by every device paired with this machine. Each chat keeps the model and effort it started with; change them for one chat in its message box.</p>
       </div>
       <Label>
@@ -78,7 +99,7 @@ export function AgentsTab() {
         if (!a) return null;
         const models = a.models;
         return (
-          <section key={name} className="grid gap-3 rounded-lg border bg-panel p-3">
+          <section key={name} data-agent={name} className="grid scroll-mt-2 gap-3 rounded-lg border bg-panel p-3">
             <h4 className="text-[13px] font-semibold">{label(name)}</h4>
             <div className="grid gap-1.5 text-xs font-medium text-muted-foreground">
               <span>Models offered</span>
@@ -148,6 +169,6 @@ export function AgentsTab() {
         <Button variant="ghost" disabled={!changed || status.kind === "saving"} onClick={() => { setEdit(structuredClone(view.settings)); setStatus({ kind: "idle" }); }}>Discard changes</Button>
         {status.kind === "error" && status.text && <span className="text-xs text-danger">{status.text}</span>}
       </div>
-    </div>
+    </section>
   );
 }

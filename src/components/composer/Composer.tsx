@@ -5,7 +5,8 @@ import type { Health } from "@/api/types";
 import { Spinner } from "@/components/StatusIcon";
 import { Button } from "@/components/ui/button";
 import {
-  DropdownMenu, DropdownMenuContent, DropdownMenuLabel, DropdownMenuRadioGroup, DropdownMenuRadioItem, DropdownMenuTrigger,
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuRadioGroup, DropdownMenuRadioItem, DropdownMenuSeparator,
+  DropdownMenuTrigger,
 } from "@/components/ui/menu";
 import { Tooltip } from "@/components/ui/tooltip";
 import { useChat } from "@/hooks/useChat";
@@ -25,13 +26,15 @@ interface Attachment {
 
 const MAX_ATTACHMENTS = 10;
 
-function Picker({ icon: Icon, label, value, options, onChange, placeholder }: {
+function Picker({ icon: Icon, label, value, options, onChange, placeholder, onEdit }: {
   icon: typeof Cpu;
   label: string;
   value: string;
   options: string[];
   placeholder: string;
   onChange: (v: string) => void;
+  /** Adds an "Edit models…" entry that opens the machine's agent settings. */
+  onEdit?: () => void;
 }) {
   return (
     <DropdownMenu>
@@ -52,6 +55,12 @@ function Picker({ icon: Icon, label, value, options, onChange, placeholder }: {
             </DropdownMenuRadioItem>
           ))}
         </DropdownMenuRadioGroup>
+        {onEdit && (
+          <>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onSelect={onEdit}>Edit models…</DropdownMenuItem>
+          </>
+        )}
       </DropdownMenuContent>
     </DropdownMenu>
   );
@@ -63,6 +72,7 @@ export function Composer({ machineId, machineName, health }: { machineId: string
   const machinePrefs = useApp((s) => s.turnPrefs[machineId]) ?? {};
   const setTurnPrefs = useApp((s) => s.setTurnPrefs);
   const clearTurnPrefs = useApp((s) => s.clearTurnPrefs);
+  const openSettings = useApp((s) => s.openSettings);
   const runners = (health?.runners ?? []).filter((r) => r.available);
   // A conversation keeps its runner; a new chat uses the picked one if it is still available.
   const picked = chat.sessionId ? chat.session?.runner : runners.find((r) => r.name === machinePrefs.runner)?.name;
@@ -256,7 +266,8 @@ export function Composer({ machineId, machineName, health }: { machineId: string
           {canOptions && (
             <>
               <Picker icon={Cpu} label="Model" placeholder={defaultLabel("model", runner?.defaultModel)} value={shown.model} options={menuModels(models, shown.model)}
-                onChange={(model) => choose({ model })} />
+                onChange={(model) => choose({ model })}
+                onEdit={() => openSettings("machines", machineId, runner?.name ?? "")} />
               <Picker icon={Brain} label="Reasoning effort" placeholder={defaultLabel("effort", runner?.defaultEffort)} value={shown.effort} options={efforts}
                 onChange={(effort) => choose({ effort })} />
             </>
