@@ -10,7 +10,7 @@ import {
 import { Tooltip } from "@/components/ui/tooltip";
 import { useChat } from "@/hooks/useChat";
 import { imeGuard } from "@/lib/ime";
-import { menuModels, shownChoice, turnChoice } from "@/lib/turnSettings";
+import { menuModels, shownChoice } from "@/lib/turnSettings";
 import { cn, defaultLabel } from "@/lib/utils";
 import { useApp } from "@/store/app";
 import { useComposer } from "@/store/composer";
@@ -77,14 +77,13 @@ export function Composer({ machineId, machineName, health }: { machineId: string
   const canUpload = supports(health, "uploads") && (runner?.images ?? true);
   const canOptions = supports(health, "taskOptions");
   // Older mobd (no runner list) offers the default runner's models/efforts at the top level.
-  const models = runner?.models ?? health?.models ?? [];
-  const efforts = runner?.efforts ?? health?.efforts ?? [];
+  const models = runner?.models ?? [];
+  const efforts = runner?.efforts ?? [];
   // An open chat shows and changes its conversation's model and effort (shared by every device);
   // a new chat keeps a draft on this device until it exists.
-  const hasSettings = supports(health, "settings");
-  const shown = shownChoice({ settings: hasSettings, session: chat.sessionId ? chat.session : null, draft: prefs });
+  const shown = shownChoice(chat.sessionId ? chat.session : null, prefs);
   const choose = (patch: { model?: string; effort?: string }) => {
-    if (hasSettings && chat.sessionId) void chat.patchSession(chat.sessionId, patch);
+    if (chat.sessionId) void chat.patchSession(chat.sessionId, patch);
     else setTurnPrefs(runnerKey, patch);
   };
   const uploading = attachments.some((a) => !a.id && !a.error);
@@ -125,11 +124,12 @@ export function Composer({ machineId, machineName, health }: { machineId: string
     if (!prompt || !chat.canSend || uploading) return;
     const newChat = !chat.sessionId;
     const ok = await chat.submit(prompt, {
-      ...(canOptions ? turnChoice({ settings: hasSettings, newChat, shown, efforts }) : {}),
+      // Only a new chat names them (they become its settings); later turns use the conversation's.
+      ...(canOptions && newChat ? { model: shown.model || undefined, effort: efforts.includes(shown.effort) ? shown.effort : undefined } : {}),
       attachments: ready.map((a) => a.id!),
       runner: newChat ? runner?.name : undefined,
     });
-    if (ok && newChat && hasSettings) {
+    if (ok && newChat) {
       // The conversation has its settings now; the next new chat starts from the defaults.
       clearTurnPrefs(runnerKey);
       clearTurnPrefs(machineId);

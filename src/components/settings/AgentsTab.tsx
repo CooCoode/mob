@@ -1,13 +1,12 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Plus, X } from "lucide-react";
 import { useEffect, useState, type ComponentProps } from "react";
-import { fetchSettings, saveSettings, supports } from "@/api/client";
+import { fetchSettings, saveSettings } from "@/api/client";
 import { Spinner } from "@/components/StatusIcon";
 import { Button } from "@/components/ui/button";
 import { Input, Label } from "@/components/ui/input";
-import { useHealth } from "@/hooks/useMachine";
 import { ApiError } from "@/lib/auth";
-import { addModel, fromLabel, newlyUnguarded, withAgent, type SettingsEdit } from "@/lib/turnSettings";
+import { addModel, newlyUnguarded, withAgent, type AgentEdit, type SettingsEdit } from "@/lib/turnSettings";
 import { cn } from "@/lib/utils";
 import { baseUrl, useActiveMachine } from "@/store/app";
 
@@ -21,9 +20,8 @@ const PERMISSIONS = { bypass: "Run without asking", approve: "Ask before command
 export function AgentsTab() {
   const machine = useActiveMachine();
   const base = baseUrl(machine);
-  const { data: health } = useHealth(machine);
   const qc = useQueryClient();
-  const enabled = !!base && !machine?.needsPairing && supports(health, "settings");
+  const enabled = !!base && !machine?.needsPairing;
   const { data: view, error, refetch } = useQuery({ queryKey: ["settings", base], queryFn: () => fetchSettings(base), enabled });
   const [edit, setEdit] = useState<SettingsEdit | null>(null);
   const [adding, setAdding] = useState<Record<string, string>>({});
@@ -35,16 +33,11 @@ export function AgentsTab() {
   }, [view]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (!machine) return <p className="text-xs text-muted-foreground">Add a machine first.</p>;
-  if (health && !supports(health, "settings")) {
-    return <p className="text-xs text-muted-foreground">Update mobd on {machine.name} to change its agent settings from here.</p>;
-  }
   if (error) return <p className="text-xs text-danger">{(error as Error).message}</p>;
   if (!view || !edit) return <Spinner />;
 
-  // What each value returns to when it is cleared here.
-  const configured = Object.fromEntries(Object.entries(view.agents).map(([n, a]) => [n, (a.fallback ?? a).permissions]));
   const save = async (confirmed = false) => {
-    const risky = newlyUnguarded(view.agents, edit, configured);
+    const risky = newlyUnguarded(view.settings, edit);
     if (risky.length && !confirmed) return setStatus({ kind: "confirm", agents: risky });
     setStatus({ kind: "saving" });
     try {
@@ -61,7 +54,9 @@ export function AgentsTab() {
       setStatus({ kind: "error", text: err instanceof Error ? err.message : String(err) });
     }
   };
-  const label = (name: string) => health?.runners?.find((r) => r.name === name)?.label ?? name;
+  const label = (name: string) => view.agents[name]?.label ?? name;
+  // An empty default sends none: the agent's own applies.
+  const agentDefault = (value?: string) => (value ? `Agent's default (${value})` : "Agent's default");
 
   return (
     <div className="grid min-h-0 flex-1 content-start gap-4 overflow-y-auto pr-1">
@@ -71,22 +66,19 @@ export function AgentsTab() {
       </div>
       <Label>
         Default agent for new chats
-        <Select value={edit.defaultAgent ?? ""} onChange={(e) => setEdit({ ...edit, defaultAgent: e.target.value || undefined })}>
-          <option value="">{label(view.fallbackDefaultAgent)} ({fromLabel("config")})</option>
+        <Select value={edit.defaultAgent} onChange={(e) => setEdit({ ...edit, defaultAgent: e.target.value })}>
           {Object.keys(view.agents).map((n) => <option key={n} value={n}>{label(n)}</option>)}
         </Select>
       </Label>
-      {Object.entries(view.agents).map(([name, now]) => {
-        const a = edit.agents?.[name] ?? {};
-        const back = now.fallback ?? now;
-        const models = a.models ?? back.models;
-        const modelsSet = a.models !== undefined;
-        const fallback = (value: string | undefined, from: string) => (value ? `${value} (${fromLabel(from)})` : fromLabel("builtin"));
+      {Object.entries(view.agents).map(([name, info]) => {
+        const a = edit.agents[name];
+        if (!a) return null;
+        const models = a.models;
         return (
           <section key={name} className="grid gap-3 rounded-lg border bg-panel p-3">
             <h4 className="text-[13px] font-semibold">{label(name)}</h4>
             <div className="grid gap-1.5 text-xs font-medium text-muted-foreground">
-              <span>Models offered {!modelsSet && `(${fromLabel(back.modelsFrom)})`}</span>
+              <span>Models offered</span>
               <div className="flex flex-wrap gap-1.5">
                 {models.map((m) => (
                   <span key={m} className="flex items-center gap-1 rounded-full border bg-background py-0.5 pl-2.5 pr-1 font-mono text-[12px] text-foreground">
@@ -115,22 +107,21 @@ export function AgentsTab() {
             <div className="grid grid-cols-3 gap-3">
               <Label>
                 Default model
-                <Select value={a.defaultModel ?? ""} onChange={(e) => setEdit(withAgent(edit, name, { defaultModel: e.target.value }))}>
-                  <option value="">{fallback(back.defaultModel, back.defaultModelFrom)}</option>
+                <Select value={a.defaultModel} onChange={(e) => setEdit(withAgent(edit, name, { defaultModel: e.target.value }))}>
+                  <option value="">{agentDefault(info.agentDefaultModel)}</option>
                   {models.map((m) => <option key={m} value={m}>{m}</option>)}
                 </Select>
               </Label>
               <Label>
                 Default effort
-                <Select value={a.defaultEffort ?? ""} onChange={(e) => setEdit(withAgent(edit, name, { defaultEffort: e.target.value }))}>
-                  <option value="">{fallback(back.defaultEffort, back.defaultEffortFrom)}</option>
-                  {now.efforts.map((x) => <option key={x} value={x}>{x}</option>)}
+                <Select value={a.defaultEffort} onChange={(e) => setEdit(withAgent(edit, name, { defaultEffort: e.target.value }))}>
+                  <option value="">{agentDefault(info.agentDefaultEffort)}</option>
+                  {info.efforts.map((x) => <option key={x} value={x}>{x}</option>)}
                 </Select>
               </Label>
               <Label>
                 Permissions
-                <Select value={a.permissions ?? ""} onChange={(e) => setEdit(withAgent(edit, name, { permissions: e.target.value }))}>
-                  <option value="">{PERMISSIONS[configured[name] as keyof typeof PERMISSIONS] ?? configured[name]} ({fromLabel("config")})</option>
+                <Select value={a.permissions} onChange={(e) => setEdit(withAgent(edit, name, { permissions: e.target.value as AgentEdit["permissions"] }))}>
                   {Object.entries(PERMISSIONS).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
                 </Select>
               </Label>
