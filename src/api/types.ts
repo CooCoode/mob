@@ -148,7 +148,7 @@ export interface RunnerInfo {
   available: boolean;
   detail?: string;
   default: boolean;
-  /** What the agent uses when a turn picks none; absent when unset there or from an older mobd. */
+  /** The default settings.json names, else the agent's own; absent when neither is set. */
   defaultModel?: string;
   defaultEffort?: string;
   permissions?: Permissions;

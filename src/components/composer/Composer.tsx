@@ -76,7 +76,6 @@ export function Composer({ machineId, machineName, health }: { machineId: string
   const runner = runnerFor(health, picked);
   const canUpload = supports(health, "uploads") && (runner?.images ?? true);
   const canOptions = supports(health, "taskOptions");
-  // Older mobd (no runner list) offers the default runner's models/efforts at the top level.
   const models = runner?.models ?? [];
   const efforts = runner?.efforts ?? [];
   // An open chat shows and changes its conversation's model and effort (shared by every device);
