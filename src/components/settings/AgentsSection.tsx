@@ -40,7 +40,7 @@ export function AgentsSection({ machine }: { machine: Machine }) {
   useEffect(() => {
     if (focus === null || !view) return;
     const target = (focus && root.current?.querySelector(`[data-agent="${focus}"]`)) || root.current;
-    target?.scrollIntoView({ block: "start", behavior: "smooth" });
+    target?.scrollIntoView({ block: "start", inline: "nearest", behavior: "smooth" });
     useApp.getState().set({ settingsFocus: null });
   }, [focus, view]);
 
@@ -99,9 +99,9 @@ export function AgentsSection({ machine }: { machine: Machine }) {
         if (!a) return null;
         const models = a.models;
         return (
-          <section key={name} data-agent={name} className="grid scroll-mt-2 gap-3 rounded-lg border bg-panel p-3">
+          <section key={name} data-agent={name} className="grid min-w-0 grid-cols-1 scroll-mt-2 gap-3 rounded-lg border bg-panel p-3">
             <h4 className="text-[13px] font-semibold">{label(name)}</h4>
-            <div className="grid gap-1.5 text-xs font-medium text-muted-foreground">
+            <div className="grid min-w-0 grid-cols-1 gap-1.5 text-xs font-medium text-muted-foreground">
               <span>Models offered</span>
               <div className="flex flex-wrap gap-1.5">
                 {models.map((m) => (
@@ -154,10 +154,10 @@ export function AgentsSection({ machine }: { machine: Machine }) {
         );
       })}
       {(view.installed ?? []).some((a) => a.state !== "ready") && (
-        <section className="grid gap-2 rounded-lg border bg-panel p-3">
+        <section className="grid min-w-0 grid-cols-1 gap-2 rounded-lg border bg-panel p-3">
           <h4 className="text-[13px] font-semibold">Other agents</h4>
           {(view.installed ?? []).filter((a) => a.state !== "ready").map((a) => (
-            <div key={a.name} className="grid gap-1 text-xs">
+            <div key={a.name} className="grid min-w-0 grid-cols-1 gap-1 text-xs">
               <p><span className="font-medium text-foreground">{a.label}</span> · <span className={a.state === "error" ? "text-danger" : "text-muted-foreground"}>{agentStateLabel(a.state)}</span></p>
               {a.detail && <p className="break-all text-muted-foreground">{a.detail}</p>}
               {a.install && (
@@ -172,7 +172,7 @@ export function AgentsSection({ machine }: { machine: Machine }) {
         </section>
       )}
       {status.kind === "confirm" && (
-        <div className="grid gap-2 rounded-lg border border-warning/50 bg-warning/10 p-3 text-xs">
+        <div className="grid min-w-0 grid-cols-1 gap-2 rounded-lg border border-warning/50 bg-warning/10 p-3 text-xs">
           <p><strong>{status.agents!.map(label).join(", ")}</strong> will run commands and edit files on {machine.name} without asking you first.</p>
           <div className="flex gap-2">
             <Button size="sm" onClick={() => void save(true)}>Allow and save</Button>
