@@ -1,5 +1,5 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Plus, X } from "lucide-react";
+import { Check, Plus, X } from "lucide-react";
 import { useEffect, useState, type ComponentProps } from "react";
 import { fetchSettings, saveSettings } from "@/api/client";
 import { Spinner } from "@/components/StatusIcon";
@@ -45,7 +45,9 @@ export function AgentsTab() {
       qc.setQueryData(["settings", base], saved);
       void qc.invalidateQueries({ queryKey: ["health", base] });
       setEdit(structuredClone(saved.settings));
-      setStatus({ kind: "saved", text: "Saved. New chats use these defaults; open chats keep theirs." });
+      // The button shows ✓ Saved for a moment, then is greyed out until the next change.
+      setStatus({ kind: "saved" });
+      setTimeout(() => setStatus((s) => (s.kind === "saved" ? { kind: "idle" } : s)), 2000);
     } catch (err) {
       if (err instanceof ApiError && err.code === "settings_changed") {
         await refetch();
@@ -54,6 +56,7 @@ export function AgentsTab() {
       setStatus({ kind: "error", text: err instanceof Error ? err.message : String(err) });
     }
   };
+  const changed = JSON.stringify(edit) !== JSON.stringify(view.settings);
   const label = (name: string) => view.agents[name]?.label ?? name;
   // An empty default sends none: the agent's own applies.
   const agentDefault = (value?: string) => (value ? `Agent's default (${value})` : "Agent's default");
@@ -139,9 +142,11 @@ export function AgentsTab() {
         </div>
       )}
       <div className="flex items-center gap-2">
-        <Button disabled={status.kind === "saving"} onClick={() => void save()}>{status.kind === "saving" && <Spinner />} Save</Button>
-        <Button variant="ghost" onClick={() => { setEdit(structuredClone(view.settings)); setStatus({ kind: "idle" }); }}>Discard changes</Button>
-        {status.text && <span className={cn("text-xs", status.kind === "saved" ? "text-success" : "text-danger")}>{status.text}</span>}
+        <Button className={cn(status.kind === "saved" && "disabled:opacity-100 text-success")} disabled={!changed || status.kind === "saving" || status.kind === "saved"} onClick={() => void save()}>
+          {status.kind === "saving" ? <><Spinner /> Saving…</> : status.kind === "saved" ? <><Check className="size-3.5" /> Saved</> : "Save"}
+        </Button>
+        <Button variant="ghost" disabled={!changed || status.kind === "saving"} onClick={() => { setEdit(structuredClone(view.settings)); setStatus({ kind: "idle" }); }}>Discard changes</Button>
+        {status.kind === "error" && status.text && <span className="text-xs text-danger">{status.text}</span>}
       </div>
     </div>
   );
