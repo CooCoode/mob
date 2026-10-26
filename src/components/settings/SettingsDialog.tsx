@@ -2,7 +2,7 @@ import { UpdateSettings } from "@/components/UpdateNotice";
 import { AgentsSection } from "@/components/settings/AgentsSection";
 import { Licenses } from "@/components/settings/Licenses";
 import {
-  CheckCircle2, CircleHelp, Info, Monitor, Moon, Palette, Plus, ScrollText, Sun, SunMoon, Trash2, TriangleAlert, XCircle,
+  CheckCircle2, CircleHelp, Info, Monitor, Moon, Palette, Pencil, Plus, ScrollText, Sun, SunMoon, Trash2, TriangleAlert, XCircle,
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState, type ClipboardEvent, type KeyboardEvent } from "react";
 import { invoke, isTauri } from "@tauri-apps/api/core";
@@ -164,8 +164,9 @@ function PairForm({ machine, onPaired }: { machine?: Machine; onPaired: (id: str
       </Label>
       {!target && (
         <p className="-mt-1.5 text-[11px] text-muted-foreground">
-          Run <code className="font-mono">mobd link --url URL</code> on the office Mac and paste the link it prints. A private network,
-          VPN or Tailscale address and a self-hosted Tailscale Funnel HTTPS address both work the same way. Mob relay — coming soon.
+          Run <code className="font-mono">mobd link</code> on the office Mac and paste the link it prints. It uses the remote address
+          set up with <code className="font-mono">mobd remote</code>, else the office network; <code className="font-mono">--lan</code> or{" "}
+          <code className="font-mono">--url ADDRESS</code> picks one. Mob relay — coming soon.
         </p>
       )}
       {parsed.error && <p className="-mt-1.5 text-xs text-danger">{parsed.error}</p>}
@@ -227,6 +228,8 @@ function MachineForm({ machine }: { machine: Machine }) {
   const [test, setTest] = useState<{ state: "idle" | "testing" | "ok" | "error"; health?: Health; error?: string }>({ state: "idle" });
   const [saved, setSaved] = useState("");
   const [repair, setRepair] = useState(false);
+  /** The address whose name is being edited. */
+  const [renaming, setRenaming] = useState<string | null>(null);
 
   useEffect(() => {
     setForm({ name: machine.name, labels: Object.fromEntries(machine.addresses.map((a) => [a.id, a.label ?? ""])) });
@@ -269,8 +272,20 @@ function MachineForm({ machine }: { machine: Machine }) {
             <div key={a.id} className="grid grid-cols-1 gap-1">
               <div className="flex items-center gap-2 text-xs">
                 <span className={cn("size-2 shrink-0 rounded-full", a.needsPairing ? "bg-warning" : "bg-success")} />
-                <Input className="h-7 w-32" aria-label="Address name" value={form.labels[a.id] ?? ""} placeholder={addressKind(a.url)}
-                  onChange={(e) => setForm({ ...form, labels: { ...form.labels, [a.id]: e.target.value } })} />
+                {renaming === a.id ? (
+                  <Input className="h-7 w-32" aria-label="Address name" autoFocus value={form.labels[a.id] ?? ""} placeholder={addressKind(a.url)}
+                    onChange={(e) => setForm({ ...form, labels: { ...form.labels, [a.id]: e.target.value } })}
+                    onBlur={() => setRenaming(null)}
+                    onKeyDown={(e) => { if (e.key === "Enter" || e.key === "Escape") { e.preventDefault(); setRenaming(null); } }} />
+                ) : (
+                  <>
+                    <span className="shrink-0 font-medium">{form.labels[a.id]?.trim() || addressLabel(machine, { ...a, label: undefined })}</span>
+                    <Button variant="ghost" size="icon-sm" className="-my-1 shrink-0 text-muted-foreground" aria-label="Rename address" title="Rename"
+                      onClick={() => setRenaming(a.id)}>
+                      <Pencil className="size-3" />
+                    </Button>
+                  </>
+                )}
                 <span className="min-w-0 flex-1 break-all font-mono text-muted-foreground">{a.url}</span>
                 {a.needsPairing && <span className="shrink-0 text-warning">Needs pairing</span>}
                 {inUse ? <span className="shrink-0 text-muted-foreground">In use</span>
