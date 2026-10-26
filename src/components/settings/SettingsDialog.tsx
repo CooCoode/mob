@@ -4,7 +4,7 @@ import { Licenses } from "@/components/settings/Licenses";
 import {
   CheckCircle2, CircleHelp, Info, Monitor, Moon, Palette, Pencil, Plus, ScrollText, Sun, SunMoon, Trash2, TriangleAlert, XCircle,
 } from "lucide-react";
-import { useCallback, useEffect, useMemo, useState, type ClipboardEvent, type KeyboardEvent } from "react";
+import { useCallback, useEffect, useMemo, useState, type ClipboardEvent, type KeyboardEvent, type ReactNode } from "react";
 import { invoke, isTauri } from "@tauri-apps/api/core";
 import { fetchHealth } from "@/api/client";
 import { QUALITIES } from "@/lib/stream";
@@ -14,6 +14,7 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { Input, Label } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tooltip } from "@/components/ui/tooltip";
 import { UnauthorizedError } from "@/lib/auth";
 import { deviceNameError, pair, parsePairLink } from "@/lib/pairing";
 import { getSecretStorageInfo, type SecretStorageInfo } from "@/lib/secrets";
@@ -57,6 +58,17 @@ const defaultDeviceName = () => {
   const ua = navigator.userAgent;
   return `Mob on ${/Mac/i.test(ua) ? "Mac" : /Windows/i.test(ua) ? "Windows" : /Linux/i.test(ua) ? "Linux" : "desktop"}`;
 };
+
+/** A help icon that explains on hover or focus, instead of a paragraph on the page. */
+function InfoTip({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <Tooltip content={<span className="block font-normal leading-snug">{children}</span>} side="top">
+      <button type="button" aria-label={label} className="inline-flex text-muted-foreground hover:text-foreground">
+        <CircleHelp className="size-3.5" />
+      </button>
+    </Tooltip>
+  );
+}
 
 function InsecureWarning() {
   return (
@@ -207,7 +219,10 @@ function QualityPicker({ value, onChange }: { value: NonNullable<Machine["liveQu
   const hint = QUALITIES.find((q) => q.value === value)?.hint;
   return (
     <div className="grid grid-cols-1 gap-1">
-      <span className="text-xs font-medium">Live view quality</span>
+      <span className="flex items-center gap-1.5 text-xs font-medium">
+        Live view quality
+        <InfoTip label="About live view quality">{hint}. Applies at once and reconnects an open live view; also in the live view&apos;s header.</InfoTip>
+      </span>
       <div role="radiogroup" aria-label="Live view quality" className="flex w-fit rounded-md border bg-panel p-0.5">
         {QUALITIES.map((q) => (
           <button key={q.value} type="button" role="radio" aria-checked={value === q.value} onClick={() => onChange(q.value)}
@@ -217,7 +232,6 @@ function QualityPicker({ value, onChange }: { value: NonNullable<Machine["liveQu
           </button>
         ))}
       </div>
-      <p className="text-[11px] text-muted-foreground">{hint}. Applies at once and reconnects an open live view; also in the live view's header.</p>
     </div>
   );
 }
@@ -265,7 +279,13 @@ function MachineForm({ machine }: { machine: Machine }) {
       <h3 className="text-[13px] font-semibold">{machine.name} · Connection</h3>
       <Label>Display name<Input value={form.name} placeholder="Office Mac" onChange={(e) => setForm({ ...form, name: e.target.value })} required /></Label>
       <div className="grid grid-cols-1 gap-2 rounded-lg border bg-panel p-3">
-        <span className="text-xs font-medium">Addresses</span>
+        <span className="flex items-center gap-1.5 text-xs font-medium">
+          Addresses
+          <InfoTip label="About addresses">
+            Each address is paired on its own, so the device credential never goes to an address it was not paired on. To add one, run
+            mobd link (or mobd link --lan) on the office Mac and paste its link.
+          </InfoTip>
+        </span>
         {machine.addresses.map((a) => {
           const inUse = currentAddress(machine)?.id === a.id;
           return (
@@ -286,7 +306,12 @@ function MachineForm({ machine }: { machine: Machine }) {
                     </Button>
                   </>
                 )}
-                <span className="min-w-0 flex-1 break-all font-mono text-muted-foreground">{a.url}</span>
+                <span className="min-w-0 flex-1 truncate font-mono text-muted-foreground" title={a.url}>{a.url}</span>
+                {!a.needsPairing && a.url.startsWith("http:") && (
+                  <Tooltip content="Not encrypted: traffic including the credential can be read on the network. Use it only on a trusted network or a Tailscale/VPN address." side="top">
+                    <span tabIndex={0} className="flex shrink-0 items-center gap-1 text-warning"><TriangleAlert className="size-3.5" />HTTP</span>
+                  </Tooltip>
+                )}
                 {a.needsPairing && <span className="shrink-0 text-warning">Needs pairing</span>}
                 {inUse ? <span className="shrink-0 text-muted-foreground">In use</span>
                   : <Button variant="ghost" size="sm" className="-my-1 shrink-0" onClick={() => selectRoute(machine.id, a.id)}>Use</Button>}
@@ -297,7 +322,6 @@ function MachineForm({ machine }: { machine: Machine }) {
                   </Button>
                 )}
               </div>
-              {!a.needsPairing && a.url.startsWith("http:") && inUse && <InsecureWarning />}
             </div>
           );
         })}
@@ -311,10 +335,6 @@ function MachineForm({ machine }: { machine: Machine }) {
         ) : (
           <Button variant="ghost" size="sm" className="w-fit" onClick={() => setRepair(true)}>Add address or pair again…</Button>
         )}
-        <p className="text-[11px] text-muted-foreground">
-          Each address is paired on its own, so the device credential never goes to an address it was not paired on. To add one, run{" "}
-          <code className="font-mono">mobd link</code> (or <code className="font-mono">mobd link --lan</code>) on the office Mac and paste its link.
-        </p>
       </div>
       <QualityPicker value={machine.liveQuality ?? "auto"} onChange={(q) => setLiveQuality(machine.id, q)} />
       <div className="flex items-center gap-2 pt-1">
