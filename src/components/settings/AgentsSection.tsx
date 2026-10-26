@@ -83,7 +83,7 @@ export function AgentsSection({ machine }: { machine: Machine }) {
   const agentDefault = (value?: string) => (value ? `Agent's default (${value})` : "Agent's default");
 
   return (
-    <section ref={root} className="grid content-start gap-4">
+    <section ref={root} className="grid min-w-0 grid-cols-1 content-start gap-4">
       <div>
         {heading}
         <p className="mt-1 text-xs text-muted-foreground">Shared by every device paired with this machine. Each chat keeps the model and effort it started with; change them for one chat in its message box.</p>

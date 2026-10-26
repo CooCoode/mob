@@ -373,7 +373,7 @@ function MachinesTab() {
         </div>
         {editing ? (
           // One page per machine: its connection, then its agents.
-          <div className="grid min-h-0 min-w-0 flex-1 content-start gap-6 overflow-y-auto pr-1">
+          <div className="grid min-h-0 min-w-0 flex-1 grid-cols-1 content-start gap-6 overflow-y-auto overflow-x-hidden pr-1">
             <MachineForm machine={editing} />
             <AgentsSection key={editing.id} machine={editing} />
           </div>
