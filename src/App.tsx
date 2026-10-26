@@ -14,7 +14,8 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { chat, useChat } from "@/hooks/useChat";
 import { useHealth, useMachineEvents, useQueue } from "@/hooks/useMachine";
 import { useQuestionAlerts } from "@/hooks/useQuestionAlerts";
-import { baseUrl, useActiveMachine, useApp, type Machine } from "@/store/app";
+import { RouteBanner } from "@/components/MachineRoute";
+import { baseUrl, needsPairing, useActiveMachine, useApp, type Machine } from "@/store/app";
 import { useComposer } from "@/store/composer";
 import { log } from "@/store/log";
 
@@ -56,15 +57,18 @@ function NoMachine() {
 function NeedsPairing({ machine }: { machine: Machine }) {
   const openSettings = useApp((s) => s.openSettings);
   return (
-    <div className="flex flex-1 items-center justify-center bg-background">
-      <div className="w-[380px] rounded-2xl border bg-background p-6 text-center shadow-panel">
-        <img src="/logo.svg" alt="Mob Screen Buddy" className="mx-auto size-20" />
-        <h2 className="mt-3 text-base font-semibold">{machine.name} needs pairing</h2>
-        <p className="mt-1 text-[13px] text-muted-foreground">
-          This device has no valid credential for the office Mac. Run <code className="font-mono">mobd link</code> there and paste
-          the new link. Your conversations stay on the office Mac.
-        </p>
-        <Button className="mt-4" onClick={() => openSettings("machines", machine.id)}>Pair again</Button>
+    <div className="flex flex-1 flex-col bg-background">
+      <RouteBanner machine={machine} />
+      <div className="flex flex-1 items-center justify-center">
+        <div className="w-[380px] rounded-2xl border bg-background p-6 text-center shadow-panel">
+          <img src="/logo.svg" alt="Mob Screen Buddy" className="mx-auto size-20" />
+          <h2 className="mt-3 text-base font-semibold">{machine.name} needs pairing</h2>
+          <p className="mt-1 text-[13px] text-muted-foreground">
+            This device has no valid credential for the office Mac. Run <code className="font-mono">mobd link</code> there and paste
+            the new link. Your conversations stay on the office Mac.
+          </p>
+          <Button className="mt-4" onClick={() => openSettings("machines", machine.id)}>Pair again</Button>
+        </div>
       </div>
     </div>
   );
@@ -83,13 +87,13 @@ export default function App() {
 
   // Load the selected machine's conversations; restore its last session.
   useEffect(() => {
-    if (!machine || machine.needsPairing) {
+    if (!machine || needsPairing(machine)) {
       chat.detach();
       return;
     }
     log(`selected machine: ${machine.name}`, "info");
     void chat.setMachine(machine.id, base, useApp.getState().savedSessions[machine.id]);
-  }, [machine?.id, base, machine?.needsPairing]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [machine?.id, base, needsPairing(machine)]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (machine && chatState.ready && chatState.machineId === machine.id && savedSessions[machine.id] !== chatState.sessionId) {
@@ -144,7 +148,7 @@ export default function App() {
           refetchHealth={() => void health.refetch()} dark={dark} />
         <div className="flex min-h-0 flex-1">
           {sidebarOpen && <Sidebar />}
-          {machine?.needsPairing ? (
+          {machine && needsPairing(machine) ? (
             <NeedsPairing machine={machine} />
           ) : machine ? (
             <main className="flex min-w-0 flex-1 flex-col bg-background">
@@ -153,6 +157,7 @@ export default function App() {
                   {chatState.session?.title ?? (chatState.loading ? "Loading…" : "New chat")}
                 </h1>
               </div>
+              <RouteBanner machine={machine} />
               <Timeline machineName={machine.name} />
               <Composer machineId={machine.id} machineName={machine.name} health={health.data} />
             </main>

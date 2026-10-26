@@ -20,7 +20,9 @@ import { useDesktops, useHealth, useQueue } from "@/hooks/useMachine";
 import { desktopMark, desktopOf, seedErrorText } from "@/lib/desktops";
 import { imeGuard } from "@/lib/ime";
 import { cn, shortAgo } from "@/lib/utils";
-import { baseUrl, useApp, type Machine } from "@/store/app";
+import { fallbackAddress, RouteChip, RouteContextItems, useReachable } from "@/components/MachineRoute";
+import { addressLabel, currentAddress } from "@/lib/machines";
+import { baseUrl, needsPairing, useApp, type Machine } from "@/store/app";
 import { useComposer } from "@/store/composer";
 
 type Action = "rename" | "pin" | "archive" | "unarchive" | "delete" | "closeDesktop" | "seed";
@@ -183,7 +185,11 @@ function ArchivedGroup({ base, admin, desktops, desktopsData, onAction }: {
 
 function MachineGroup({ machine, active }: { machine: Machine; active: boolean }) {
   const chatState = useChat();
-  const { selectMachine, collapsed, set, openSettings } = useApp();
+  const { selectMachine, selectRoute, collapsed, set, openSettings } = useApp();
+  const unpaired = needsPairing(machine);
+  const reachable = useReachable(machine);
+  const route = currentAddress(machine);
+  const other = fallbackAddress(machine, reachable);
   const base = baseUrl(machine);
   const { data: health, isError } = useHealth(machine);
   const admin = supports(health, "sessionAdmin");
@@ -194,7 +200,7 @@ function MachineGroup({ machine, active }: { machine: Machine; active: boolean }
   const [confirm, setConfirm] = useState<{ session: Session; action: "archive" | "delete" | "closeDesktop" } | null>(null);
   const isCollapsed = !!collapsed[machine.id] && active;
   const checksBad = health && Object.values(health.checks ?? {}).some((c) => !c.ok && !c.unknown);
-  const dot = machine.needsPairing ? "bg-warning" : isError ? "bg-muted-foreground/40" : !health ? "bg-muted-foreground/30" : checksBad ? "bg-warning" : "bg-success";
+  const dot = unpaired ? "bg-warning" : isError ? "bg-danger" : !health ? "bg-muted-foreground/30" : checksBad ? "bg-warning" : "bg-success";
 
   const onAction = async (s: Session, a: Action) => {
     if (a === "pin") void chat.patchSession(s.id, { pinned: !s.pinned });
@@ -230,24 +236,46 @@ function MachineGroup({ machine, active }: { machine: Machine; active: boolean }
 
   return (
     <div className="mb-2">
-      <button
-        type="button"
-        onClick={() => (active ? set({ collapsed: { ...collapsed, [machine.id]: !collapsed[machine.id] } }) : selectMachine(machine.id))}
-        className="flex h-7 w-full items-center gap-2 rounded-md px-2 text-left text-xs font-medium text-muted-foreground hover:text-foreground"
-      >
-        <Monitor className="size-3.5" />
-        <span className="min-w-0 flex-1 truncate">{machine.name}</span>
-        {machine.needsPairing && <span className="text-[10.5px] font-normal text-warning">Needs pairing</span>}
-        <span className={cn("size-1.5 rounded-full", dot)} />
-        {active && <ChevronRight className={cn("size-3 transition-transform", !isCollapsed && "rotate-90")} />}
-      </button>
-      {active && machine.needsPairing && (
+      <ContextMenu>
+        <ContextMenuTrigger asChild>
+          <div className="flex h-7 w-full items-center gap-1.5 rounded-md px-2 text-xs font-medium text-muted-foreground hover:text-foreground">
+            <button
+              type="button"
+              onClick={() => (active ? set({ collapsed: { ...collapsed, [machine.id]: !collapsed[machine.id] } }) : selectMachine(machine.id))}
+              className="flex min-w-0 flex-1 items-center gap-2 text-left"
+            >
+              <Monitor className="size-3.5 shrink-0" />
+              <span className="min-w-0 flex-1 truncate">{machine.name}</span>
+              {unpaired && !other && <span className="text-[10.5px] font-normal text-warning">Needs pairing</span>}
+            </button>
+            <RouteChip machine={machine} />
+            <span className={cn("size-1.5 shrink-0 rounded-full", dot)} title={reachable === false ? "Not reachable" : undefined} />
+            {active && <ChevronRight className={cn("size-3 shrink-0 transition-transform", !isCollapsed && "rotate-90")} />}
+          </div>
+        </ContextMenuTrigger>
+        <ContextMenuContent>
+          <RouteContextItems machine={machine} />
+          {machine.addresses.length > 1 && <ContextMenuSeparator />}
+          <ContextMenuItem onSelect={() => openSettings("machines", machine.id)}><Settings /> Machine settings…</ContextMenuItem>
+        </ContextMenuContent>
+      </ContextMenu>
+      {route && other && (
+        // The address in use fails and there is another: offer it, never switch by itself.
+        <p className="px-7 text-[11px] text-muted-foreground/80">
+          {addressLabel(machine, route)} {unpaired ? "needs pairing" : "not reachable"} ·{" "}
+          <button type="button" className="font-medium text-foreground hover:underline"
+            onClick={() => { selectRoute(machine.id, other.id); selectMachine(machine.id); }}>
+            Use {addressLabel(machine, other)}
+          </button>
+        </p>
+      )}
+      {active && unpaired && !other && (
         <button type="button" onClick={() => openSettings("machines", machine.id)}
           className="px-7 text-left text-[11px] text-muted-foreground/80 hover:text-foreground">
           Pair again in Settings
         </button>
       )}
-      {active && !isCollapsed && !machine.needsPairing && (
+      {active && !isCollapsed && !unpaired && (
         <div className="mt-0.5 grid grid-cols-[minmax(0,1fr)] gap-px">
           {chatState.loading && !chatState.sessions.length && (
             <div className="grid gap-1.5 px-2.5 py-1">

@@ -8,7 +8,7 @@ import { Input, Label } from "@/components/ui/input";
 import { ApiError } from "@/lib/auth";
 import { addModel, agentStateLabel, newlyUnguarded, withAgent, type AgentEdit, type SettingsEdit } from "@/lib/turnSettings";
 import { cn } from "@/lib/utils";
-import { baseUrl, useApp, type Machine } from "@/store/app";
+import { baseUrl, needsPairing, useApp, type Machine } from "@/store/app";
 
 function Select({ className, ...props }: ComponentProps<"select">) {
   return <select className={cn("h-8 w-full rounded-md border bg-background px-2 text-[13px] outline-none focus-visible:border-accent", className)} {...props} />;
@@ -25,7 +25,7 @@ export function AgentsSection({ machine }: { machine: Machine }) {
   const focus = useApp((s) => s.settingsFocus);
   const root = useRef<HTMLElement>(null);
   const qc = useQueryClient();
-  const enabled = !!base && !machine?.needsPairing;
+  const enabled = !!base && !needsPairing(machine);
   const { data: view, error, refetch } = useQuery({ queryKey: ["settings", base], queryFn: () => fetchSettings(base), enabled });
   const [edit, setEdit] = useState<SettingsEdit | null>(null);
   const [adding, setAdding] = useState<Record<string, string>>({});
@@ -48,7 +48,7 @@ export function AgentsSection({ machine }: { machine: Machine }) {
   const note = (text: string, danger = false) => (
     <section ref={root} className="grid gap-1.5">{heading}<p className={cn("text-xs", danger ? "text-danger" : "text-muted-foreground")}>{text}</p></section>
   );
-  if (machine.needsPairing) return note(`Pair ${machine.name} again to change its agents.`);
+  if (needsPairing(machine)) return note(`Pair ${machine.name} again to change its agents.`);
   if (error) {
     // fetch rejects with a TypeError when the machine cannot be reached.
     return error instanceof TypeError

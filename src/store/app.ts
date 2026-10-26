@@ -1,30 +1,20 @@
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
 import { configureAuth } from "@/lib/auth";
+import { currentAddress, pairMachine, withAddresses, type Machine } from "@/lib/machines";
 import { deleteSecret, getSecret, loadSecrets, setSecret, tokenAccount } from "@/lib/secrets";
 import { uid } from "@/lib/utils";
 import { log } from "@/store/log";
 import { migrateApp, vncPasswordAccount } from "@/store/migrate";
 
-export interface Machine {
-  id: string;
-  name: string;
-  /** Origin from the pairing link; changes only by pairing again. */
-  mobdUrl: string;
-  serverId?: string;
-  clientId?: string;
-  /** No usable credential: never paired, or mobd answered 401. */
-  needsPairing?: boolean;
-  /** Live view quality; unset means auto. */
-  liveQuality?: "auto" | "high" | "low";
-  /** The live view last needed mobd's WebSocket here (no UDP path): try it at once next time. */
-  liveWebSocket?: boolean;
-}
+export type { Machine, MachineAddress } from "@/lib/machines";
+export { baseUrl, needsPairing } from "@/lib/machines";
 
 export interface PairResult {
+  /** The machine to pair again; unset adds one, or an address to the saved machine of that office. */
   id?: string;
   name: string;
-  mobdUrl: string;
+  origin: string;
   serverId: string;
   clientId: string;
   token: string;
@@ -71,15 +61,23 @@ interface Actions {
   selectMachine: (id: string) => void;
   /** Shows or hides the desktop panel; hiding it also leaves full screen. */
   togglePreview: (open?: boolean) => void;
-  /** Renames a paired machine. */
-  saveMachine: (m: { id: string; name: string }) => void;
+  /** Renames a paired machine and its addresses ("" shows the kind again). */
+  saveMachine: (m: { id: string; name: string; labels?: Record<string, string> }) => void;
   /** Live view quality from the view itself; "auto" clears it. */
   setLiveQuality: (id: string, quality: NonNullable<Machine["liveQuality"]>) => void;
   /** Remembers which transport the live view ended up on. */
   setLiveWebSocket: (id: string, ws: boolean) => void;
-  /** Stores the new credential, then creates or updates the machine with the paired address. */
+  /**
+   * Stores the new credential, then creates the machine, pairs a saved address again, or adds the
+   * address to the office's machine; the paired address is used from then on.
+   */
   completePairing: (p: PairResult) => Promise<string>;
-  markNeedsPairing: (id: string) => void;
+  /** mobd refused the token of one address (the one in use when unset). */
+  markNeedsPairing: (id: string, addressId?: string) => void;
+  /** Uses another of the machine's addresses; the app never switches by itself. */
+  selectRoute: (id: string, addressId: string) => void;
+  /** Removes one address from this device; the machine goes with its last one. */
+  removeAddress: (id: string, addressId: string) => void;
   deleteMachine: (id: string) => void;
   rememberSession: (machineId: string, sessionId: string | null) => void;
   setTurnPrefs: (key: string, prefs: TurnPrefs) => void;
@@ -104,7 +102,10 @@ function initial(): Persisted {
   let machines = read<(Machine & { vncPassword?: string; vncUsername?: string })[]>("mob.machines");
   if (!Array.isArray(machines)) machines = [];
   // VNC is gone: the v1 Desktop sign-in fields are dropped, not moved to the keychain.
-  const extracted = { machines: machines.map(({ vncPassword: _p, vncUsername: _u, ...m }) => ({ ...m, needsPairing: true })), legacySecrets: {} };
+  const extracted = {
+    machines: machines.map(({ vncPassword: _p, vncUsername: _u, ...m }) => withAddresses({ ...m, needsPairing: true })),
+    legacySecrets: {},
+  };
   let active: string | null = null;
   try {
     active = localStorage.getItem("mob.activeMachineId");
@@ -143,7 +144,15 @@ export const useApp = create<AppState>()(
         set({
           machines: get().machines.map((x) =>
             x.id === m.id
-              ? { ...x, name: m.name.trim() }
+              ? {
+                ...x, name: m.name.trim(),
+                addresses: x.addresses.map((a) => {
+                  const label = m.labels?.[a.id]?.trim();
+                  if (m.labels?.[a.id] === undefined) return a;
+                  const { label: _, ...rest } = a;
+                  return label ? { ...rest, label } : rest;
+                }),
+              }
               : x),
         }),
       setLiveQuality: (id, quality) =>
@@ -151,25 +160,50 @@ export const useApp = create<AppState>()(
       setLiveWebSocket: (id, ws) =>
         set({ machines: get().machines.map((x) => (x.id === id ? { ...x, liveWebSocket: ws || undefined } : x)) }),
       completePairing: async (p) => {
-        const id = p.id || uid();
-        // The keychain write comes first: the address and its credential change together.
-        await setSecret(tokenAccount(id), p.token);
-        const previous = get().machines.find((x) => x.id === id);
-        const machine: Machine = {
-          ...previous, id, name: p.name.trim(), mobdUrl: p.mobdUrl, serverId: p.serverId, clientId: p.clientId, needsPairing: false,
-        };
-        const machines = previous ? get().machines.map((x) => (x.id === id ? machine : x)) : [...get().machines, machine];
-        set({ machines, activeMachineId: get().activeMachineId ?? id });
-        return id;
+        const machines0 = get().machines;
+        const saved = machines0.find((x) => x.id === p.id) ?? machines0.find((x) => x.serverId === p.serverId);
+        const base: Machine = saved ?? { id: uid(), name: p.name.trim(), addresses: [] };
+        const { machine, address, dropped } = pairMachine(base, p.origin, p.serverId, p.clientId, uid);
+        // The keychain write comes first: an address and its credential change together.
+        await setSecret(tokenAccount(address.id), p.token);
+        for (const account of dropped) deleteSecret(account).catch((err) => log(`keychain delete failed: ${String(err)}`, "error"));
+        const machines = saved ? get().machines.map((x) => (x.id === machine.id ? machine : x)) : [...get().machines, machine];
+        log(`${machine.name}: paired with ${p.origin}`);
+        set({ machines, activeMachineId: get().activeMachineId ?? machine.id });
+        return machine.id;
       },
-      markNeedsPairing: (id) => {
+      markNeedsPairing: (id, addressId) => {
         const machine = get().machines.find((m) => m.id === id);
-        if (!machine || machine.needsPairing) return;
-        log(`${id}: mobd rejected the credential; pairing needed`, "error");
-        set({ machines: get().machines.map((m) => (m.id === id ? { ...m, needsPairing: true } : m)) });
+        const address = machine && (machine.addresses.find((a) => a.id === addressId) ?? (addressId ? undefined : currentAddress(machine)));
+        if (!machine || !address || address.needsPairing) return;
+        log(`${machine.name}: mobd rejected the credential for ${address.url}; pairing needed`, "error");
+        set({
+          machines: get().machines.map((m) =>
+            m.id === id ? { ...m, addresses: m.addresses.map((a) => (a.id === address.id ? { ...a, needsPairing: true } : a)) } : m),
+        });
+      },
+      selectRoute: (id, addressId) => {
+        const machine = get().machines.find((m) => m.id === id);
+        const address = machine?.addresses.find((a) => a.id === addressId);
+        if (!machine || !address || currentAddress(machine)?.id === addressId) return;
+        log(`${machine.name}: using ${address.url}`);
+        set({ machines: get().machines.map((m) => (m.id === id ? { ...m, route: addressId } : m)) });
+      },
+      removeAddress: (id, addressId) => {
+        const machine = get().machines.find((m) => m.id === id);
+        if (!machine) return;
+        if (machine.addresses.length < 2) return get().deleteMachine(id);
+        deleteSecret(tokenAccount(addressId)).catch((err) => log(`keychain delete failed: ${String(err)}`, "error"));
+        set({
+          machines: get().machines.map((m) => m.id !== id ? m : {
+            ...m, addresses: m.addresses.filter((a) => a.id !== addressId), route: m.route === addressId ? undefined : m.route,
+          }),
+        });
       },
       deleteMachine: (id) => {
-        deleteSecret(tokenAccount(id)).catch((err) => log(`keychain delete failed: ${String(err)}`, "error"));
+        for (const a of get().machines.find((m) => m.id === id)?.addresses ?? []) {
+          deleteSecret(tokenAccount(a.id)).catch((err) => log(`keychain delete failed: ${String(err)}`, "error"));
+        }
         const machines = get().machines.filter((m) => m.id !== id);
         const savedSessions = { ...get().savedSessions };
         delete savedSessions[id];
@@ -191,7 +225,7 @@ export const useApp = create<AppState>()(
     }),
     {
       name: "mob.app",
-      version: 6,
+      version: 7,
       migrate: (state, version) => {
         if (version < 5) removedVncPasswords = true;
         return migrateApp(state, version) as Persisted;
@@ -210,10 +244,6 @@ export function useActiveMachine(): Machine | null {
   return useApp((s) => s.machines.find((m) => m.id === s.activeMachineId) ?? null);
 }
 
-export function baseUrl(m: Machine | null | undefined): string {
-  return (m?.mobdUrl ?? "").trim().replace(/\/$/, "");
-}
-
 /** Set by the v5 migration: the Desktop sign-in passwords in the keychain are deleted at load. */
 let removedVncPasswords = false;
 
@@ -223,7 +253,7 @@ let removedVncPasswords = false;
  */
 export async function loadMachineSecrets(): Promise<void> {
   const { machines } = useApp.getState();
-  const failed = await loadSecrets(machines.map((m) => tokenAccount(m.id)));
+  const failed = await loadSecrets(machines.flatMap((m) => m.addresses.map((a) => tokenAccount(a.id))));
   for (const account of failed) log(`keychain read failed: ${account}`, "error");
   if (removedVncPasswords) {
     removedVncPasswords = false;
@@ -241,21 +271,26 @@ export async function loadMachineSecrets(): Promise<void> {
     }
   }
   useApp.setState({
-    machines: useApp.getState().machines.map((m) =>
-      !m.needsPairing && !getSecret(tokenAccount(m.id)) && !failed.includes(tokenAccount(m.id)) ? { ...m, needsPairing: true } : m),
+    machines: useApp.getState().machines.map((m) => ({
+      ...m,
+      addresses: m.addresses.map((a) =>
+        !a.needsPairing && !getSecret(tokenAccount(a.id)) && !failed.includes(tokenAccount(a.id)) ? { ...a, needsPairing: true } : a),
+    })),
   });
 }
 
 
-const machinesAt = (base: string) => useApp.getState().machines.filter((m) => baseUrl(m) === base);
+/** The saved addresses at an origin, with their machine. */
+const addressesAt = (base: string) =>
+  useApp.getState().machines.flatMap((m) => m.addresses.filter((a) => a.url.trim().replace(/\/$/, "") === base).map((a) => ({ m, a })));
 
 configureAuth({
-  // An unpaired machine sends nothing: never an old credential to a changed address.
+  // An unpaired address sends nothing: never a credential to an address it was not paired on.
   token: (base) => {
-    const m = machinesAt(base).find((x) => !x.needsPairing);
-    return m && getSecret(tokenAccount(m.id));
+    const hit = addressesAt(base).find(({ a }) => !a.needsPairing);
+    return hit && getSecret(tokenAccount(hit.a.id));
   },
   unauthorized: (base) => {
-    for (const m of machinesAt(base)) useApp.getState().markNeedsPairing(m.id);
+    for (const { m, a } of addressesAt(base)) useApp.getState().markNeedsPairing(m.id, a.id);
   },
 });

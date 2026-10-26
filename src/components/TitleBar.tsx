@@ -7,7 +7,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Tooltip } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import { isMac, MOD, shortcut } from "@/lib/platform";
-import { useApp, type Machine } from "@/store/app";
+import { baseUrl, needsPairing, useApp, type Machine } from "@/store/app";
 
 export const isTauri = typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;
 
@@ -19,7 +19,7 @@ function HealthChip({ machine, health, error, queue, refetch }: {
   refetch: () => void;
 }) {
   const openSettings = useApp((s) => s.openSettings);
-  const unpaired = !!machine.needsPairing;
+  const unpaired = needsPairing(machine);
   const checks = Object.values(health?.checks ?? {});
   const failing = checks.filter((c) => !c.ok && !c.unknown).length;
   const state = unpaired ? "needs pairing" : error ? "offline" : !health ? "checking" : failing ? `${failing} issue${failing > 1 ? "s" : ""}` : "ready";
@@ -39,7 +39,7 @@ function HealthChip({ machine, health, error, queue, refetch }: {
         <div className="mb-2 flex items-center justify-between">
           <div>
             <p className="text-[13px] font-semibold">{machine.name}</p>
-            <p className="text-[11px] text-muted-foreground">{machine.mobdUrl}{health && ` · API v${health.apiVersion}`}</p>
+            <p className="text-[11px] text-muted-foreground">{baseUrl(machine)}{health && ` · API v${health.apiVersion}`}</p>
           </div>
           {!unpaired && <Button variant="ghost" size="icon-sm" aria-label="Recheck" onClick={refetch}><RefreshCw /></Button>}
         </div>

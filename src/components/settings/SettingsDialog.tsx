@@ -18,7 +18,8 @@ import { UnauthorizedError } from "@/lib/auth";
 import { deviceNameError, pair, parsePairLink } from "@/lib/pairing";
 import { getSecretStorageInfo, type SecretStorageInfo } from "@/lib/secrets";
 import { cn } from "@/lib/utils";
-import { baseUrl, useApp, type Machine, type Theme } from "@/store/app";
+import { addressKind, addressLabel, currentAddress, hasAddress } from "@/lib/machines";
+import { baseUrl, needsPairing, useApp, type Machine, type Theme } from "@/store/app";
 import { useLog } from "@/store/log";
 
 const CHECK_LABELS: Record<string, string> = {
@@ -69,6 +70,7 @@ function InsecureWarning() {
 /** Paste a `mobd link` URL, confirm the target, redeem the invite. Never sends an existing credential. */
 function PairForm({ machine, onPaired }: { machine?: Machine; onPaired: (id: string) => void }) {
   const completePairing = useApp((s) => s.completePairing);
+  const machines = useApp((s) => s.machines);
   const [link, setLink] = useState("");
   const [officeName, setOfficeName] = useState("Office Mac");
   const [deviceName, setDeviceName] = useState(defaultDeviceName);
@@ -84,10 +86,13 @@ function PairForm({ machine, onPaired }: { machine?: Machine; onPaired: (id: str
     }
   }, [link]);
   const target = parsed.link;
-  const moved = !!machine && !!target && target.origin !== baseUrl(machine);
-  const otherOffice = !!machine?.serverId && !!target && target.serverId !== machine.serverId;
+  // The saved machine this pairing goes to: the one being edited, else the saved one of that office.
+  const saved = machine ?? (target && machines.find((m) => m.serverId === target.serverId));
+  const otherOffice = !!saved?.serverId && !!target && target.serverId !== saved.serverId;
+  // Another address of the saved office: pairing adds it to the same machine.
+  const newAddress = !!saved?.serverId && !!target && !otherOffice && !hasAddress(saved, target.origin);
   const nameError = deviceNameError(deviceName);
-  const ready = !!target && !nameError && (!machine ? !!officeName.trim() : true) && (!moved || confirmed) && !busy;
+  const ready = !!target && !nameError && (!saved ? !!officeName.trim() : true) && (!otherOffice || confirmed) && !busy;
 
   useEffect(() => setConfirmed(false), [target?.origin]);
 
@@ -131,7 +136,7 @@ function PairForm({ machine, onPaired }: { machine?: Machine; onPaired: (id: str
     try {
       const paired = await pair(target, deviceName);
       const id = await completePairing({
-        id: machine?.id, name: machine?.name ?? officeName, mobdUrl: target.origin, ...paired,
+        id: saved?.id, name: saved?.name ?? officeName, origin: target.origin, ...paired,
       });
       setLink("");
       onPaired(id);
@@ -144,7 +149,7 @@ function PairForm({ machine, onPaired }: { machine?: Machine; onPaired: (id: str
 
   return (
     <div className="grid gap-3">
-      {!machine && (
+      {!saved && (
         <Label>Display name<Input value={officeName} placeholder="Office Mac" onChange={(e) => setOfficeName(e.target.value)} /></Label>
       )}
       <Label>
@@ -168,13 +173,16 @@ function PairForm({ machine, onPaired }: { machine?: Machine; onPaired: (id: str
         <div className="grid grid-cols-1 gap-2 rounded-lg border bg-panel p-3">
           <p className="text-xs"><span className="text-muted-foreground">Pair with </span><span className="break-all font-mono font-medium">{target.origin}</span></p>
           {target.insecure && <InsecureWarning />}
-          {otherOffice && (
-            <p className="text-[11.5px] text-warning">This link belongs to a different office than the one saved for this machine.</p>
+          {saved && newAddress && (
+            <p className="text-[11.5px] text-muted-foreground">
+              Adds this address to {saved.name} as {addressKind(target.origin)}, next to {saved.addresses.map((a) => addressLabel(saved, a)).join(", ")}.
+              Mob uses it from now on; switch with the route chip next to {saved.name} in the sidebar.
+            </p>
           )}
-          {moved && (
+          {otherOffice && (
             <label className="flex items-start gap-2 text-[11.5px]">
               <input type="checkbox" className="mt-0.5" checked={confirmed} onChange={(e) => setConfirmed(e.target.checked)} />
-              <span>The address changes from <span className="break-all font-mono">{machine?.mobdUrl}</span>. I trust the new address.</span>
+              <span className="text-warning">This link belongs to a different office than the one saved as {saved?.name}. Pairing replaces its addresses.</span>
             </label>
           )}
         </div>
@@ -185,7 +193,7 @@ function PairForm({ machine, onPaired }: { machine?: Machine; onPaired: (id: str
       </Label>
       <p className="-mt-1.5 text-[11px] text-muted-foreground">Shown in the office Mac's list of paired devices.</p>
       <div className="flex items-center gap-2">
-        <Button disabled={!ready} onClick={() => void submit()}>{busy && <Spinner />} Pair</Button>
+        <Button disabled={!ready} onClick={() => void submit()}>{busy && <Spinner />} {newAddress ? "Add address" : saved ? "Pair again" : "Pair"}</Button>
         {target && nameError && <span className="text-xs text-danger">{nameError}</span>}
       </div>
       {error && <p className="text-xs text-danger">{error}</p>}
@@ -214,14 +222,14 @@ function QualityPicker({ value, onChange }: { value: NonNullable<Machine["liveQu
 }
 
 function MachineForm({ machine }: { machine: Machine }) {
-  const { saveMachine, setLiveQuality, deleteMachine, set } = useApp();
-  const [form, setForm] = useState({ name: "" });
+  const { saveMachine, setLiveQuality, deleteMachine, selectRoute, removeAddress, set } = useApp();
+  const [form, setForm] = useState<{ name: string; labels: Record<string, string> }>({ name: "", labels: {} });
   const [test, setTest] = useState<{ state: "idle" | "testing" | "ok" | "error"; health?: Health; error?: string }>({ state: "idle" });
   const [saved, setSaved] = useState("");
   const [repair, setRepair] = useState(false);
 
   useEffect(() => {
-    setForm({ name: machine.name });
+    setForm({ name: machine.name, labels: Object.fromEntries(machine.addresses.map((a) => [a.id, a.label ?? ""])) });
     setTest({ state: "idle" });
     setSaved("");
     setRepair(false);
@@ -247,37 +255,56 @@ function MachineForm({ machine }: { machine: Machine }) {
       onSubmit={(e) => {
         e.preventDefault();
         if (!form.name.trim()) return;
-        saveMachine({ id: machine.id, name: form.name });
+        saveMachine({ id: machine.id, name: form.name, labels: form.labels });
         setSaved("Saved");
       }}
     >
       <h3 className="text-[13px] font-semibold">{machine.name} · Connection</h3>
       <Label>Display name<Input value={form.name} placeholder="Office Mac" onChange={(e) => setForm({ ...form, name: e.target.value })} required /></Label>
       <div className="grid grid-cols-1 gap-2 rounded-lg border bg-panel p-3">
-        <div className="flex items-start gap-2 text-xs">
-          <span className={cn("mt-1 size-2 shrink-0 rounded-full", machine.needsPairing ? "bg-warning" : "bg-success")} />
-          <span className="shrink-0 font-medium">{machine.needsPairing ? "Needs pairing" : "Paired"}</span>
-          <span className="min-w-0 flex-1 break-all font-mono text-muted-foreground">{machine.mobdUrl}</span>
-          {!machine.needsPairing && !repair && (
-            <Button variant="ghost" size="sm" className="-my-1 shrink-0" onClick={() => setRepair(true)}>Pair again</Button>
-          )}
-        </div>
-        {!machine.needsPairing && machine.mobdUrl.startsWith("http:") && <InsecureWarning />}
-        {(machine.needsPairing || repair) && (
-          <>
-            {machine.needsPairing && (
-              <p className="text-[11.5px] text-muted-foreground">
-                This device has no valid credential for this office Mac. Run <code className="font-mono">mobd link</code> there and paste the new link.
-              </p>
-            )}
-            <PairForm machine={machine} onPaired={() => { setRepair(false); setTest({ state: "idle" }); }} />
-          </>
+        <span className="text-xs font-medium">Addresses</span>
+        {machine.addresses.map((a) => {
+          const inUse = currentAddress(machine)?.id === a.id;
+          return (
+            <div key={a.id} className="grid grid-cols-1 gap-1">
+              <div className="flex items-center gap-2 text-xs">
+                <span className={cn("size-2 shrink-0 rounded-full", a.needsPairing ? "bg-warning" : "bg-success")} />
+                <Input className="h-7 w-32" aria-label="Address name" value={form.labels[a.id] ?? ""} placeholder={addressKind(a.url)}
+                  onChange={(e) => setForm({ ...form, labels: { ...form.labels, [a.id]: e.target.value } })} />
+                <span className="min-w-0 flex-1 break-all font-mono text-muted-foreground">{a.url}</span>
+                {a.needsPairing && <span className="shrink-0 text-warning">Needs pairing</span>}
+                {inUse ? <span className="shrink-0 text-muted-foreground">In use</span>
+                  : <Button variant="ghost" size="sm" className="-my-1 shrink-0" onClick={() => selectRoute(machine.id, a.id)}>Use</Button>}
+                {machine.addresses.length > 1 && (
+                  <Button variant="ghost" size="icon-sm" aria-label={`Remove ${addressLabel(machine, a)}`} className="shrink-0 text-danger hover:text-danger"
+                    onClick={() => removeAddress(machine.id, a.id)}>
+                    <Trash2 className="size-3.5" />
+                  </Button>
+                )}
+              </div>
+              {!a.needsPairing && a.url.startsWith("http:") && inUse && <InsecureWarning />}
+            </div>
+          );
+        })}
+        {needsPairing(machine) && (
+          <p className="text-[11.5px] text-muted-foreground">
+            This device has no valid credential for the address in use. Run <code className="font-mono">mobd link</code> on the office Mac and paste the new link.
+          </p>
         )}
+        {needsPairing(machine) || repair ? (
+          <PairForm machine={machine} onPaired={() => { setRepair(false); setTest({ state: "idle" }); }} />
+        ) : (
+          <Button variant="ghost" size="sm" className="w-fit" onClick={() => setRepair(true)}>Add address or pair again…</Button>
+        )}
+        <p className="text-[11px] text-muted-foreground">
+          Each address is paired on its own, so the device credential never goes to an address it was not paired on. To add one, run{" "}
+          <code className="font-mono">mobd link</code> (or <code className="font-mono">mobd link --lan</code>) on the office Mac and paste its link.
+        </p>
       </div>
       <QualityPicker value={machine.liveQuality ?? "auto"} onChange={(q) => setLiveQuality(machine.id, q)} />
       <div className="flex items-center gap-2 pt-1">
         <Button type="submit" disabled={!form.name.trim()}>Save</Button>
-        <Button variant="secondary" disabled={machine.needsPairing || test.state === "testing"} onClick={() => void runTest()}>
+        <Button variant="secondary" disabled={needsPairing(machine) || test.state === "testing"} onClick={() => void runTest()}>
           {test.state === "testing" && <Spinner />} Test connection
         </Button>
         {saved && <span className={cn("text-xs", saved === "Saved" ? "text-success" : "text-danger")}>{saved}</span>}
@@ -335,8 +362,8 @@ function MachinesTab() {
             <button key={m.id} type="button" onClick={() => set({ editMachineId: m.id })}
               className={cn("rounded-md px-2.5 py-1.5 text-left hover:bg-muted", m.id === editMachineId && "bg-muted")}>
               <p className="truncate text-[13px] font-medium">{m.name}</p>
-              <p className={cn("truncate text-[11px]", m.needsPairing ? "text-warning" : "text-muted-foreground")}>
-                {m.needsPairing ? "Needs pairing" : m.mobdUrl}
+              <p className={cn("truncate text-[11px]", needsPairing(m) ? "text-warning" : "text-muted-foreground")}>
+                {needsPairing(m) ? "Needs pairing" : m.addresses.length > 1 ? `${m.addresses.length} addresses` : baseUrl(m)}
               </p>
             </button>
           ))}

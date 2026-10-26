@@ -1,5 +1,7 @@
 // Persisted-state migrations for "mob.app"; pure so node tests can run them.
 
+import { withAddresses } from "../lib/machines.ts";
+
 interface StoredMachine {
   id: string;
   vncPassword?: string;
@@ -49,5 +51,7 @@ export function migrateApp(state: unknown, version: number): unknown {
     s.machines = s.machines.map(({ vncUsername: _, ...m }) => m);
     s.legacySecrets = Object.fromEntries(Object.entries(s.legacySecrets ?? {}).filter(([k]) => !k.endsWith(".vncPassword")));
   }
+  // v7 gives each machine a list of addresses (each paired on its own) and a chosen route.
+  if (version < 7) s.machines = s.machines.map((m) => withAddresses(m as unknown as Record<string, unknown> & { id: string }) as unknown as StoredMachine);
   return s;
 }

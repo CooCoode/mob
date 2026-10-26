@@ -6,7 +6,7 @@ import { chat } from "@/hooks/useChat";
 import { streamAuth } from "@/lib/auth";
 import { applyDesktop, applyLevel, parseDesktop, parseDisk, parseMemory } from "@/lib/desktops";
 import { EventStream } from "@/lib/sse";
-import { baseUrl, type Machine } from "@/store/app";
+import { baseUrl, needsPairing, type Machine } from "@/store/app";
 import { log } from "@/store/log";
 
 /** Polls /health while the machine is paired; a 401 marks it and stops polling. */
@@ -15,7 +15,7 @@ export function useHealth(machine: Machine | null | undefined) {
   return useQuery({
     queryKey: ["health", base],
     queryFn: () => fetchHealth(base),
-    enabled: !!base && !machine?.needsPairing,
+    enabled: !!base && !needsPairing(machine),
     refetchInterval: 30_000,
     retry: false,
   });
@@ -40,7 +40,7 @@ export function useMachineEvents(machine: Machine | null | undefined) {
   const qc = useQueryClient();
   const base = baseUrl(machine);
   const { data: health } = useHealth(machine);
-  const live = supports(health, "events") && !machine?.needsPairing;
+  const live = supports(health, "events") && !needsPairing(machine);
   const desktops = sessionDesktops(health);
   useEffect(() => {
     if (!base || !live) return;
