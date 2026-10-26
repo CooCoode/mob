@@ -29,7 +29,9 @@ export function extractSecrets<M extends StoredMachine>(machines: M[], legacySec
 }
 
 export function migrateApp(state: unknown, version: number): unknown {
-  const s = (state ?? {}) as { machines?: StoredMachine[]; legacySecrets?: Record<string, string>; previewOpen?: boolean };
+  const s = (state ?? {}) as { machines?: StoredMachine[]; legacySecrets?: Record<string, string>; previewOpen?: boolean; turnPrefs?: unknown };
+  // v6 drops the per-device model and effort: mobd's machine and conversation settings replace them.
+  if (version < 6) delete s.turnPrefs;
   // v4 hides the desktop panel until the user opens it; it used to be open by default.
   if (version < 4) s.previewOpen = false;
   if (!Array.isArray(s.machines)) return s;

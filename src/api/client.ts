@@ -1,6 +1,6 @@
 import { ApiError, authFetch } from "../lib/auth.ts";
 import { parseDesktops } from "../lib/desktops.ts";
-import type { Desktops, Health, Queue, RunnerInfo, Session, Upload } from "./types.ts";
+import type { Desktops, Health, MachineSettings, Queue, RunnerInfo, Session, SettingsView, Upload } from "./types.ts";
 
 async function getJSON<T>(base: string, path: string, init?: RequestInit): Promise<T> {
   const res = await authFetch(base, `${base}${path}`, init);
@@ -13,6 +13,14 @@ async function getJSON<T>(base: string, path: string, init?: RequestInit): Promi
 }
 
 export const fetchHealth = (base: string) => getJSON<Health>(base, "/health");
+
+export const fetchSettings = (base: string) => getJSON<SettingsView>(base, "/settings");
+
+/** Replaces the machine settings; ApiError code "settings_changed" when another device saved first. */
+export const saveSettings = (base: string, settings: MachineSettings) =>
+  getJSON<SettingsView>(base, "/settings", {
+    method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(settings),
+  });
 
 export const fetchQueue = (base: string) => getJSON<Queue>(base, "/queue");
 

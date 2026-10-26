@@ -31,9 +31,10 @@ export interface PairResult {
 }
 
 export type Theme = "system" | "light" | "dark";
-export type SettingsTab = "machines" | "appearance" | "log" | "about";
+export type SettingsTab = "machines" | "agents" | "appearance" | "log" | "about";
 
-// Keyed by machine ID (picked runner) and "<machine>/<runner>" (model, effort).
+// A new chat's choices on this device, until the chat exists: keyed by machine ID (runner) and
+// "<machine>/<runner>" (model, effort). In memory only; conversations keep theirs in mobd.
 export interface TurnPrefs {
   runner?: string;
   model?: string;
@@ -48,12 +49,12 @@ interface Persisted {
   sidebarOpen: boolean;
   previewOpen: boolean;
   theme: Theme;
-  turnPrefs: Record<string, TurnPrefs>;
   /** Migrated passwords not yet written to the keychain, keyed by account. */
   legacySecrets: Record<string, string>;
 }
 
 interface Ephemeral {
+  turnPrefs: Record<string, TurnPrefs>;
   settingsOpen: boolean;
   settingsTab: SettingsTab;
   editMachineId: string | null;
@@ -79,7 +80,8 @@ interface Actions {
   markNeedsPairing: (id: string) => void;
   deleteMachine: (id: string) => void;
   rememberSession: (machineId: string, sessionId: string | null) => void;
-  setTurnPrefs: (machineId: string, prefs: TurnPrefs) => void;
+  setTurnPrefs: (key: string, prefs: TurnPrefs) => void;
+  clearTurnPrefs: (key: string) => void;
   openSettings: (tab?: SettingsTab, editMachineId?: string | null) => void;
 }
 
@@ -117,7 +119,6 @@ function initial(): Persisted {
     sidebarOpen: true,
     previewOpen: false,
     theme: "system",
-    turnPrefs: {},
   };
 }
 
@@ -125,6 +126,7 @@ export const useApp = create<AppState>()(
   persist(
     (set, get) => ({
       ...initial(),
+      turnPrefs: {},
       settingsOpen: false,
       settingsTab: "machines",
       editMachineId: null,
@@ -177,12 +179,16 @@ export const useApp = create<AppState>()(
       },
       setTurnPrefs: (machineId, prefs) =>
         set({ turnPrefs: { ...get().turnPrefs, [machineId]: { ...get().turnPrefs[machineId], ...prefs } } }),
+      clearTurnPrefs: (key) => {
+        const { [key]: _, ...rest } = get().turnPrefs;
+        set({ turnPrefs: rest });
+      },
       openSettings: (tab = "machines", editMachineId = null) =>
         set({ settingsOpen: true, settingsTab: tab, editMachineId: editMachineId ?? get().activeMachineId }),
     }),
     {
       name: "mob.app",
-      version: 5,
+      version: 6,
       migrate: (state, version) => {
         if (version < 5) removedVncPasswords = true;
         return migrateApp(state, version) as Persisted;
@@ -191,7 +197,7 @@ export const useApp = create<AppState>()(
       partialize: (s): Persisted => ({
         machines: s.machines, activeMachineId: s.activeMachineId, savedSessions: s.savedSessions,
         collapsed: s.collapsed, sidebarOpen: s.sidebarOpen, previewOpen: s.previewOpen, theme: s.theme,
-        turnPrefs: s.turnPrefs, legacySecrets: s.legacySecrets,
+        legacySecrets: s.legacySecrets,
       }),
     },
   ),

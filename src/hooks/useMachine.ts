@@ -61,6 +61,11 @@ export function useMachineEvents(machine: Machine | null | undefined) {
       chat.applyQueue(q);
     });
     on<Task>("task", (t) => chat.applyTask(t));
+    // Machine settings changed on some device: the models and defaults offered come from /health.
+    on<unknown>("settings", (v) => {
+      qc.setQueryData(["settings", base], v);
+      void qc.invalidateQueries({ queryKey: ["health", base] });
+    });
     if (desktops) {
       const update = (fn: (d: Desktops | undefined) => Desktops) => qc.setQueryData<Desktops>(["desktops", base], fn);
       on<unknown>("desktop", (raw) => {

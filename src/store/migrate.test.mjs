@@ -51,3 +51,9 @@ test("v5 state is unchanged, including an open panel", () => {
   const v5 = { machines: [{ id: "a", name: "O", mobdUrl: "http://o" }], legacySecrets: {}, previewOpen: true };
   assert.deepEqual(migrateApp(structuredClone(v5), 5), v5);
 });
+
+test("v5 → v6 drops the per-device model and effort choices", () => {
+  const out = migrateApp({ machines: [{ id: "a" }], legacySecrets: {}, turnPrefs: { "a/codex": { model: "o4" } } }, 5);
+  assert.equal("turnPrefs" in out, false);
+  assert.deepEqual(out.machines, [{ id: "a" }]);
+});

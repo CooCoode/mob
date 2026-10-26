@@ -322,7 +322,7 @@ export class Chat {
     const merged = { ...existing, ...summary, messages: undefined };
     this.sessions = [merged, ...this.sessions.filter((s) => s.id !== summary.id)];
     if (this.session?.id === summary.id) {
-      this.session = { ...this.session, title: summary.title, pinned: summary.pinned, archived: summary.archived };
+      this.session = { ...this.session, title: summary.title, pinned: summary.pinned, archived: summary.archived, model: summary.model, effort: summary.effort };
     }
     this.changed();
   }
@@ -357,7 +357,7 @@ export class Chat {
     this.changed();
   }
 
-  async patchSession(id: string, patch: { title?: string; pinned?: boolean; archived?: boolean }): Promise<void> {
+  async patchSession(id: string, patch: { title?: string; pinned?: boolean; archived?: boolean; model?: string; effort?: string }): Promise<void> {
     try {
       const summary = await this.request<Session>(`${this.url}/sessions/${id}`, {
         method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(patch),

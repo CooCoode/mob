@@ -49,6 +49,9 @@ export interface Session {
   title: string;
   /** The runner this conversation is pinned to. */
   runner?: string;
+  /** The conversation's model and effort (mobd with "settings"); absent = machine default. */
+  model?: string;
+  effort?: string;
   resumeId?: string;
   activeTaskId?: string;
   status: TaskStatus;
@@ -148,6 +151,50 @@ export interface RunnerInfo {
   /** What the agent uses when a turn picks none; absent when unset there or from an older mobd. */
   defaultModel?: string;
   defaultEffort?: string;
+  permissions?: Permissions;
+}
+
+export type Permissions = "bypass" | "approve";
+
+/** Where a setting's value comes from: an app, mobd's config, the agent's own settings, or none. */
+export type SettingFrom = "app" | "config" | "agent" | "builtin";
+
+/** What the apps set for one agent (GET/PUT /settings); absent = not set here. */
+export interface AgentSettings {
+  models?: string[];
+  defaultModel?: string;
+  defaultEffort?: string;
+  permissions?: Permissions;
+}
+
+export interface MachineSettings {
+  rev: number;
+  defaultAgent?: string;
+  agents?: Record<string, AgentSettings>;
+}
+
+/** What an agent uses now, and where each value comes from. */
+export interface EffectiveAgent {
+  models: string[];
+  modelsFrom: SettingFrom;
+  defaultModel?: string;
+  defaultModelFrom: SettingFrom;
+  defaultEffort?: string;
+  defaultEffortFrom: SettingFrom;
+  permissions: Permissions;
+  permissionsFrom: SettingFrom;
+  efforts: string[];
+  /** What applies without the app settings: what clearing a value returns to. */
+  fallback?: Omit<EffectiveAgent, "fallback">;
+}
+
+export interface SettingsView {
+  settings: MachineSettings;
+  defaultAgent: string;
+  defaultAgentFrom: SettingFrom;
+  /** The default agent without the app setting. */
+  fallbackDefaultAgent: string;
+  agents: Record<string, EffectiveAgent>;
 }
 
 export interface Health {

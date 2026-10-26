@@ -10,6 +10,7 @@ import {
 import { Tooltip } from "@/components/ui/tooltip";
 import { useChat } from "@/hooks/useChat";
 import { imeGuard } from "@/lib/ime";
+import { menuModels, shownChoice, turnChoice } from "@/lib/turnSettings";
 import { cn, defaultLabel } from "@/lib/utils";
 import { useApp } from "@/store/app";
 import { useComposer } from "@/store/composer";
@@ -61,6 +62,7 @@ export function Composer({ machineId, machineName, health }: { machineId: string
   const { text, setText, focusTick } = useComposer();
   const machinePrefs = useApp((s) => s.turnPrefs[machineId]) ?? {};
   const setTurnPrefs = useApp((s) => s.setTurnPrefs);
+  const clearTurnPrefs = useApp((s) => s.clearTurnPrefs);
   const runners = (health?.runners ?? []).filter((r) => r.available);
   // A conversation keeps its runner; a new chat uses the picked one if it is still available.
   const picked = chat.sessionId ? chat.session?.runner : runners.find((r) => r.name === machinePrefs.runner)?.name;
@@ -77,6 +79,14 @@ export function Composer({ machineId, machineName, health }: { machineId: string
   // Older mobd (no runner list) offers the default runner's models/efforts at the top level.
   const models = runner?.models ?? health?.models ?? [];
   const efforts = runner?.efforts ?? health?.efforts ?? [];
+  // An open chat shows and changes its conversation's model and effort (shared by every device);
+  // a new chat keeps a draft on this device until it exists.
+  const hasSettings = supports(health, "settings");
+  const shown = shownChoice({ settings: hasSettings, session: chat.sessionId ? chat.session : null, draft: prefs });
+  const choose = (patch: { model?: string; effort?: string }) => {
+    if (hasSettings && chat.sessionId) void chat.patchSession(chat.sessionId, patch);
+    else setTurnPrefs(runnerKey, patch);
+  };
   const uploading = attachments.some((a) => !a.id && !a.error);
   const ready = attachments.filter((a) => a.id);
   const busy = chat.busy;
@@ -113,13 +123,17 @@ export function Composer({ machineId, machineName, health }: { machineId: string
       return;
     }
     if (!prompt || !chat.canSend || uploading) return;
+    const newChat = !chat.sessionId;
     const ok = await chat.submit(prompt, {
-      // Only send settings the turn's runner offers (prefs may come from another runner).
-      model: canOptions && prefs.model && (models.length === 0 || models.includes(prefs.model)) ? prefs.model : undefined,
-      effort: canOptions && prefs.effort && efforts.includes(prefs.effort) ? prefs.effort : undefined,
+      ...(canOptions ? turnChoice({ settings: hasSettings, newChat, shown, efforts }) : {}),
       attachments: ready.map((a) => a.id!),
-      runner: chat.sessionId ? undefined : runner?.name,
+      runner: newChat ? runner?.name : undefined,
     });
+    if (ok && newChat && hasSettings) {
+      // The conversation has its settings now; the next new chat starts from the defaults.
+      clearTurnPrefs(runnerKey);
+      clearTurnPrefs(machineId);
+    }
     if (ok) {
       if (useComposer.getState().text.trim() === prompt) setText("");
       for (const a of attachments) URL.revokeObjectURL(a.preview);
@@ -242,10 +256,10 @@ export function Composer({ machineId, machineName, health }: { machineId: string
           )}
           {canOptions && (
             <>
-              <Picker icon={Cpu} label="Model" placeholder={defaultLabel("model", runner?.defaultModel)} value={prefs.model ?? ""} options={models}
-                onChange={(model) => setTurnPrefs(runnerKey, { model })} />
-              <Picker icon={Brain} label="Reasoning effort" placeholder={defaultLabel("effort", runner?.defaultEffort)} value={prefs.effort ?? ""} options={efforts}
-                onChange={(effort) => setTurnPrefs(runnerKey, { effort })} />
+              <Picker icon={Cpu} label="Model" placeholder={defaultLabel("model", runner?.defaultModel)} value={shown.model} options={menuModels(models, shown.model)}
+                onChange={(model) => choose({ model })} />
+              <Picker icon={Brain} label="Reasoning effort" placeholder={defaultLabel("effort", runner?.defaultEffort)} value={shown.effort} options={efforts}
+                onChange={(effort) => choose({ effort })} />
             </>
           )}
           <div className="flex-1" />

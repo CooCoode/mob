@@ -1,7 +1,8 @@
 import { UpdateSettings } from "@/components/UpdateNotice";
+import { AgentsTab } from "@/components/settings/AgentsTab";
 import { Licenses } from "@/components/settings/Licenses";
 import {
-  CheckCircle2, CircleHelp, Info, Monitor, Moon, Palette, Plus, ScrollText, Sun, SunMoon, Trash2, TriangleAlert, XCircle,
+  CheckCircle2, CircleHelp, Info, Monitor, Moon, Palette, Plus, ScrollText, Sun, SunMoon, Trash2, TriangleAlert, XCircle, Bot,
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState, type ClipboardEvent, type KeyboardEvent } from "react";
 import { invoke, isTauri } from "@tauri-apps/api/core";
@@ -422,6 +423,7 @@ export function SettingsDialog() {
   const { settingsOpen, settingsTab, set } = useApp();
   const tabs = [
     { value: "machines", label: "Machines", icon: Monitor },
+    { value: "agents", label: "Agents", icon: Bot },
     { value: "appearance", label: "Appearance", icon: Palette },
     { value: "log", label: "Log", icon: ScrollText },
     { value: "about", label: "About", icon: Info },
@@ -439,6 +441,7 @@ export function SettingsDialog() {
           </div>
           <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-y-auto p-5 pt-11">
             <TabsContent value="machines" className="h-full"><MachinesTab /></TabsContent>
+            <TabsContent value="agents" className="h-full"><AgentsTab /></TabsContent>
             <TabsContent value="appearance"><div className="grid gap-6"><AppearanceTab /><NotificationsSetting /></div></TabsContent>
             <TabsContent value="log" className="h-full"><LogTab /></TabsContent>
             <TabsContent value="about">
