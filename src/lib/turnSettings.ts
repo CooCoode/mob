@@ -46,3 +46,8 @@ export function addModel(models: string[], raw: string): string[] | string {
 export function newlyUnguarded(before: SettingsEdit, after: SettingsEdit): string[] {
   return Object.keys(before.agents).filter((n) => before.agents[n].permissions === "approve" && after.agents[n]?.permissions === "bypass");
 }
+
+/** What to tell the user about an agent that is not ready on the machine. */
+export function agentStateLabel(state: string): string {
+  return { disabled: "Installed, not enabled", missing: "Not installed", error: "Not working" }[state] ?? state;
+}

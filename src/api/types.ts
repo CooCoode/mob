@@ -179,9 +179,21 @@ export interface AgentInfo {
   agentDefaultEffort?: string;
 }
 
+/** Whether a supported agent is set up on the machine, enabled or not. */
+export interface AgentStatus {
+  name: string;
+  label: string;
+  state: "ready" | "disabled" | "missing" | "error";
+  enabled: boolean;
+  detail?: string;
+  /** The command that installs a missing agent. */
+  install?: string;
+}
+
 export interface SettingsView {
   settings: MachineSettings;
   agents: Record<string, AgentInfo>;
+  installed?: AgentStatus[];
 }
 
 export interface Health {

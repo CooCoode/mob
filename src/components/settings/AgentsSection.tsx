@@ -6,7 +6,7 @@ import { Spinner } from "@/components/StatusIcon";
 import { Button } from "@/components/ui/button";
 import { Input, Label } from "@/components/ui/input";
 import { ApiError } from "@/lib/auth";
-import { addModel, newlyUnguarded, withAgent, type AgentEdit, type SettingsEdit } from "@/lib/turnSettings";
+import { addModel, agentStateLabel, newlyUnguarded, withAgent, type AgentEdit, type SettingsEdit } from "@/lib/turnSettings";
 import { cn } from "@/lib/utils";
 import { baseUrl, useApp, type Machine } from "@/store/app";
 
@@ -153,6 +153,24 @@ export function AgentsSection({ machine }: { machine: Machine }) {
           </section>
         );
       })}
+      {(view.installed ?? []).some((a) => a.state !== "ready") && (
+        <section className="grid gap-2 rounded-lg border bg-panel p-3">
+          <h4 className="text-[13px] font-semibold">Other agents</h4>
+          {(view.installed ?? []).filter((a) => a.state !== "ready").map((a) => (
+            <div key={a.name} className="grid gap-1 text-xs">
+              <p><span className="font-medium text-foreground">{a.label}</span> · <span className={a.state === "error" ? "text-danger" : "text-muted-foreground"}>{agentStateLabel(a.state)}</span></p>
+              {a.detail && <p className="break-all text-muted-foreground">{a.detail}</p>}
+              {a.install && (
+                <div className="flex items-center gap-2">
+                  <code className="min-w-0 flex-1 truncate rounded border bg-background px-2 py-1 font-mono text-[11.5px]">{a.install}</code>
+                  <Button variant="ghost" size="sm" onClick={() => void navigator.clipboard.writeText(a.install!)}>Copy</Button>
+                </div>
+              )}
+            </div>
+          ))}
+          <p className="text-[11.5px] text-muted-foreground">Install on {machine.name}, add the agent to <code className="font-mono">runners</code> in mobd&apos;s config.json, then run <code className="font-mono">mobd restart</code>.</p>
+        </section>
+      )}
       {status.kind === "confirm" && (
         <div className="grid gap-2 rounded-lg border border-warning/50 bg-warning/10 p-3 text-xs">
           <p><strong>{status.agents!.map(label).join(", ")}</strong> will run commands and edit files on {machine.name} without asking you first.</p>

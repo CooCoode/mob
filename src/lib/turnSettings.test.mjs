@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { addModel, menuModels, newlyUnguarded, shownChoice, withAgent } from "./turnSettings.ts";
+import { addModel, agentStateLabel, menuModels, newlyUnguarded, shownChoice, withAgent } from "./turnSettings.ts";
 
 test("an open chat shows its conversation's settings; a new chat its draft", () => {
   assert.deepEqual(shownChoice({ model: "gpt-5.4", effort: "high" }, { model: "x" }), { model: "gpt-5.4", effort: "high" });
@@ -25,4 +25,10 @@ test("settings edits, model names, and turning approval off needs a confirmation
   assert.match(addModel([], "has space"), /no spaces/);
   assert.deepEqual(newlyUnguarded(s, withAgent(s, "codex", { permissions: "bypass" })), ["codex"]);
   assert.deepEqual(newlyUnguarded(s, next), []);
+});
+
+test("agents that are not ready are named plainly", () => {
+  assert.equal(agentStateLabel("missing"), "Not installed");
+  assert.equal(agentStateLabel("disabled"), "Installed, not enabled");
+  assert.equal(agentStateLabel("error"), "Not working");
 });
