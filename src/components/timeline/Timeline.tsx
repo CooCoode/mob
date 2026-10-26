@@ -87,7 +87,7 @@ function TurnFooter({ task, last }: { task: Task; last: boolean }) {
             {task.error && <p className="mt-0.5 break-words text-muted-foreground">{task.error}</p>}
           </div>
           {last && (
-            <Button variant="secondary" size="sm" disabled={!chat.canSend} onClick={() => void chat.submit(task.prompt, { model: task.model, effort: task.effort, attachments: task.attachments })}>
+            <Button variant="secondary" size="sm" disabled={!chat.canSend} onClick={() => void chat.submit(task.prompt, { attachments: task.attachments })}>
               <RotateCcw /> Retry
             </Button>
           )}
