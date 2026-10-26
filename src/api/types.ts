@@ -145,6 +145,9 @@ export interface RunnerInfo {
   available: boolean;
   detail?: string;
   default: boolean;
+  /** What the agent uses when a turn picks none; absent when unset there or from an older mobd. */
+  defaultModel?: string;
+  defaultEffort?: string;
 }
 
 export interface Health {

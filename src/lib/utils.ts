@@ -38,3 +38,8 @@ export function compactNumber(n: number): string {
 export function uid(): string {
   return crypto.randomUUID?.() ?? `m-${Date.now()}-${Math.random().toString(16).slice(2)}`;
 }
+
+/** The menu entry for "no choice": names the agent's default when mobd reports it. */
+export function defaultLabel(what: string, value?: string): string {
+  return value ? `Default (${value})` : `Default ${what}`;
+}

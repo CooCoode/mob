@@ -10,7 +10,7 @@ import {
 import { Tooltip } from "@/components/ui/tooltip";
 import { useChat } from "@/hooks/useChat";
 import { imeGuard } from "@/lib/ime";
-import { cn } from "@/lib/utils";
+import { cn, defaultLabel } from "@/lib/utils";
 import { useApp } from "@/store/app";
 import { useComposer } from "@/store/composer";
 
@@ -242,9 +242,9 @@ export function Composer({ machineId, machineName, health }: { machineId: string
           )}
           {canOptions && (
             <>
-              <Picker icon={Cpu} label="Model" placeholder="Default model" value={prefs.model ?? ""} options={models}
+              <Picker icon={Cpu} label="Model" placeholder={defaultLabel("model", runner?.defaultModel)} value={prefs.model ?? ""} options={models}
                 onChange={(model) => setTurnPrefs(runnerKey, { model })} />
-              <Picker icon={Brain} label="Reasoning effort" placeholder="Default effort" value={prefs.effort ?? ""} options={efforts}
+              <Picker icon={Brain} label="Reasoning effort" placeholder={defaultLabel("effort", runner?.defaultEffort)} value={prefs.effort ?? ""} options={efforts}
                 onChange={(effort) => setTurnPrefs(runnerKey, { effort })} />
             </>
           )}
