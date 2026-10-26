@@ -18,6 +18,7 @@ import { MOD } from "@/lib/platform";
 import { chat, useChat } from "@/hooks/useChat";
 import { useDesktops, useHealth, useQueue } from "@/hooks/useMachine";
 import { desktopMark, desktopOf, seedErrorText } from "@/lib/desktops";
+import { imeGuard } from "@/lib/ime";
 import { cn, shortAgo } from "@/lib/utils";
 import { baseUrl, useApp, type Machine } from "@/store/app";
 import { useComposer } from "@/store/composer";
@@ -69,6 +70,7 @@ function SessionRow({ session, active, admin, desktops, hasDesktop, position, on
 }) {
   const [editing, setEditing] = useState(false);
   const [title, setTitle] = useState(session.title);
+  const [ime] = useState(imeGuard);
   const field = useRef<HTMLInputElement>(null);
   useEffect(() => {
     if (editing) field.current?.select();
@@ -86,7 +88,11 @@ function SessionRow({ session, active, admin, desktops, hasDesktop, position, on
         value={title}
         onChange={(e) => setTitle(e.target.value)}
         onBlur={commit}
+        onCompositionStart={ime.start}
+        onCompositionEnd={ime.end}
         onKeyDown={(e) => {
+          // Enter and Escape that end Pinyin or another input method belong to it.
+          if (ime.owns(e.nativeEvent)) return;
           if (e.key === "Enter") commit();
           if (e.key === "Escape") setEditing(false);
         }}

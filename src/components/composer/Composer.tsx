@@ -9,6 +9,7 @@ import {
 } from "@/components/ui/menu";
 import { Tooltip } from "@/components/ui/tooltip";
 import { useChat } from "@/hooks/useChat";
+import { imeGuard } from "@/lib/ime";
 import { cn } from "@/lib/utils";
 import { useApp } from "@/store/app";
 import { useComposer } from "@/store/composer";
@@ -67,6 +68,7 @@ export function Composer({ machineId, machineName, health }: { machineId: string
   const prefs = useApp((s) => s.turnPrefs[runnerKey]) ?? {};
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   const [dragging, setDragging] = useState(false);
+  const [ime] = useState(imeGuard);
   const input = useRef<HTMLTextAreaElement>(null);
   const file = useRef<HTMLInputElement>(null);
   const runner = runnerFor(health, picked);
@@ -182,8 +184,11 @@ export function Composer({ machineId, machineName, health }: { machineId: string
               addFiles(files);
             }
           }}
+          onCompositionStart={ime.start}
+          onCompositionEnd={ime.end}
           onKeyDown={(e) => {
-            if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
+            // Enter that commits Pinyin or another input method must not send.
+            if (e.key === "Enter" && !e.shiftKey && !ime.owns(e.nativeEvent)) {
               e.preventDefault();
               void send();
             }
