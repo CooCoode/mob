@@ -20,8 +20,10 @@ Windows 安装程序**暂未做 Authenticode 签名**，首次运行时 SmartScr
 更新包仍由 Tauri 更新密钥签名校验。以后加签名只需在 `windows` 任务里增加签名步骤。
 不提供 Intel Mac、arm64 Windows/Linux 或 iPhone 安装包。更新源只有 R2。
 
-每次推送到 `main`，`build.yml` 还会构建未签名的 Windows 与 Linux 测试包（Actions 构建产物，保留 14 天），
-用于在发布前试装；它不需要任何密钥，也不发布。
+`ci.yml` 检查每次推送到 `main` 和指向 `main` 的 PR（类型检查、测试、前端构建，macOS 上编译并测试 Rust 端），不产出文件。
+`build.yml`（Test builds）手动运行（Actions → Test builds → Run workflow），可从任意分支构建未签名的
+macOS、Windows、Linux 测试包（Actions 构建产物，保留 14 天），用于在发布前试装；它不需要任何密钥，也不发布。
+未签名的 macOS 应用首次打开会被拦截：右键 Mob.app → 打开，或运行 `xattr -dr com.apple.quarantine Mob.app`。
 
 ## 1. 准备 Cloudflare R2
 

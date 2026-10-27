@@ -55,7 +55,7 @@ jobs:
       - name: Install Rust target
         run: rustup target add aarch64-apple-darwin
       - name: Install frontend dependencies and test
-        run: npm ci && npm test
+        run: npm ci && npm test && npm run typecheck
       - name: Import Apple certificate
         id: signing
         uses: ./.github/actions/apple-signing

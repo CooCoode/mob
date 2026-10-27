@@ -1,0 +1,42 @@
+name: CI
+# Checks every push to main and every pull request to main (other branches run nothing until a
+# pull request is open); it makes no downloads, see build.yml for those.
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  frontend:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: package-lock.json
+      - run: npm ci
+      - name: Typecheck, test and build
+        run: npm run typecheck && npm test && npx vite build
+  # The Rust side on macOS, the platform that ships.
+  app:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: package-lock.json
+      - name: Frontend (the app embeds it)
+        run: npm ci && npx vite build
+      - name: Compile and test the app
+        working-directory: src-tauri
+        run: cargo test --locked
