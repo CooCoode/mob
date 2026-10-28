@@ -21,6 +21,7 @@
 - Human input is opt-in per use: the panel is always **view only**; only the expanded view has a **View | Control** switch, which starts on View and resets to View when the view collapses. Switching sends input over the open session's data channels (or the WebSocket); it does not reconnect.
 - Auth is pairing only: paste the link from `mobd link`; the credential stays in the system keyring (Keychain / Credential Manager / Secret Service), with an automatic encrypted-file fallback when that store is unavailable ([credential-storage.md](credential-storage.md)). No accounts or sign-in.
 - On Linux with WebKitGTK 2.54.0–2.54.1, native Ctrl+V can crash the process when the clipboard is empty or one-shot ([WebKit bug 324466](https://bugs.webkit.org/show_bug.cgi?id=324466)). The pairing field intercepts paste and reads via the OS clipboard API, and also offers a **Paste** button.
+- Links in agent replies are explicit actions. HTTP(S) links open in the system browser in the desktop app. Absolute local paths, `file:` links and legacy `tauri://localhost` file links open a dialog for the device running Mob, with actions to open, reveal or copy the path; missing files explain that the path may belong to the office machine. Unknown protocols and ambiguous relative paths are shown as unsupported. Browser development keeps normal web links and only offers local-path copying.
 - Machines are first-class; each has its own `mobd` URL (added by pairing) and its own live view quality.
 
 ---

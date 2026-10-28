@@ -1,6 +1,6 @@
 # Issue #2：聊天回复链接的打开行为
 
-状态：待用户确认，尚未修改修复代码。
+状态：已按确认方案实现，等待人工验收。
 基线：`a9b9b2a`，2026-10-28。
 Issue：[bug: 聊天回复中的外部链接和本地文件链接点击无反应](https://github.com/xrdavies/mob/issues/2)。
 代码导航：[模块与数据流图](../code-map.md)。
@@ -104,4 +104,4 @@ flowchart TD
 
 - `make check`：95 项逻辑测试、类型检查、18 项发布测试通过。
 - `npm run build`：通过；现有主 bundle 超过 500 kB 的提示仍在。
-- 本轮仅增加代码关系图、导航入口和本方案，未改业务或原生权限。
+- 本轮已在 `design/issue-2-link-handling` 分支实现；业务链接处理、原生 opener、受控本地文件命令和回归测试均已加入。

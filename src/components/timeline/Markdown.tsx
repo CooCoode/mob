@@ -1,6 +1,8 @@
 import { Check, Copy } from "lucide-react";
 import { memo, useEffect, useState, type ComponentProps } from "react";
-import ReactMarkdown from "react-markdown";
+import ReactMarkdown, { defaultUrlTransform } from "react-markdown";
+import { MarkdownLink } from "./MarkdownLink";
+import { classifyLink } from "@/lib/links";
 import remarkGfm from "remark-gfm";
 
 type Highlighter = Awaited<ReturnType<typeof import("shiki/core").createHighlighterCore>>;
@@ -98,23 +100,28 @@ function CodeBlock({ code, lang }: { code: string; lang: string }) {
 
 const components: ComponentProps<typeof ReactMarkdown>["components"] = {
   pre: ({ children }) => <>{children}</>,
+  img: ({ src, alt }) => src ? <img src={src} alt={alt ?? ""} /> : null,
   code: ({ className, children }) => {
     const match = /language-([\w+-]+)/.exec(className ?? "");
     const text = String(children ?? "");
     if (!match && !text.includes("\n")) return <code>{children}</code>;
     return <CodeBlock code={text.replace(/\n$/, "")} lang={match?.[1] ?? ""} />;
   },
-  a: ({ children, href }) => (
-    <a href={href} target="_blank" rel="noreferrer">
-      {children}
-    </a>
+  a: ({ children, href, node }) => (
+    <MarkdownLink href={String(node?.properties["data-mob-href"] ?? href ?? "")}>{children}</MarkdownLink>
   ),
 };
 
 export const Markdown = memo(function Markdown({ text }: { text: string }) {
   return (
     <div className="prose-mob">
-      <ReactMarkdown remarkPlugins={[remarkGfm]} components={components}>
+      <ReactMarkdown remarkPlugins={[remarkGfm]} components={components} urlTransform={(url, key, node) => {
+        if (key !== "href" || node.tagName !== "a") return defaultUrlTransform(url);
+        // Keep the original for our handler, never as an untrusted navigable href.
+        node.properties["data-mob-href"] = url;
+        const target = classifyLink(url);
+        return target.kind === "web" ? target.url : target.kind === "anchor" ? target.href : "#mob-file-link";
+      }}>
         {text}
       </ReactMarkdown>
     </div>

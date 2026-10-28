@@ -1,3 +1,4 @@
+mod links;
 mod secrets;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -9,9 +10,15 @@ pub fn run() {
             secret_set,
             secret_delete,
             secret_storage_info,
-            clipboard_read_text
+            clipboard_read_text,
+            links::open_local_path
         ])
         .plugin(tauri_plugin_process::init())
+        .plugin(
+            tauri_plugin_opener::Builder::new()
+                .open_js_links_on_click(false)
+                .build(),
+        )
         .setup(|app| {
             if app.config().plugins.0.contains_key("updater") {
                 app.handle()
