@@ -84,7 +84,7 @@ function PairForm({ machine, onPaired }: { machine?: Machine; onPaired: (id: str
   const completePairing = useApp((s) => s.completePairing);
   const machines = useApp((s) => s.machines);
   const [link, setLink] = useState("");
-  const [officeName, setOfficeName] = useState("Office Mac");
+  const [officeName, setOfficeName] = useState("Office computer");
   const [deviceName, setDeviceName] = useState(defaultDeviceName);
   const [confirmed, setConfirmed] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -162,7 +162,7 @@ function PairForm({ machine, onPaired }: { machine?: Machine; onPaired: (id: str
   return (
     <div className="grid gap-3">
       {!saved && (
-        <Label>Display name<Input value={officeName} placeholder="Office Mac" onChange={(e) => setOfficeName(e.target.value)} /></Label>
+        <Label>Display name<Input value={officeName} placeholder="Office computer" onChange={(e) => setOfficeName(e.target.value)} /></Label>
       )}
       <Label>
         Pairing link
@@ -176,7 +176,7 @@ function PairForm({ machine, onPaired }: { machine?: Machine; onPaired: (id: str
       </Label>
       {!target && (
         <p className="-mt-1.5 text-[11px] text-muted-foreground">
-          Run <code className="font-mono">mobd link</code> on the office Mac and paste the link it prints. It uses the remote address
+          Run <code className="font-mono">mobd link</code> on the office computer and paste the link it prints. It uses the remote address
           set up with <code className="font-mono">mobd remote</code>, else the office network; <code className="font-mono">--lan</code> or{" "}
           <code className="font-mono">--url ADDRESS</code> picks one. Mob relay — coming soon.
         </p>
@@ -204,7 +204,7 @@ function PairForm({ machine, onPaired }: { machine?: Machine; onPaired: (id: str
         Name of this device
         <Input value={deviceName} maxLength={128} onChange={(e) => setDeviceName(e.target.value)} />
       </Label>
-      <p className="-mt-1.5 text-[11px] text-muted-foreground">Shown in the office Mac's list of paired devices.</p>
+      <p className="-mt-1.5 text-[11px] text-muted-foreground">Shown in the office computer's list of paired devices.</p>
       <div className="flex items-center gap-2">
         <Button disabled={!ready} onClick={() => void submit()}>{busy && <Spinner />} {newAddress ? "Add address" : saved ? "Pair again" : "Pair"}</Button>
         {target && nameError && <span className="text-xs text-danger">{nameError}</span>}
@@ -277,13 +277,13 @@ function MachineForm({ machine }: { machine: Machine }) {
       }}
     >
       <h3 className="text-[13px] font-semibold">{machine.name} · Connection</h3>
-      <Label>Display name<Input value={form.name} placeholder="Office Mac" onChange={(e) => setForm({ ...form, name: e.target.value })} required /></Label>
+      <Label>Display name<Input value={form.name} placeholder="Office computer" onChange={(e) => setForm({ ...form, name: e.target.value })} required /></Label>
       <div className="grid grid-cols-1 gap-2 rounded-lg border bg-panel p-3">
         <span className="flex items-center gap-1.5 text-xs font-medium">
           Addresses
           <InfoTip label="About addresses">
             Each address is paired on its own, so the device credential never goes to an address it was not paired on. To add one, run
-            mobd link (or mobd link --lan) on the office Mac and paste its link.
+            mobd link (or mobd link --lan) on the office computer and paste its link.
           </InfoTip>
         </span>
         {machine.addresses.map((a) => {
@@ -327,7 +327,7 @@ function MachineForm({ machine }: { machine: Machine }) {
         })}
         {needsPairing(machine) && (
           <p className="text-[11.5px] text-muted-foreground">
-            This device has no valid credential for the address in use. Run <code className="font-mono">mobd link</code> on the office Mac and paste the new link.
+            This device has no valid credential for the address in use. Run <code className="font-mono">mobd link</code> on the office computer and paste the new link.
           </p>
         )}
         {needsPairing(machine) || repair ? (

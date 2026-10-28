@@ -158,7 +158,7 @@ function ModeSwitch({ control, canControl, onChange }: { control: boolean; canCo
         className={cn(item, !control ? "bg-white/90 text-black" : "text-white/70 hover:text-white")}>
         <Eye className="size-3.5" /> View
       </button>
-      <Tooltip content={canControl ? "Send your mouse and keyboard to the office Mac" : "Control is not available on this live view yet"}>
+      <Tooltip content={canControl ? "Send your mouse and keyboard to the office computer" : "Control is not available on this live view yet"}>
         <span>
           <button type="button" role="radio" aria-checked={control} disabled={!canControl} onClick={() => onChange(true)}
             className={cn(item, control ? "bg-warning text-black" : "text-white/70 hover:text-white")}>
@@ -405,7 +405,7 @@ export function PreviewPanel({ machine, health, queue }: { machine: Machine; hea
             )}
             <div data-tauri-drag-region className="h-full flex-1" />
             <span data-tauri-drag-region className="mr-1 flex items-center gap-1 text-[11px] text-white/45">
-              {control ? <>Keys go to the Mac · switch to View, then <Kbd>Esc</Kbd></> : <><Kbd>Esc</Kbd> to collapse</>}
+              {control ? <>Keys go to the office computer · switch to View, then <Kbd>Esc</Kbd></> : <><Kbd>Esc</Kbd> to collapse</>}
             </span>
             <QualityMenu machine={machine} dark />
             <Tooltip content={connected ? "Disconnect live view" : "Connect live view"}>
@@ -456,7 +456,7 @@ export function PreviewPanel({ machine, health, queue }: { machine: Machine; hea
         <div
           ref={stage}
           onDoubleClick={(e) => {
-            // While controlling, double-clicks belong to the office Mac.
+            // While controlling, double-clicks belong to the office computer.
             if (control || (e.target as HTMLElement).closest("button")) return;
             if (connected || canSnapshot) set({ fullscreen: !fullscreen });
           }}

@@ -307,10 +307,10 @@ function MachineGroup({ machine, active }: { machine: Machine; active: boolean }
           </DialogTitle>
           <DialogDescription className="mt-1.5">
             {confirm?.action === "delete" && (
-              <>"{confirm.session.title}" and its screenshots are removed from the office Mac. {desktops && "Its desktop closes; open windows are lost. "}This cannot be undone.</>
+              <>"{confirm.session.title}" and its screenshots are removed from the office computer. {desktops && "Its desktop closes; open windows are lost. "}This cannot be undone.</>
             )}
             {confirm?.action === "archive" && (
-              <>"{confirm.session.title}" moves to Archived. {desktops && "Its desktop closes; open windows are lost. "}Files and screenshots stay on the office Mac.</>
+              <>"{confirm.session.title}" moves to Archived. {desktops && "Its desktop closes; open windows are lost. "}Files and screenshots stay on the office computer.</>
             )}
             {confirm?.action === "closeDesktop" && (
               <>The running turn will be stopped and open windows closed. Files and browser logins are kept.</>

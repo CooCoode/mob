@@ -68,7 +68,7 @@ test("pair maps statuses to readable errors", async (t) => {
     await assert.rejects(pair(link, "Mac"), message, String(status));
     t.mock.restoreAll();
   }
-  // No invitation open on the office Mac: the link is spent, mobd is not outdated.
+  // No invitation open on the office computer: the link is spent, mobd is not outdated.
   mockFetch(t, 404, { error: "pairing is off", code: "pairing_closed" });
   await assert.rejects(pair(link, "Mac"), /expired or already used.*mobd link/);
 });

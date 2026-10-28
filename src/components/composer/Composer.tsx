@@ -300,7 +300,7 @@ export function Composer({ machineId, machineName, health }: { machineId: string
         </div>
       </div>
       <p className="mt-1.5 text-center text-[11px] text-muted-foreground/70">
-        ↵ send · ⇧↵ new line · the agent controls the office Mac
+        ↵ send · ⇧↵ new line · the agent controls the office computer
       </p>
     </div>
   );

@@ -46,12 +46,12 @@ function HealthChip({ machine, health, error, queue, refetch }: {
         {unpaired && (
           <div className="grid gap-2">
             <p className="text-xs text-muted-foreground">
-              This device needs to be paired again. Run <code className="font-mono">mobd link</code> on the office Mac and paste the new link.
+              This device needs to be paired again. Run <code className="font-mono">mobd link</code> on the office computer and paste the new link.
             </p>
             <Button size="sm" className="w-fit" onClick={() => openSettings("machines", machine.id)}>Pair again</Button>
           </div>
         )}
-        {error && !unpaired && <p className="text-xs text-danger">mobd is unreachable. Check the URL, network/VPN and MOBD_CORS_ORIGINS on the office Mac.</p>}
+        {error && !unpaired && <p className="text-xs text-danger">mobd is unreachable. Check the URL, network/VPN and MOBD_CORS_ORIGINS on the office computer.</p>}
         {health && !health.checks && <p className="text-xs text-muted-foreground">This mobd does not report readiness checks. Update it to API v3.</p>}
         <ChecksList checks={health?.checks} />
       </PopoverContent>
