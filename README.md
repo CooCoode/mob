@@ -1,6 +1,8 @@
-# mob desktop
+# Mob Desktop
 
-<img src="public/logo.svg" alt="mob Screen Buddy" width="112" />
+<img src="public/logo.svg" alt="Mob" width="112" />
+
+**Mob** is mob programming with your AI agents: they work on your office computer (via [mobd](https://github.com/xrdavies/mobd)), you steer from here. The name comes from [mob programming](https://en.wikipedia.org/wiki/Mob_programming), where a team works on one computer together: one at the keyboard, the others steering. In Mob the team is you and your agents.
 
 This repository contains only the desktop app: macOS (Apple Silicon), Windows 10/11 and Linux (x64). The office daemon is developed
 and released independently in [xrdavies/mobd](https://github.com/xrdavies/mobd).
