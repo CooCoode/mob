@@ -28,7 +28,7 @@ macOS、Windows、Linux 测试包（Actions 构建产物，保留 14 天），�
 ## 1. 准备 Cloudflare R2
 
 1. 创建专用发布桶，例如 `mob-releases`。桶内只存放允许公开下载的文件。
-2. 在桶的 **Settings → Custom Domains** 绑定下载域名 `dl.mymob.dev`（与 mobd 共用；旧域名 `mob-releases.0xd.app` 保持绑定，已安装的 0.2.0 及更早版本仍从它检查更新），
+2. 在桶的 **Settings → Custom Domains** 绑定下载域名 `dl.mymob.dev`（与 mobd 共用），
    确认状态为 Active。
 3. 创建限定到该桶的 **Object Read & Write** R2 API 凭据，保存 Access Key ID
    和 Secret Access Key。上传使用 S3 API；最终用户不需要任何令牌。
