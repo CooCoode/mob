@@ -1,7 +1,7 @@
 # Desktop app tasks. Run `make` to list them.
 NPM ?= npm
 .DEFAULT_GOAL := help
-.PHONY: help install dev desktop test build bundle check release release-test clean
+.PHONY: help install dev desktop test build bundle check version release release-patch release-minor release-major release-test clean
 
 help: ## List targets
 	@awk 'BEGIN {FS = ":.*## "} /^[a-zA-Z_-]+:.*## / {printf "  %-14s %s\n", $$1, $$2}' $(MAKEFILE_LIST)
@@ -25,8 +25,20 @@ build: ## Build the production frontend
 bundle: ## Build the macOS Apple Silicon app and DMG
 	$(NPM) run tauri build -- --target aarch64-apple-darwin
 
+version: ## Show the version, the last release tag and the next versions
+	node .github/release/version.mjs
+
+release-patch: ## Release the next patch version: commit, tag and push
+	node .github/release/tag.mjs patch
+
+release-minor: ## Release the next minor version: commit, tag and push
+	node .github/release/tag.mjs minor
+
+release-major: ## Release the next major version: commit, tag and push
+	node .github/release/tag.mjs major
+
 release: export RELEASE_TAG = $(VERSION)
-release: ## Create and push a release tag (VERSION=vX.Y.Z)
+release: ## Release an explicit version (VERSION=vX.Y.Z)
 	node .github/release/tag.mjs "$$RELEASE_TAG"
 
 release-test: ## Test release tagging, R2 publishing and updater manifests

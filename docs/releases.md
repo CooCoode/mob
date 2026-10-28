@@ -111,20 +111,26 @@ Apple 凭据缺失或签名、公证失败时不会发布未签名替代品。
 git switch main
 git pull --ff-only
 # 如果有本地提交，先执行 git push origin main
-make release VERSION=v0.1.0
+make version          # 当前版本（package.json 等）、上一个发布标签和之后的提交
+make release-patch    # 0.3.1 → 0.3.2；新功能用 release-minor，不兼容的改动用 release-major
 ```
 
-将示例版本替换成实际版本。脚本 `.github/release/tag.mjs` 会：
+版本号以版本文件为准：`make release-*` 在它的基础上递增，标签只是它的镜像。
+需要跳号或修正版本时，用 `make release VERSION=vX.Y.Z` 指定版本（必须高于已有标签）。脚本 `.github/release/tag.mjs` 会：
 
 1. 校验 `vMAJOR.MINOR.PATCH` 格式，不接受预发布后缀或带前导零的版本。
 2. 要求当前分支为 `main`，工作区和暂存区干净（包括未跟踪文件）。
 3. 在线读取 `origin/main` 和版本标签，确认当前提交已经推送、没有落后远端。
-4. 拒绝本地或远端已有的标签，以及低于远端已有稳定标签的版本。
-5. 把版本写入 `package.json`、`package-lock.json`、`src-tauri/tauri.conf.json`、`src-tauri/Cargo.toml`、`src-tauri/Cargo.lock`，提交 `chore(release): vX.Y.Z`（文件已是该版本时不提交）。
-6. 在该提交创建附注标签，用 `git push --atomic` 同时推送 `main` 和标签，触发 **Release mob**。
+4. 拒绝本地或远端已有的标签、低于远端已有稳定标签的版本，以及已经发布过的提交。
+   `make release-*` 还要求版本文件一致，且不落后于远端最新标签（否则用 `VERSION=` 指定）。
+5. 显示「当前 → 新版本」和上一个标签之后的提交，询问 `[y/N]`；回答 `y` 才继续，其他回答不做任何修改。
+6. 把版本写入 `package.json`、`package-lock.json`、`src-tauri/tauri.conf.json`、`src-tauri/Cargo.toml`、`src-tauri/Cargo.lock`，提交 `chore(release): vX.Y.Z`（文件已是该版本时不提交）。
+7. 在该提交创建附注标签，用 `git push --atomic` 同时推送 `main` 和标签，触发 **Release mob**。
    推送被拒时两者都不会到达 GitHub，本地提交和标签保留，按提示重试。
 
-也可以直接运行 `node .github/release/tag.mjs v0.1.0`。除版本提交外，脚本不合并或推送其他提交；
+CI 检查 `main` 上的版本文件一致；**Release mob** 在构建前确认标签提交的版本文件与标签一致，不一致时直接失败。
+
+也可以直接运行 `node .github/release/tag.mjs patch` 或 `… v0.1.0`。除版本提交外，脚本不合并或推送其他提交；
 安装包版本仍由 CI 根据标签注入并校验。测试、打包和签名在
 Actions 中执行。本地可先运行 `make check`；只测试发布工具使用 `make release-test`。
 
@@ -275,7 +281,7 @@ App 启动时检查更新，Settings → About 可以手动重试。用户确认
 - [ ] 缓存规则区分版本文件和动态入口。
 - [ ] `release` 环境的 10 个必需 Secrets、4 项公开配置完整（公钥和下载域名可存为同名 Secret）；可选 `SITE_DISPATCH_TOKEN`。
 - [ ] `RELEASE_WINDOWS` / `RELEASE_LINUX` 符合本次计划（目前都不设置）。
-- [ ] `make release VERSION=vX.Y.Z` 成功：`main` 上有 `chore(release)` 提交，标签已推送。
+- [ ] `make release-patch`（或 `-minor`、`-major`、`VERSION=vX.Y.Z`）成功：`main` 上有 `chore(release)` 提交，标签已推送。
 - [ ] 生成并备份 Tauri 密钥，Apple 签名/公证检查通过。
 - [ ] 在其他 Apple Silicon Mac 上试装草稿中的 DMG，并与当前 mobd 配对使用。
 - [ ] Release 正文已改为面向用户的英文说明。
