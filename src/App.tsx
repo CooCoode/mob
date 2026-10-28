@@ -1,4 +1,5 @@
 import { UpdateNotice } from "@/components/UpdateNotice";
+import { FilesDialog } from "@/components/FilesDialog";
 import { useEffect, useState } from "react";
 import { Toaster } from "sonner";
 import { supports } from "@/api/client";
@@ -75,6 +76,7 @@ function NeedsPairing({ machine }: { machine: Machine }) {
 }
 
 export default function App() {
+  const [filesOpen, setFilesOpen] = useState(false);
   const machine = useActiveMachine();
   const { sidebarOpen, previewOpen, savedSessions, rememberSession, set, togglePreview } = useApp();
   const chatState = useChat();
@@ -156,6 +158,7 @@ export default function App() {
                 <h1 className="min-w-0 truncate text-[13px] font-medium">
                   {chatState.session?.title ?? (chatState.loading ? "Loading…" : "New chat")}
                 </h1>
+                <Button variant="ghost" size="sm" className="ml-auto" onClick={() => setFilesOpen(true)}>Files</Button>
               </div>
               <RouteBanner machine={machine} />
               <Timeline machineName={machine.name} />
@@ -169,6 +172,7 @@ export default function App() {
         </div>
       </div>
       <SettingsDialog />
+      {machine && <FilesDialog machine={machine} health={health.data} open={filesOpen} onOpenChange={setFilesOpen} />}
       <CommandPalette onConnect={connectLive} />
       <Toaster theme={dark ? "dark" : "light"} position="bottom-center" />
     </TooltipProvider>
