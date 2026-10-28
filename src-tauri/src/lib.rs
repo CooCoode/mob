@@ -12,6 +12,11 @@ pub fn run() {
             clipboard_read_text
         ])
         .plugin(tauri_plugin_process::init())
+        .plugin(
+            tauri_plugin_opener::Builder::new()
+                .open_js_links_on_click(false)
+                .build(),
+        )
         .setup(|app| {
             if app.config().plugins.0.contains_key("updater") {
                 app.handle()
