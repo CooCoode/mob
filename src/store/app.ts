@@ -5,7 +5,7 @@ import { currentAddress, pairMachine, withAddresses, type Machine } from "@/lib/
 import { deleteSecret, getSecret, loadSecrets, setSecret, tokenAccount } from "@/lib/secrets";
 import { uid } from "@/lib/utils";
 import { log } from "@/store/log";
-import { migrateApp, vncPasswordAccount } from "@/store/migrate";
+import { migrateApp } from "@/store/migrate";
 
 export type { Machine, MachineAddress } from "@/lib/machines";
 export { baseUrl, needsPairing } from "@/lib/machines";
@@ -39,8 +39,6 @@ interface Persisted {
   sidebarOpen: boolean;
   previewOpen: boolean;
   theme: Theme;
-  /** Migrated passwords not yet written to the keychain, keyed by account. */
-  legacySecrets: Record<string, string>;
 }
 
 interface Ephemeral {
@@ -99,13 +97,8 @@ function read<T>(key: string): T | null {
 // Seeds state from the v1 client's keys the first time v2+ runs. Those machines still need pairing.
 function initial(): Persisted {
   // No machine is made up: a fresh install starts empty and adds one from a mobd link.
-  let machines = read<(Machine & { vncPassword?: string; vncUsername?: string })[]>("mob.machines");
+  let machines = read<Machine[]>("mob.machines");
   if (!Array.isArray(machines)) machines = [];
-  // VNC is gone: the v1 Desktop sign-in fields are dropped, not moved to the keychain.
-  const extracted = {
-    machines: machines.map(({ vncPassword: _p, vncUsername: _u, ...m }) => withAddresses({ ...m, needsPairing: true })),
-    legacySecrets: {},
-  };
   let active: string | null = null;
   try {
     active = localStorage.getItem("mob.activeMachineId");
@@ -114,8 +107,7 @@ function initial(): Persisted {
   }
   const saved = read<Record<string, string | null>>("mob.activeSessionByMachine");
   return {
-    machines: extracted.machines,
-    legacySecrets: extracted.legacySecrets,
+    machines: machines.map((m) => withAddresses({ ...m, needsPairing: true })),
     activeMachineId: machines.some((m) => m.id === active) ? active : machines[0]?.id ?? null,
     savedSessions: saved && typeof saved === "object" && !Array.isArray(saved) ? saved : {},
     collapsed: {},
@@ -226,15 +218,11 @@ export const useApp = create<AppState>()(
     {
       name: "mob.app",
       version: 7,
-      migrate: (state, version) => {
-        if (version < 5) removedVncPasswords = true;
-        return migrateApp(state, version) as Persisted;
-      },
+      migrate: (state, version) => migrateApp(state, version) as Persisted,
       storage: createJSONStorage(() => localStorage),
       partialize: (s): Persisted => ({
         machines: s.machines, activeMachineId: s.activeMachineId, savedSessions: s.savedSessions,
         collapsed: s.collapsed, sidebarOpen: s.sidebarOpen, previewOpen: s.previewOpen, theme: s.theme,
-        legacySecrets: s.legacySecrets,
       }),
     },
   ),
@@ -244,32 +232,14 @@ export function useActiveMachine(): Machine | null {
   return useApp((s) => s.machines.find((m) => m.id === s.activeMachineId) ?? null);
 }
 
-/** Set by the v5 migration: the Desktop sign-in passwords in the keychain are deleted at load. */
-let removedVncPasswords = false;
-
 /**
- * Loads every machine's secrets into memory before the first request, writes migrated passwords
- * to the keychain, and marks machines without a credential as needing pairing.
+ * Loads every machine's secrets into memory before the first request, and marks machines without
+ * a credential as needing pairing.
  */
 export async function loadMachineSecrets(): Promise<void> {
   const { machines } = useApp.getState();
   const failed = await loadSecrets(machines.flatMap((m) => m.addresses.map((a) => tokenAccount(a.id))));
   for (const account of failed) log(`keychain read failed: ${account}`, "error");
-  if (removedVncPasswords) {
-    removedVncPasswords = false;
-    for (const m of machines) {
-      deleteSecret(vncPasswordAccount(m.id)).catch((err) => log(`keychain delete failed: ${String(err)}`, "error"));
-    }
-  }
-  for (const [account, value] of Object.entries(useApp.getState().legacySecrets ?? {})) {
-    try {
-      await setSecret(account, value);
-      const { [account]: _, ...rest } = useApp.getState().legacySecrets;
-      useApp.setState({ legacySecrets: rest });
-    } catch (err) {
-      log(`keychain write failed for ${account}: ${String(err)}`, "error");
-    }
-  }
   useApp.setState({
     machines: useApp.getState().machines.map((m) => ({
       ...m,
