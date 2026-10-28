@@ -50,114 +50,61 @@ after(async () => { await vite.close(); dom.window.close(); });
 
 test("issue 2: clicking the Apple link dispatches the full URL to the system browser", async () => {
   await render(`[Apple 真机运行说明](${apple})`);
-  const event = await click(document.querySelector("a"));
-  assert.equal(event.defaultPrevented, true);
+  assert.equal((await click(document.querySelector("a"))).defaultPrevented, true);
   assert.deepEqual(calls, [{ command: "plugin:opener|open_url", args: { url: apple, with: undefined } }]);
 });
 
-for (const href of [log, `tauri://localhost${log}`, `file://${log}`]) {
-  test(`issue 2: file link opens device-aware actions: ${href.split(":")[0]}`, async () => {
-    await render(`[构建日志](${href})`);
-    assert.equal((await click(document.querySelector("a"))).defaultPrevented, true);
-    const dialog = document.querySelector('[role="dialog"]');
-    assert.ok(dialog);
-    assert.match(dialog.textContent, /device running Mob/);
-    assert.match(dialog.textContent, /mob-ios-build-check.log/);
-    assert.deepEqual(calls, []);
-    await click(button("Open on this device"));
-    await click(button("Show in file manager"));
-    await click(button("Copy path"));
-    assert.deepEqual(calls, [
-      { command: "open_local_path", args: { path: log, reveal: false } },
-      { command: "open_local_path", args: { path: log, reveal: true } },
-    ]);
-    assert.deepEqual(clipboard, [log]);
-  });
-}
+test("HTTP links and URL queries retain their destination", async () => {
+  const url = "http://example.com:8080/log?name=a%20b&line=12#result";
+  await render(`[Page](${url})`);
+  await click(document.querySelector("a"));
+  assert.deepEqual(calls, [{ command: "plugin:opener|open_url", args: { url, with: undefined } }]);
+});
 
-test("browser failure is visible instead of an unhandled rejection", async () => {
-  await render(`[Apple](${apple})`, () => { throw Error("No default browser"); });
+test("browser failure is visible and a successful retry clears it", async () => {
+  let failed = true;
+  await render(`[Apple](${apple})`, () => { if (failed) throw Error("No default browser"); });
   await click(document.querySelector("a"));
   assert.match(document.querySelector('[role="alert"]').textContent, /No default browser/);
-});
-
-test("missing or inaccessible local file stays in the dialog with an error and copy action", async () => {
-  await render(`[Log](${log})`, () => { throw Error("File not found on this device"); });
+  failed = false;
   await click(document.querySelector("a"));
-  await click(button("Open on this device"));
-  assert.match(document.querySelector('[role="alert"]').textContent, /File not found/);
-  assert.match(document.querySelector('[role="dialog"]').textContent, /office machine/);
-  await click(button("Copy path"));
-  assert.deepEqual(clipboard, [log]);
+  assert.equal(document.querySelector('[role="alert"]'), null);
 });
 
-test("browser mode keeps normal web navigation and offers copying local paths", async () => {
-  await render(`[Apple](${apple}) [Log](${log})`, undefined, false);
-  const [web, file] = document.querySelectorAll("a");
-  assert.equal(web.getAttribute("href"), apple);
-  assert.equal(web.target, "_blank");
-  // Observe the event without letting jsdom perform unsupported window navigation.
+// Observe the component's decision without allowing jsdom to navigate.
+async function nativeNavigation(link) {
   let prevented;
   document.addEventListener("click", (e) => { prevented = e.defaultPrevented; e.preventDefault(); }, { once: true });
-  await click(web);
-  assert.equal(prevented, false);
-  await click(file);
-  assert.match(document.querySelector('[role="dialog"]').textContent, /desktop app/);
-  assert.equal(button("Open on this device"), undefined);
-  await click(button("Copy path"));
-  assert.deepEqual(clipboard, [log]);
+  await click(link);
+  return prevented;
+}
+
+test("browser mode retains normal web navigation", async () => {
+  await render(`[Apple](${apple})`, undefined, false);
+  const link = document.querySelector("a");
+  assert.equal(link.getAttribute("href"), apple);
+  assert.equal(link.target, "_blank");
+  assert.equal(await nativeNavigation(link), false);
   assert.deepEqual(calls, []);
 });
 
-test("untrusted protocols and relative paths show an explanation without native calls", async () => {
-  for (const href of ["javascript:alert(1)", "tauri://evil/Users/secret", "file://server/share/log", "docs/build.log"]) {
+test("file and other non-web links retain default Markdown behavior without native calls or dialogs", async () => {
+  const hrefs = [log, `tauri://localhost${log}`, `file://${log}`, "C:/Users/me/log.txt", "docs/build.log", "#section", "mailto:person@example.com", "javascript:alert(1)", "https://user:password@example.com/page", "https://[bad"];
+  for (const href of hrefs) {
     await render(`[Link](${href})`);
-    await click(document.querySelector("a"));
-    assert.ok(document.querySelector('[role="dialog"]'));
-    assert.equal(button("Open on this device"), undefined);
-    assert.deepEqual(calls, []);
+    assert.equal(await nativeNavigation(document.querySelector("a")), false, href);
+    assert.equal(document.querySelector('[role="dialog"]'), null);
+    assert.deepEqual(calls, [], href);
     await act(async () => root.unmount());
     root = undefined;
     clearMocks();
   }
 });
 
-test("anchors keep native fragment navigation; code blocks and copy still work", async () => {
-  await render('[Section](#section)\n\n```unknown\nsample\n```');
-  const link = document.querySelector("a");
-  let prevented;
-  document.addEventListener("click", (e) => { prevented = e.defaultPrevented; e.preventDefault(); }, { once: true });
-  await click(link);
-  assert.equal(prevented, false);
-  assert.notEqual(link.target, "_blank");
+test("default URL filtering is preserved and code copy still works", async () => {
+  await render('[Bad](javascript:alert(1))\n\n```unknown\nsample\n```');
+  assert.equal(document.querySelector("a").getAttribute("href"), "");
   await click(button("Copy"));
   assert.deepEqual(clipboard, ["sample"]);
-  assert.deepEqual(calls, []);
-});
-
-test("encoded file names and source locations reach native actions as a clean path", async () => {
-  await render("[Log](/tmp/%E4%B8%AD%E6%96%87%20%2520.log:12:4)");
-  await click(document.querySelector("a"));
-  assert.match(document.querySelector('[role="dialog"]').textContent, /中文 %20.log:12:4/);
-  await click(button("Open on this device"));
-  assert.deepEqual(calls, [{ command: "open_local_path", args: { path: "/tmp/中文 %20.log", reveal: false } }]);
-});
-
-test("copy failures and native permission errors remain visible", async () => {
-  await render(`[Log](${log})`, () => { throw Error("Permission denied on this device"); });
-  await click(document.querySelector("a"));
-  await click(button("Show in file manager"));
-  assert.match(document.querySelector('[role="alert"]').textContent, /Permission denied/);
-  navigator.clipboard.writeText = async () => { throw Error("Clipboard unavailable"); };
-  await click(button("Copy path"));
-  assert.match(document.querySelector('[role="alert"]').textContent, /Clipboard unavailable/);
-});
-
-test("custom link handling does not enable unsafe image sources", async () => {
-  await render("![Image](javascript:alert(1)) [Bad](javascript:alert(1))");
-  assert.equal(document.querySelector("img"), null);
-  assert.equal(document.querySelector("a").getAttribute("href"), "#mob-file-link");
-  await click(document.querySelector("a"));
-  assert.match(document.querySelector('[role="dialog"]').textContent, /not supported/);
   assert.deepEqual(calls, []);
 });

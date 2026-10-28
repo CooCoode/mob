@@ -1,4 +1,3 @@
-mod links;
 mod secrets;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -10,8 +9,7 @@ pub fn run() {
             secret_set,
             secret_delete,
             secret_storage_info,
-            clipboard_read_text,
-            links::open_local_path
+            clipboard_read_text
         ])
         .plugin(tauri_plugin_process::init())
         .plugin(
