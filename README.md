@@ -64,6 +64,8 @@ Checks: `npm test` (conversation lifecycle, timeline, pairing, SSE, live stream 
 
 ## Using the App
 
+- **Files**: upload local files and download from the machine’s shared directory, with pause/continue, persistent partial transfers and SHA-256 verification. Choose local files and save locations with the system picker. [Transfer details](docs/file-transfers.md).
+
 - **Sidebar:** conversations of the selected machine, live via mobd's `/events` (running spinner, queue position, failed dot). Right-click or `⋯` to rename (or double-click), pin, archive, delete. Archived conversations are in the collapsible group.
 - **Timeline:** your prompts, the agent's replies (markdown), and its steps — screenshots, clicks, typing, shell commands, plans — as expandable cards; three or more consecutive steps fold into a group. Each turn ends with duration, tokens and model; failed turns offer **Retry**. Queued turns show their place in the desktop queue.
 - **Questions from the agent:** when the agent needs a decision (`ask_user`) or wants approval before a risky action (`request_approval`), a card appears in the timeline with the options, a text box, or **Approve / Deny** with an optional note. The conversation shows a **?** badge in the sidebar, the window title shows the count, and a toast appears (Settings → Appearance can enable system notifications). The turn keeps the desktop while it waits; unanswered questions time out on the office computer (`MOBD_QUESTION_TIMEOUT`, default 30 min) and unanswered approvals count as denied.
