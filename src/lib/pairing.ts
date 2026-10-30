@@ -62,20 +62,20 @@ export async function pair(link: PairLink, name: string): Promise<Pairing> {
       cache: "no-store",
     });
   } catch (err) {
-    throw new Error(`Could not reach ${link.origin}. Check the network or VPN and that the office Mac is awake. (${err instanceof Error ? err.message : String(err)})`);
+    throw new Error(`Could not reach ${link.origin}. Check the network or VPN and that the office computer is awake. (${err instanceof Error ? err.message : String(err)})`);
   }
   const data = (await res.json().catch(() => ({}))) as Partial<Pairing> & { error?: string; code?: string };
   // mobd answers 404 pairing_closed while no invitation is open (used, expired or closed).
-  if (res.status === 401 || data.code === "pairing_closed") throw new Error("This pairing link is invalid, expired or already used. Run mobd link on the office Mac again.");
+  if (res.status === 401 || data.code === "pairing_closed") throw new Error("This pairing link is invalid, expired or already used. Run mobd link on the office computer again.");
   if (res.status === 400) throw new Error(`mobd rejected the pairing request: ${data.error || "invalid request"}.`);
-  if (res.status === 503) throw new Error("The office Mac could not save the pairing. Ask its administrator to check mobd's storage, then try again.");
-  if (res.status === 404 || res.status === 405) throw new Error("This mobd does not support pairing. Update mobd on the office Mac.");
+  if (res.status === 503) throw new Error("The office computer could not save the pairing. Ask its administrator to check mobd's storage, then try again.");
+  if (res.status === 404 || res.status === 405) throw new Error("This mobd does not support pairing. Update mobd on the office computer.");
   if (!res.ok) throw new Error(`Pairing failed: ${data.error || `HTTP ${res.status}`}`);
   if (typeof data.token !== "string" || !data.token || typeof data.clientId !== "string" || typeof data.serverId !== "string") {
     throw new Error("Invalid pairing response from mobd.");
   }
   if (data.serverId !== link.serverId) {
-    throw new Error("The office Mac answered with a different server ID than the link. Check the address and run mobd link again.");
+    throw new Error("The office computer answered with a different server ID than the link. Check the address and run mobd link again.");
   }
   return { serverId: data.serverId, clientId: data.clientId, token: data.token };
 }

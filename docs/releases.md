@@ -28,7 +28,7 @@ macOS、Windows、Linux 测试包（Actions 构建产物，保留 14 天），�
 ## 1. 准备 Cloudflare R2
 
 1. 创建专用发布桶，例如 `mob-releases`。桶内只存放允许公开下载的文件。
-2. 在桶的 **Settings → Custom Domains** 绑定下载域名 `mob-releases.0xd.app`（与 mobd 共用），
+2. 在桶的 **Settings → Custom Domains** 绑定下载域名 `dl.mymob.dev`（与 mobd 共用），
    确认状态为 Active。
 3. 创建限定到该桶的 **Object Read & Write** R2 API 凭据，保存 Access Key ID
    和 Secret Access Key。上传使用 S3 API；最终用户不需要任何令牌。
@@ -77,7 +77,7 @@ macOS、Windows、Linux 测试包（Actions 构建产物，保留 14 天），�
 | 名称 | 内容 |
 | --- | --- |
 | `TAURI_UPDATER_PUBLIC_KEY` | Tauri 更新公钥文件的完整内容 |
-| `DOWNLOAD_BASE_URL` | `https://mob-releases.0xd.app`；不能含路径、认证信息或查询参数 |
+| `DOWNLOAD_BASE_URL` | `https://dl.mymob.dev`；不能含路径、认证信息或查询参数 |
 | `R2_ACCOUNT_ID` | Cloudflare 的 32 位账户 ID |
 | `R2_BUCKET` | 发布桶名称，如 `mob-releases` |
 | `RELEASE_WINDOWS` / `RELEASE_LINUX` | 可选，**仓库级** Variable（Settings → Secrets and variables → Actions → Variables；任务级 `if` 读不到 environment 变量）。设为 `true` 时构建并发布该平台；目前都不设置，只发布 macOS |
@@ -111,20 +111,26 @@ Apple 凭据缺失或签名、公证失败时不会发布未签名替代品。
 git switch main
 git pull --ff-only
 # 如果有本地提交，先执行 git push origin main
-make release VERSION=v0.1.0
+make version          # 当前版本（package.json 等）、上一个发布标签和之后的提交
+make release-patch    # 0.3.1 → 0.3.2；新功能用 release-minor，不兼容的改动用 release-major
 ```
 
-将示例版本替换成实际版本。脚本 `.github/release/tag.mjs` 会：
+版本号以版本文件为准：`make release-*` 在它的基础上递增，标签只是它的镜像。
+需要跳号或修正版本时，用 `make release VERSION=vX.Y.Z` 指定版本（必须高于已有标签）。脚本 `.github/release/tag.mjs` 会：
 
 1. 校验 `vMAJOR.MINOR.PATCH` 格式，不接受预发布后缀或带前导零的版本。
 2. 要求当前分支为 `main`，工作区和暂存区干净（包括未跟踪文件）。
 3. 在线读取 `origin/main` 和版本标签，确认当前提交已经推送、没有落后远端。
-4. 拒绝本地或远端已有的标签，以及低于远端已有稳定标签的版本。
-5. 把版本写入 `package.json`、`package-lock.json`、`src-tauri/tauri.conf.json`、`src-tauri/Cargo.toml`、`src-tauri/Cargo.lock`，提交 `chore(release): vX.Y.Z`（文件已是该版本时不提交）。
-6. 在该提交创建附注标签，用 `git push --atomic` 同时推送 `main` 和标签，触发 **Release mob**。
+4. 拒绝本地或远端已有的标签、低于远端已有稳定标签的版本，以及已经发布过的提交。
+   `make release-*` 还要求版本文件一致，且不落后于远端最新标签（否则用 `VERSION=` 指定）。
+5. 显示「当前 → 新版本」和上一个标签之后的提交，询问 `[y/N]`；回答 `y` 才继续，其他回答不做任何修改。
+6. 把版本写入 `package.json`、`package-lock.json`、`src-tauri/tauri.conf.json`、`src-tauri/Cargo.toml`、`src-tauri/Cargo.lock`，提交 `chore(release): vX.Y.Z`（文件已是该版本时不提交）。
+7. 在该提交创建附注标签，用 `git push --atomic` 同时推送 `main` 和标签，触发 **Release mob**。
    推送被拒时两者都不会到达 GitHub，本地提交和标签保留，按提示重试。
 
-也可以直接运行 `node .github/release/tag.mjs v0.1.0`。除版本提交外，脚本不合并或推送其他提交；
+CI 检查 `main` 上的版本文件一致；**Release mob** 在构建前确认标签提交的版本文件与标签一致，不一致时直接失败。
+
+也可以直接运行 `node .github/release/tag.mjs patch` 或 `… v0.1.0`。除版本提交外，脚本不合并或推送其他提交；
 安装包版本仍由 CI 根据标签注入并校验。测试、打包和签名在
 Actions 中执行。本地可先运行 `make check`；只测试发布工具使用 `make release-test`。
 
@@ -213,7 +219,7 @@ mob/
   "plugins": {
     "updater": {
       "pubkey": "Tauri 更新公钥的完整内容",
-      "endpoints": ["https://mob-releases.0xd.app/mob/latest.json"]
+      "endpoints": ["https://dl.mymob.dev/mob/latest.json"]
     }
   }
 }
@@ -228,16 +234,16 @@ mob/
   "pub_date": "2026-10-14T00:00:00Z",
   "platforms": {
     "darwin-aarch64": {
-      "url": "https://mob-releases.0xd.app/mob/v0.1.0/mob_0.1.0_darwin_arm64.app.tar.gz",
+      "url": "https://dl.mymob.dev/mob/v0.1.0/mob_0.1.0_darwin_arm64.app.tar.gz",
       "signature": "生成的 .sig 文件内容，不是 URL",
       "sha256": "更新包的 SHA-256"
     }
   },
   "download": {
-    "url": "https://mob-releases.0xd.app/mob/v0.1.0/mob_0.1.0_darwin_arm64.dmg",
+    "url": "https://dl.mymob.dev/mob/v0.1.0/mob_0.1.0_darwin_arm64.dmg",
     "sha256": "DMG 的 SHA-256"
   },
-  "checksums_url": "https://mob-releases.0xd.app/mob/v0.1.0/SHA256SUMS"
+  "checksums_url": "https://dl.mymob.dev/mob/v0.1.0/SHA256SUMS"
 }
 ```
 
@@ -255,7 +261,7 @@ App 启动时检查更新，Settings → About 可以手动重试。用户确认
 ## 5. 官网部署
 
 `../mob-site` 是独立的静态网站项目（Astro + Tailwind，英文），包含首页、下载、快速开始、隐私政策和
-404 页，部署在 https://mob.0xd.app 。无域名时可本地预览；生产构建要求 `SITE_URL`。
+404 页，部署在 https://mymob.dev 。无域名时可本地预览；生产构建要求 `SITE_URL`。
 
 官网由 GitHub Pages 部署（`../mob-site/.github/workflows/pages.yml`）：推送 `main`、每小时
 一次，以及收到发布工作流的 `release-published` 事件时重新构建。仓库 Variables：
@@ -275,7 +281,7 @@ App 启动时检查更新，Settings → About 可以手动重试。用户确认
 - [ ] 缓存规则区分版本文件和动态入口。
 - [ ] `release` 环境的 10 个必需 Secrets、4 项公开配置完整（公钥和下载域名可存为同名 Secret）；可选 `SITE_DISPATCH_TOKEN`。
 - [ ] `RELEASE_WINDOWS` / `RELEASE_LINUX` 符合本次计划（目前都不设置）。
-- [ ] `make release VERSION=vX.Y.Z` 成功：`main` 上有 `chore(release)` 提交，标签已推送。
+- [ ] `make release-patch`（或 `-minor`、`-major`、`VERSION=vX.Y.Z`）成功：`main` 上有 `chore(release)` 提交，标签已推送。
 - [ ] 生成并备份 Tauri 密钥，Apple 签名/公证检查通过。
 - [ ] 在其他 Apple Silicon Mac 上试装草稿中的 DMG，并与当前 mobd 配对使用。
 - [ ] Release 正文已改为面向用户的英文说明。

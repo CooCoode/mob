@@ -798,6 +798,13 @@
   "source": "crate"
  },
  {
+  "name": "buffer-from",
+  "version": "1.1.2",
+  "license": "MIT",
+  "url": "LinusU/buffer-from",
+  "source": "npm"
+ },
+ {
   "name": "byteorder",
   "version": "1.5.0",
   "license": "Unlicense OR MIT",
@@ -914,6 +921,13 @@
   "version": "1.1.1",
   "license": "MIT",
   "url": "https://github.com/pacocoursey/cmdk#readme",
+  "source": "npm"
+ },
+ {
+  "name": "combine-errors",
+  "version": "3.0.3",
+  "license": "see package",
+  "url": "https://github.com/MatthewMueller/combine-errors",
   "source": "npm"
  },
  {
@@ -1034,6 +1048,13 @@
   "license": "MIT OR Apache-2.0",
   "url": "https://github.com/RustCrypto/block-modes",
   "source": "crate"
+ },
+ {
+  "name": "custom-error-instance",
+  "version": "2.1.1",
+  "license": "ISC",
+  "url": "https://github.com/Gi60s/custom-error-instance#readme",
+  "source": "npm"
  },
  {
   "name": "darling",
@@ -1435,6 +1456,13 @@
   "source": "crate"
  },
  {
+  "name": "graceful-fs",
+  "version": "4.2.11",
+  "license": "ISC",
+  "url": "https://github.com/isaacs/node-graceful-fs",
+  "source": "npm"
+ },
+ {
   "name": "hashbrown",
   "version": "0.12.3",
   "license": "MIT OR Apache-2.0",
@@ -1715,6 +1743,13 @@
   "source": "npm"
  },
  {
+  "name": "is-stream",
+  "version": "2.0.1",
+  "license": "MIT",
+  "url": "sindresorhus/is-stream",
+  "source": "npm"
+ },
+ {
   "name": "itoa",
   "version": "1.0.18",
   "license": "MIT OR Apache-2.0",
@@ -1734,6 +1769,13 @@
   "license": "Unlicense OR MIT",
   "url": "https://github.com/BurntSushi/jiff",
   "source": "crate"
+ },
+ {
+  "name": "js-base64",
+  "version": "3.9.5",
+  "license": "BSD-3-Clause",
+  "url": "https://github.com/dankogai/js-base64",
+  "source": "npm"
  },
  {
   "name": "json-patch",
@@ -1783,6 +1825,62 @@
   "license": "MIT OR Apache-2.0",
   "url": "https://github.com/Amanieu/parking_lot",
   "source": "crate"
+ },
+ {
+  "name": "lodash._baseiteratee",
+  "version": "4.7.0",
+  "license": "MIT",
+  "url": "https://lodash.com/",
+  "source": "npm"
+ },
+ {
+  "name": "lodash._basetostring",
+  "version": "4.12.0",
+  "license": "MIT",
+  "url": "https://lodash.com/",
+  "source": "npm"
+ },
+ {
+  "name": "lodash._baseuniq",
+  "version": "4.6.0",
+  "license": "MIT",
+  "url": "https://lodash.com/",
+  "source": "npm"
+ },
+ {
+  "name": "lodash._createset",
+  "version": "4.0.3",
+  "license": "MIT",
+  "url": "https://lodash.com/",
+  "source": "npm"
+ },
+ {
+  "name": "lodash._root",
+  "version": "3.0.1",
+  "license": "MIT",
+  "url": "https://lodash.com/",
+  "source": "npm"
+ },
+ {
+  "name": "lodash._stringtopath",
+  "version": "4.8.0",
+  "license": "MIT",
+  "url": "https://lodash.com/",
+  "source": "npm"
+ },
+ {
+  "name": "lodash.throttle",
+  "version": "4.1.1",
+  "license": "MIT",
+  "url": "https://lodash.com/",
+  "source": "npm"
+ },
+ {
+  "name": "lodash.uniqby",
+  "version": "4.5.0",
+  "license": "MIT",
+  "url": "https://lodash.com/",
+  "source": "npm"
  },
  {
   "name": "log",
@@ -2457,10 +2555,24 @@
   "source": "crate"
  },
  {
+  "name": "proper-lockfile",
+  "version": "4.1.2",
+  "license": "MIT",
+  "url": "https://github.com/moxystudio/node-proper-lockfile",
+  "source": "npm"
+ },
+ {
   "name": "property-information",
   "version": "7.2.0",
   "license": "MIT",
   "url": "wooorm/property-information",
+  "source": "npm"
+ },
+ {
+  "name": "querystringify",
+  "version": "2.2.0",
+  "license": "MIT",
+  "url": "https://github.com/unshiftio/querystringify",
   "source": "npm"
  },
  {
@@ -2639,10 +2751,31 @@
   "source": "npm"
  },
  {
+  "name": "requires-port",
+  "version": "1.0.0",
+  "license": "MIT",
+  "url": "https://github.com/unshiftio/requires-port",
+  "source": "npm"
+ },
+ {
   "name": "reqwest",
   "version": "0.13.5",
   "license": "MIT OR Apache-2.0",
   "url": "https://github.com/seanmonstar/reqwest",
+  "source": "crate"
+ },
+ {
+  "name": "retry",
+  "version": "0.12.0",
+  "license": "MIT",
+  "url": "https://github.com/tim-kos/node-retry",
+  "source": "npm"
+ },
+ {
+  "name": "rfd",
+  "version": "0.17.2",
+  "license": "MIT",
+  "url": "https://github.com/PolyMeilex/rfd",
   "source": "crate"
  },
  {
@@ -2877,6 +3010,13 @@
   "source": "npm"
  },
  {
+  "name": "signal-exit",
+  "version": "3.0.7",
+  "license": "ISC",
+  "url": "https://github.com/tapjs/signal-exit",
+  "source": "npm"
+ },
+ {
   "name": "simd-adler32",
   "version": "0.3.10",
   "license": "MIT",
@@ -3063,6 +3203,20 @@
   "version": "2.7.2",
   "license": "Apache-2.0 OR MIT",
   "url": "https://github.com/tauri-apps/tauri",
+  "source": "crate"
+ },
+ {
+  "name": "tauri-plugin-dialog",
+  "version": "2.8.4",
+  "license": "Apache-2.0 OR MIT",
+  "url": "https://github.com/tauri-apps/plugins-workspace",
+  "source": "crate"
+ },
+ {
+  "name": "tauri-plugin-fs",
+  "version": "2.7.1",
+  "license": "Apache-2.0 OR MIT",
+  "url": "https://github.com/tauri-apps/plugins-workspace",
   "source": "crate"
  },
  {
@@ -3304,6 +3458,13 @@
   "source": "npm"
  },
  {
+  "name": "tus-js-client",
+  "version": "4.3.1",
+  "license": "MIT",
+  "url": "https://github.com/tus/tus-js-client",
+  "source": "npm"
+ },
+ {
   "name": "typeid",
   "version": "1.0.3",
   "license": "MIT OR Apache-2.0",
@@ -3386,6 +3547,13 @@
   "license": "MIT OR Apache-2.0",
   "url": "https://github.com/servo/rust-url",
   "source": "crate"
+ },
+ {
+  "name": "url-parse",
+  "version": "1.5.10",
+  "license": "MIT",
+  "url": "https://github.com/unshiftio/url-parse",
+  "source": "npm"
  },
  {
   "name": "urlpattern",

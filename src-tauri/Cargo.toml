@@ -1,6 +1,6 @@
 [package]
 name = "mob"
-version = "0.2.0"
+version = "0.3.2"
 description = "MOB desktop client — task dispatch, agent timeline and live desktop"
 authors = ["Frozen <1884084+xrdavies@users.noreply.github.com>"]
 edition = "2021"
@@ -23,6 +23,7 @@ sha2 = "0.10"
 
 tauri-plugin-updater = "2"
 tauri-plugin-process = "2"
+tauri-plugin-dialog = "2"
 arboard = { version = "3", default-features = false }
 tauri-plugin-opener = "2"
 

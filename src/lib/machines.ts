@@ -1,4 +1,4 @@
-// Office Macs and the addresses they are reached over; pure so node tests can run them.
+// Office computers and the addresses they are reached over; pure so node tests can run them.
 
 /**
  * One way to reach a machine's mobd (its LAN name, a Tailscale or Cloudflare address), paired on

@@ -1,6 +1,8 @@
-# mob desktop
+# Mob Desktop
 
-<img src="public/logo.svg" alt="mob Screen Buddy" width="112" />
+<img src="public/logo.svg" alt="Mob" width="112" />
+
+**Mob** is mob programming with your AI agents: they work on your office computer (via [mobd](https://github.com/xrdavies/mobd)), you steer from here. The name comes from [mob programming](https://en.wikipedia.org/wiki/Mob_programming), where a team works on one computer together: one at the keyboard, the others steering. In Mob the team is you and your agents.
 
 This repository contains only the desktop app: macOS (Apple Silicon), Windows 10/11 and Linux (x64). The office daemon is developed
 and released independently in [xrdavies/mobd](https://github.com/xrdavies/mobd).
@@ -16,8 +18,8 @@ Logo: **Screen Buddy** — editable SVG sources, app icons and regeneration comm
 
 Distribution: signed DMGs and Tauri updates use the public R2 download domain,
 independently of the private source repository. See the [release setup](docs/releases.md).
-Once configured, run `make release VERSION=v0.4.0` from a clean `main` matching
-`origin/main`: it commits the version to `package.json`, Tauri and Cargo files, tags that commit and pushes both. CI builds a draft Release; test its DMG,
+Once configured, run `make release-patch` (or `release-minor`, `release-major`, or `make release VERSION=vX.Y.Z`)
+from a clean `main` matching `origin/main`: it bumps the version in `package.json`, Tauri and Cargo files, asks for confirmation, commits it, tags that commit and pushes both. `make version` shows the current version. CI builds a draft Release; test its DMG,
 then publish the stable Release on GitHub to distribute it through R2.
 
 ## Stack
@@ -64,16 +66,18 @@ Checks: `npm test` (conversation lifecycle, timeline, pairing, SSE, live stream 
 
 ## Using the App
 
+- **Files**: upload local files and download from the machine’s shared directory, with pause/continue, persistent partial transfers and SHA-256 verification. Choose local files and save locations with the system picker. [Transfer details](docs/file-transfers.md).
+
 - **Sidebar:** conversations of the selected machine, live via mobd's `/events` (running spinner, queue position, failed dot). Right-click or `⋯` to rename (or double-click), pin, archive, delete. Archived conversations are in the collapsible group.
 - **Timeline:** your prompts, the agent's replies (markdown), and its steps — screenshots, clicks, typing, shell commands, plans — as expandable cards; three or more consecutive steps fold into a group. Each turn ends with duration, tokens and model; failed turns offer **Retry**. Queued turns show their place in the desktop queue.
-- **Questions from the agent:** when the agent needs a decision (`ask_user`) or wants approval before a risky action (`request_approval`), a card appears in the timeline with the options, a text box, or **Approve / Deny** with an optional note. The conversation shows a **?** badge in the sidebar, the window title shows the count, and a toast appears (Settings → Appearance can enable system notifications). The turn keeps the desktop while it waits; unanswered questions time out on the office Mac (`MOBD_QUESTION_TIMEOUT`, default 30 min) and unanswered approvals count as denied.
-- **Agent:** a new chat can use any agent the office Mac has (Codex, Claude Code); pick it in the composer. A conversation keeps its agent; start a new chat to switch. Model and effort are remembered per agent, and Claude turns show their cost.
+- **Questions from the agent:** when the agent needs a decision (`ask_user`) or wants approval before a risky action (`request_approval`), a card appears in the timeline with the options, a text box, or **Approve / Deny** with an optional note. The conversation shows a **?** badge in the sidebar, the window title shows the count, and a toast appears (Settings → Appearance can enable system notifications). The turn keeps the desktop while it waits; unanswered questions time out on the office computer (`MOBD_QUESTION_TIMEOUT`, default 30 min) and unanswered approvals count as denied.
+- **Agent:** a new chat can use any agent the office computer has (Codex, Claude Code, Pi); pick it in the composer. A conversation keeps its agent; start a new chat to switch. Model and effort are remembered per agent, and Claude turns show their cost.
 - **While the agent works:** with Codex (app-server mode) you can type in the composer and press ↵ to add to what it is doing, e.g. "also check the spam folder"; your message appears in the timeline and the agent picks it up in the same turn. **Stop** interrupts the turn. Replies stream in as they are written.
-- **Composer:** ↵ send, ⇧↵ newline. Attach images (button, paste or drag-and-drop), pick model and reasoning effort (remembered per machine and agent; offered per runner, e.g. `MOBD_CODEX_MODELS` on the office Mac). The send button becomes **Stop** while the agent works.
+- **Composer:** ↵ send, ⇧↵ newline. Attach images (button, paste or drag-and-drop), pick model and reasoning effort (the models offered come from the machine's agent settings). The send button becomes **Stop** while the agent works.
 - **Live view (right):** the office desktop streamed by mobd (⏻), or, when not connected, a snapshot refreshed every 4 s. Clicks by the agent flash at their position. Double-click or ⤢ expands it to fill the window (the green button gives macOS full screen); the expanded toolbar has View/Control, quality (Auto/High/Low), signal bars with kB/s, and Collapse. Resizing the window refits the stream without reconnecting. Below: the desktop queue and the current turn's steps.
 - **Title bar:** machine status chip opens the readiness checks (agents, actuation, Accessibility, Screen Recording, display).
 - **Shortcuts** (Ctrl instead of ⌘ on Windows and Linux): ⌘K command palette · ⌘N new chat · ⌘B sidebar · ⌘⇧B live view · ⌘⇧C expand and take control · ⌘, settings · ⌘1–9 switch conversation.
-- **View / Control:** the panel only watches. To drive the office Mac yourself, expand the view and switch **View | Control**, or press ⌘⇧C; your mouse, keyboard and scroll then go to the Mac, and `Esc` goes to the Mac too — switch back to **View** to use `Esc` for collapsing. Collapsing always returns to View. ⌘W and ⌘Q stay with the app. From Windows and Linux, Ctrl acts as ⌘ on the Mac (Ctrl+C copies there) and the Windows/Super key sends Control.
+- **View / Control:** the panel only watches. To drive the office computer yourself, expand the view and switch **View | Control**, or press ⌘⇧C; your mouse, keyboard and scroll then go to the office computer, and `Esc` goes there too — switch back to **View** to use `Esc` for collapsing. Collapsing always returns to View. ⌘W and ⌘Q stay with the app. From Windows and Linux, Ctrl acts as ⌘ on the Mac (Ctrl+C copies there) and the Windows/Super key sends Control.
 - **Transport:** WebRTC on the LAN or a tailnet. Where UDP cannot pass (Tailscale Funnel, an HTTPS gateway), the app falls back to mobd's WebSocket after 5 s and remembers that per machine (1 s next time); the readout shows which one is in use.
 - **Auth:** every machine is paired (`mobd link`); the device credential is kept in the Keychain (macOS), Credential Manager (Windows) or the Secret Service keyring (Linux). If the system store is unavailable (e.g. headless Linux without Secret Service), mob falls back to an encrypted file under the app config directory — see [docs/credential-storage.md](docs/credential-storage.md).
 - **Linux paste:** WebKitGTK 2.54.0–2.54.1 can SIGSEGV on native Ctrl+V when the clipboard is empty or one-shot ([WebKit bug 324466](https://bugs.webkit.org/show_bug.cgi?id=324466)). Settings → Machines pairing uses an OS clipboard read (and a **Paste** button) instead of the webview paste path; see [docs/ui.md](docs/ui.md).
@@ -110,7 +114,7 @@ docs/           UI design, credential storage, live desktop, branding, releases,
 ```
 
 Run commands from this repository root: `make install`, `make dev`, `make desktop`,
-`make test`, `make build`, `make bundle`, `make check`, `make release VERSION=vX.Y.Z`.
+`make test`, `make build`, `make bundle`, `make check`, `make version`, `make release-patch` (`-minor`, `-major`).
 No Go toolchain or sibling checkout is required to build the desktop app; a running
 office daemon is required to dispatch tasks. mob and mobd are versioned and released
 independently; they agree through the API version and features in `/health`.

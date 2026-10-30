@@ -23,6 +23,8 @@ jobs:
           cache: npm
           cache-dependency-path: package-lock.json
       - run: npm ci
+      - name: Version files agree
+        run: node .github/release/version.mjs --check
       - name: Typecheck, test and build
         run: npm run typecheck && npm test && npx vite build
   # The Rust side on macOS, the platform that ships.

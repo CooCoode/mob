@@ -12,7 +12,7 @@ import { streamWsUrl, WsPlayer, wsDecoder } from "./wsVideo.ts";
 // `input` (reliable) and `pointer` (unreliable, latest wins) channels for control mode. Where UDP
 // cannot pass, the same session continues over the WebSocket fallback (wsVideo.ts).
 
-export const UPDATE_MOBD = "Update mobd on the office Mac to use the live desktop";
+export const UPDATE_MOBD = "Update mobd on the office computer to use the live desktop";
 
 export type Quality = "auto" | "high" | "low";
 
@@ -86,7 +86,7 @@ export function parseControl(data: unknown): ControlMessage | null {
     case "stats":
       return { t: "stats", kbps: num("kbps"), width: num("width"), height: num("height"), fps: num("fps"), loss: num("loss"), rttMs: num("rttMs") };
     case "ended":
-      return { t: "ended", message: str("message") || "The office Mac ended the live view" };
+      return { t: "ended", message: str("message") || "The office computer ended the live view" };
     case "error":
       return { t: "error", about: str("about"), message: str("message") };
     case "cursor":
@@ -204,7 +204,7 @@ export interface StreamState {
   transport: Transport | null;
   /** Where it is shown: a <video> for WebRTC and the WebSocket through MSE, a <canvas> for WebCodecs. */
   element: "video" | "canvas" | null;
-  /** Mouse and keyboard on the picture reach the office Mac only while true. */
+  /** Mouse and keyboard on the picture reach the office computer only while true. */
   control: boolean;
   /** mobd's encoder target. */
   kbps: number;
@@ -331,7 +331,7 @@ class StreamController {
       this.teardown();
       this.update({ ...IDLE, status: "error", detail });
     };
-    timer = setTimeout(() => fail("The live view did not start. Is the office Mac reachable from here?"), CONNECT_TIMEOUT);
+    timer = setTimeout(() => fail("The live view did not start. Is the office computer reachable from here?"), CONNECT_TIMEOUT);
     // mobd decides: it sends video only on the transport that connected first there, so the first
     // frame (not our side of ICE connecting) says which one carries the session; the other is closed.
     const choose = (t: Transport) => {
@@ -388,7 +388,7 @@ class StreamController {
           if (transport === "WebRTC") fail("The live view connection was lost");
           else if (player) this.dropWebRTC(); // the WebSocket is already trying
           else if (startWs) startWs(false); // no UDP path: don't wait out the head start
-          else fail("The office Mac could not be reached over WebRTC");
+          else fail("The office computer could not be reached over WebRTC");
           break;
         case "closed":
           if (transport === "WebRTC") {
@@ -465,7 +465,7 @@ class StreamController {
                 if (player === ws) player = null;
                 if (this.ws === ws) this.ws = null;
                 // Still racing: WebRTC may yet connect.
-                if (!this.pc) fail("The office Mac could not be reached over WebRTC or the WebSocket fallback");
+                if (!this.pc) fail("The office computer could not be reached over WebRTC or the WebSocket fallback");
               } else if (code === 1000) {
                 this.teardown();
                 this.update({ ...IDLE, detail: reason || "Disconnected" });
@@ -481,7 +481,7 @@ class StreamController {
       }
       if (!answer.answer) {
         if (startWs) startWs(false);
-        else throw new Error("mobd answered without WebRTC; update mobd on the office Mac");
+        else throw new Error("mobd answered without WebRTC; update mobd on the office computer");
         return;
       }
       await pc?.setRemoteDescription({ type: "answer", sdp: answer.answer });
@@ -568,7 +568,7 @@ class StreamController {
       on("contextmenu", (e) => this.state.control && e.preventDefault()),
       on("keydown", (e) => {
         if (!this.state.control) return;
-        // Keys belong to the office Mac, including Esc and the app's own shortcuts.
+        // Keys belong to the office computer, including Esc and the app's own shortcuts.
         e.preventDefault();
         e.stopPropagation();
         if (e.isComposing || e.key === "Process") return;

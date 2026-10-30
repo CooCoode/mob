@@ -1,4 +1,5 @@
 mod secrets;
+mod transfers;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -9,7 +10,14 @@ pub fn run() {
             secret_set,
             secret_delete,
             secret_storage_info,
-            clipboard_read_text
+            clipboard_read_text,
+            transfers::transfer_import,
+            transfers::transfer_read,
+            transfers::transfer_size,
+            transfers::transfer_append,
+            transfers::transfer_digest,
+            transfers::transfer_discard,
+            transfers::transfer_export
         ])
         .plugin(tauri_plugin_process::init())
         .plugin(
@@ -17,6 +25,7 @@ pub fn run() {
                 .open_js_links_on_click(false)
                 .build(),
         )
+        .plugin(tauri_plugin_dialog::init())
         .setup(|app| {
             if app.config().plugins.0.contains_key("updater") {
                 app.handle()

@@ -1,7 +1,7 @@
 {
   "name": "mob",
   "private": true,
-  "version": "0.2.0",
+  "version": "0.3.2",
   "description": "MOB home Mac client — task dispatch, agent timeline and live desktop",
   "type": "module",
   "scripts": {
@@ -31,6 +31,7 @@
     "shiki": "^4.5.0",
     "sonner": "^2.0.8",
     "tailwind-merge": "^3.7.0",
+    "tus-js-client": "4.3.1",
     "zustand": "^5.0.15"
   },
   "devDependencies": {
